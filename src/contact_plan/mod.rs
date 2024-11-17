@@ -1,7 +1,6 @@
 use crate::{
     contact::{Contact, ContactInfo},
     contact_manager::ContactManager,
-    distance::Distance,
     node::{Node, NodeInfo},
     parsing::{Dispatcher, Parser},
     types::{NodeID, NodeName},
@@ -10,10 +9,7 @@ use crate::{
     node_manager::NodeManager,
     parsing::{parse_components, DispatchParser, Lexer, ParsingState},
 };
-use std::{
-    cmp::max,
-    collections::{HashMap, HashSet},
-};
+use std::{cmp::max, collections::HashSet};
 
 pub mod from_file;
 /// `ContactPlan` is responsible for managing and validating the parsing of contacts and nodes
@@ -62,11 +58,10 @@ impl ContactPlan {
     /// # Type Parameters
     ///
     /// * `CM` - A generic type that implements the `ContactManager` trait, used to manage the contact.
-    /// * `D` - A generic type that implements the `Distance<CM>` trait, used to compare RouteStages.
-    fn add_contact<CM: ContactManager, D: Distance<CM>>(
+    fn add_contact<CM: ContactManager>(
         &mut self,
-        contact: Contact<CM, D>,
-        contacts: &mut Vec<Contact<CM, D>>,
+        contact: Contact<CM>,
+        contacts: &mut Vec<Contact<CM>>,
     ) {
         let value = max(contact.get_tx_node(), contact.get_rx_node());
         self.max_node_id_in_contacts = max(self.max_node_id_in_contacts, value.into());
@@ -135,18 +130,16 @@ impl ContactPlan {
     ///   the type of the nodes being managed and parsed.
     /// * `CM` - A type that implements the `ContactManager`, Parser<CM>, and `DispatchParser<CM>` traits, representing
     ///   the type of the contacts being managed and parsed.
-    /// * `D` - A generic type that implements the `Distance<CM>` trait, used to compare RouteStages.
     pub fn parse<
         NM: NodeManager + DispatchParser<NM> + Parser<NM>,
         CM: ContactManager + DispatchParser<CM> + Parser<CM>,
-        D: Distance<CM>,
     >(
         &mut self,
         lexer: &mut dyn Lexer,
         node_marker_map: Option<&Dispatcher<fn(&mut dyn Lexer) -> ParsingState<NM>>>,
         contact_marker_map: Option<&Dispatcher<fn(&mut dyn Lexer) -> ParsingState<CM>>>,
-    ) -> Result<(Vec<Node<NM>>, Vec<Contact<CM, D>>), String> {
-        let mut contacts: Vec<Contact<CM, D>> = Vec::new();
+    ) -> Result<(Vec<Node<NM>>, Vec<Contact<CM>>), String> {
+        let mut contacts: Vec<Contact<CM>> = Vec::new();
         let mut nodes: Vec<Node<NM>> = Vec::new();
 
         loop {

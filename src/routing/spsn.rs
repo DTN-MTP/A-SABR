@@ -2,7 +2,6 @@ use crate::{
     bundle::Bundle,
     contact::Contact,
     contact_manager::ContactManager,
-    distance::Distance,
     multigraph::Multigraph,
     node::Node,
     node_manager::NodeManager,
@@ -25,16 +24,9 @@ use super::{schedule_multicast, schedule_unicast, RoutingOutput};
 ///   network's nodes and their interactions.
 /// - `CM`: A type that implements the `ContactManager` trait, handling contact points and
 ///   communication schedules within the network.
-/// - `D`: A type that implements the `Distance<CM>` trait, used to measure routing distances
-///   and compare paths.
-/// - `P`: A type that implements the `Pathfinding<NM, CM, D>` trait
-pub struct Spsn<
-    NM: NodeManager,
-    CM: ContactManager,
-    D: Distance<CM>,
-    P: Pathfinding<NM, CM, D>,
-    S: TreeStorage<NM, CM, D>,
-> {
+/// - `P`: A type that implements the `Pathfinding<NM, CM>` trait
+pub struct Spsn<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: TreeStorage<NM, CM>>
+{
     /// A reference-counted storage for routing data, allowing the retrieval and storage of
     /// pathfinding output.
     route_storage: Rc<RefCell<S>>,
@@ -50,17 +42,10 @@ pub struct Spsn<
     _phantom_nm: PhantomData<NM>,
     #[doc(hidden)]
     _phantom_cm: PhantomData<CM>,
-    #[doc(hidden)]
-    _phantom_d: PhantomData<D>,
 }
 
-impl<
-        S: TreeStorage<NM, CM, D>,
-        NM: NodeManager,
-        CM: ContactManager,
-        D: Distance<CM>,
-        P: Pathfinding<NM, CM, D>,
-    > Spsn<NM, CM, D, P, S>
+impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>>
+    Spsn<NM, CM, P, S>
 {
     /// Creates a new `SPSN` instance with the specified parameters.
     ///
@@ -76,7 +61,7 @@ impl<
     /// * `Self` - A new instance of the `SPSN` struct.
     pub fn new(
         nodes: Vec<Node<NM>>,
-        contacts: Vec<Contact<CM, D>>,
+        contacts: Vec<Contact<CM>>,
         route_storage: Rc<RefCell<S>>,
         with_priorities: bool,
     ) -> Self {
@@ -87,7 +72,6 @@ impl<
             // for compilation
             _phantom_nm: PhantomData,
             _phantom_cm: PhantomData,
-            _phantom_d: PhantomData,
         }
     }
 
@@ -105,7 +89,7 @@ impl<
     /// - `excluded_nodes`: A list of nodes to exclude from the routing paths.
     ///
     /// # Returns
-    /// An `Option<RoutingOutput<CM, D>>`, where `Some(RoutingOutput)` contains the routing details if
+    /// An `Option<RoutingOutput<CM>>`, where `Some(RoutingOutput)` contains the routing details if
     /// successful, and `None` if routing fails or encounters exclusions.
     pub fn route(
         &mut self,
@@ -113,7 +97,7 @@ impl<
         bundle: &Bundle,
         curr_time: Date,
         excluded_nodes: &Vec<NodeID>,
-    ) -> Option<RoutingOutput<CM, D>> {
+    ) -> Option<RoutingOutput<CM>> {
         if bundle.destinations.len() == 1 {
             return self.route_unicast(source, bundle, curr_time, excluded_nodes);
         }
@@ -135,7 +119,7 @@ impl<
     /// - `excluded_nodes`: A list of nodes to exclude from the unicast path.
     ///
     /// # Returns
-    /// An `Option<RoutingOutput<CM, D>>` containing the routing result, or `None` if routing fails or
+    /// An `Option<RoutingOutput<CM>>` containing the routing result, or `None` if routing fails or
     /// is aborted.
     fn route_unicast(
         &mut self,
@@ -143,7 +127,7 @@ impl<
         bundle: &Bundle,
         curr_time: Date,
         excluded_nodes: &Vec<NodeID>,
-    ) -> Option<RoutingOutput<CM, D>> {
+    ) -> Option<RoutingOutput<CM>> {
         if self.unicast_guard.must_abort(bundle) {
             return None;
         }
@@ -176,7 +160,7 @@ impl<
             .borrow_mut()
             .store(&bundle, tree_ref.clone());
 
-        if tree_ref.borrow().by_destination[dest as usize] == None {
+        if tree_ref.borrow().by_destination[dest as usize].is_none() {
             self.unicast_guard.add_limit(bundle, dest as NodeID);
             return None;
         }
@@ -204,7 +188,7 @@ impl<
     /// - `excluded_nodes`: A list of nodes to exclude from the multicast paths.
     ///
     /// # Returns
-    /// An `Option<RoutingOutput<CM, D>>` containing the multicast routing result, or `None` if
+    /// An `Option<RoutingOutput<CM>>` containing the multicast routing result, or `None` if
     /// routing fails.
     pub fn route_multicast(
         &mut self,
@@ -212,7 +196,7 @@ impl<
         bundle: &Bundle,
         curr_time: Date,
         excluded_nodes: &Vec<NodeID>,
-    ) -> Option<RoutingOutput<CM, D>> {
+    ) -> Option<RoutingOutput<CM>> {
         if let (Some(tree), Some(mut reachable_nodes)) = self.route_storage.borrow().select(
             bundle,
             curr_time,

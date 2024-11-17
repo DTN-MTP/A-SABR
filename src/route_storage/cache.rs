@@ -3,7 +3,6 @@ use std::{cell::RefCell, collections::VecDeque, marker::PhantomData, rc::Rc};
 use crate::{
     bundle::Bundle,
     contact_manager::ContactManager,
-    distance::Distance,
     node::Node,
     node_manager::NodeManager,
     pathfinding::PathFindingOutput,
@@ -18,7 +17,7 @@ use super::TreeStorage;
 /// The `Cache` struct provides a mechanism to store multiple `PathfindingOutput` instances
 /// while enforcing limits on the number of entries based on size and priority checks.
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct TreeCache<NM: NodeManager, CM: ContactManager, D: Distance<CM>> {
+pub struct TreeCache<NM: NodeManager, CM: ContactManager> {
     /// A boolean indicating whether to check the size of bundles in the cache.
     check_size: bool,
     /// A boolean indicating whether to check the priority of bundles in the cache.
@@ -26,14 +25,14 @@ pub struct TreeCache<NM: NodeManager, CM: ContactManager, D: Distance<CM>> {
     /// The maximum number of entries allowed in the cache.
     max_entries: usize,
     /// A deque of reference-counted mutable references to `PathfindingOutput` instances stored in the cache.
-    trees: VecDeque<Rc<RefCell<PathFindingOutput<CM, D>>>>,
+    trees: VecDeque<Rc<RefCell<PathFindingOutput<CM>>>>,
 
     // for compilation
     #[doc(hidden)]
     _phantom_nm: PhantomData<NM>,
 }
 
-impl<NM: NodeManager, CM: ContactManager, D: Distance<CM>> TreeCache<NM, CM, D> {
+impl<NM: NodeManager, CM: ContactManager> TreeCache<NM, CM> {
     /// Creates a new `Cache` instance with specified entry management settings.
     ///
     /// # Parameters
@@ -57,9 +56,7 @@ impl<NM: NodeManager, CM: ContactManager, D: Distance<CM>> TreeCache<NM, CM, D> 
     }
 }
 
-impl<NM: NodeManager, CM: ContactManager, D: Distance<CM>> TreeStorage<NM, CM, D>
-    for TreeCache<NM, CM, D>
-{
+impl<NM: NodeManager, CM: ContactManager> TreeStorage<NM, CM> for TreeCache<NM, CM> {
     /// Loads a pathfinding output from the cache that matches the provided bundle and excluded nodes.
     ///
     /// # Parameters
@@ -71,7 +68,7 @@ impl<NM: NodeManager, CM: ContactManager, D: Distance<CM>> TreeStorage<NM, CM, D
     ///
     /// # Returns
     ///
-    /// * `(Option<Rc<RefCell<PathFindingOutput<CM, D>>>>,Option<Vec<NodeID>>,)` - An optional reference-counted and mutable reference
+    /// * `(Option<Rc<RefCell<PathFindingOutput<CM>>>>,Option<Vec<NodeID>>,)` - An optional reference-counted and mutable reference
     ///   to the `PathfindingOutput` if a match is found; and the list of reached nodes if applicable (multicast).
     fn select(
         &self,
@@ -80,7 +77,7 @@ impl<NM: NodeManager, CM: ContactManager, D: Distance<CM>> TreeStorage<NM, CM, D
         node_list: &Vec<Rc<RefCell<Node<NM>>>>,
         excluded_nodes_sorted: &Vec<NodeID>,
     ) -> (
-        Option<Rc<RefCell<PathFindingOutput<CM, D>>>>,
+        Option<Rc<RefCell<PathFindingOutput<CM>>>>,
         Option<Vec<NodeID>>,
     ) {
         let multicast = bundle.destinations.len() > 1;
@@ -126,7 +123,7 @@ impl<NM: NodeManager, CM: ContactManager, D: Distance<CM>> TreeStorage<NM, CM, D
     /// # Parameters
     ///
     /// * `new_tree` - A reference-counted mutable reference to the `PathfindingOutput` to store.
-    fn store(&mut self, _bundle: &Bundle, new_tree: Rc<RefCell<PathFindingOutput<CM, D>>>) {
+    fn store(&mut self, _bundle: &Bundle, new_tree: Rc<RefCell<PathFindingOutput<CM>>>) {
         let mut replace_index = None;
         for (i, tree) in self.trees.iter().enumerate() {
             if tree.borrow().excluded_nodes_sorted == new_tree.borrow().excluded_nodes_sorted {

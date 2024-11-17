@@ -2,7 +2,6 @@ use crate::{
     bundle::Bundle,
     contact::Contact,
     contact_manager::ContactManager,
-    distance::Distance,
     multigraph::Multigraph,
     node::Node,
     node_manager::NodeManager,
@@ -16,13 +15,8 @@ use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
 use super::{dry_run_unicast_path_with_exclusions, schedule_unicast_path, RoutingOutput};
 
-pub struct Cgr<
-    NM: NodeManager,
-    CM: ContactManager,
-    D: Distance<CM>,
-    P: Pathfinding<NM, CM, D>,
-    S: RouteStorage<NM, CM, D>,
-> {
+pub struct Cgr<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: RouteStorage<NM, CM>>
+{
     route_storage: Rc<RefCell<S>>,
     pathfinding: P,
 
@@ -31,21 +25,14 @@ pub struct Cgr<
     _phantom_nm: PhantomData<NM>,
     #[doc(hidden)]
     _phantom_cm: PhantomData<CM>,
-    #[doc(hidden)]
-    _phantom_d: PhantomData<D>,
 }
 
-impl<
-        S: RouteStorage<NM, CM, D>,
-        NM: NodeManager,
-        CM: ContactManager,
-        D: Distance<CM>,
-        P: Pathfinding<NM, CM, D>,
-    > Cgr<NM, CM, D, P, S>
+impl<S: RouteStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>>
+    Cgr<NM, CM, P, S>
 {
     pub fn new(
         nodes: Vec<Node<NM>>,
-        contacts: Vec<Contact<CM, D>>,
+        contacts: Vec<Contact<CM>>,
         route_storage: Rc<RefCell<S>>,
     ) -> Self {
         Self {
@@ -54,7 +41,6 @@ impl<
             // for compilation
             _phantom_nm: PhantomData,
             _phantom_cm: PhantomData,
-            _phantom_d: PhantomData,
         }
     }
 
@@ -64,7 +50,7 @@ impl<
         bundle: &Bundle,
         curr_time: Date,
         excluded_nodes: &Vec<NodeID>,
-    ) -> Option<RoutingOutput<CM, D>> {
+    ) -> Option<RoutingOutput<CM>> {
         if bundle.destinations.len() == 1 {
             return self.route_unicast(source, bundle, curr_time, excluded_nodes);
         }
@@ -78,7 +64,7 @@ impl<
         bundle: &Bundle,
         curr_time: Date,
         excluded_nodes: &Vec<NodeID>,
-    ) -> Option<RoutingOutput<CM, D>> {
+    ) -> Option<RoutingOutput<CM>> {
         let dest = bundle.destinations[0];
         let mut bundle_no_constraints = bundle.clone();
         bundle_no_constraints.priority = 1;

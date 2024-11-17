@@ -1,6 +1,5 @@
 use crate::{
     contact::Contact, contact_manager::ContactManager, create_new_alternative_path_variant,
-    distance::Distance,
 };
 
 /// Compares the original contact end time of two `Contact`s and determines if the first
@@ -16,10 +15,7 @@ use crate::{
 /// A boolean value:
 /// * `true` if `a` ends earlier than `b`.
 /// * `false` otherwise.
-fn ends_earlier_than<CM: ContactManager, D: Distance<CM>>(
-    a: &Contact<CM, D>,
-    b: &Contact<CM, D>,
-) -> bool {
+fn ends_earlier_than<CM: ContactManager>(a: &Contact<CM>, b: &Contact<CM>) -> bool {
     return a.info.end < b.info.end;
 }
 

@@ -1,12 +1,10 @@
 use crate::bundle::Bundle;
 use crate::contact::Contact;
 use crate::contact_manager::ContactManager;
-use crate::distance::Distance;
 use crate::node::Node;
 use crate::node_manager::NodeManager;
 use crate::types::{Date, Duration, HopCount, NodeID};
 use std::cell::RefCell;
-use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -15,14 +13,14 @@ use std::rc::Rc;
 /// This struct encapsulates the `Contact` and parent `RouteStage` information necessary to move from
 /// one stage to the next.
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct ViaHop<CM: ContactManager, D: Distance<CM>> {
+pub struct ViaHop<CM: ContactManager> {
     /// A reference to the contact for this hop, representing the intermediate node.
-    pub contact: Rc<RefCell<Contact<CM, D>>>,
+    pub contact: Rc<RefCell<Contact<CM>>>,
     /// A reference to the parent route stage for this hop.
-    pub parent_route: Rc<RefCell<RouteStage<CM, D>>>,
+    pub parent_route: Rc<RefCell<RouteStage<CM>>>,
 }
 
-impl<CM: ContactManager, D: Distance<CM>> Clone for ViaHop<CM, D> {
+impl<CM: ContactManager> Clone for ViaHop<CM> {
     fn clone(&self) -> Self {
         ViaHop {
             contact: Rc::clone(&self.contact),
@@ -36,10 +34,8 @@ impl<CM: ContactManager, D: Distance<CM>> Clone for ViaHop<CM, D> {
 ///  # Type Parameters
 /// - `CM`: A type implementing the `ContactManager` trait, responsible for managing the
 ///   contact's operations.
-/// - `D`: A type implementing the `Distance<CM>` trait, which measures the distance relevant
-///   to the contact for pathfinding or routing.
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct RouteStage<CM: ContactManager, D: Distance<CM>> {
+pub struct RouteStage<CM: ContactManager> {
     /// The ID of the destination node for this route stage.
     pub to_node: NodeID,
     /// The time at which this route stage is considered to be valid or relevant.
@@ -47,7 +43,7 @@ pub struct RouteStage<CM: ContactManager, D: Distance<CM>> {
     /// A flag that indicates if this stage of the route is disabled.
     pub is_disabled: bool,
     /// An optional `ViaHop` that stores information about the intermediate hops that lead to this stage.
-    pub via: Option<ViaHop<CM, D>>,
+    pub via: Option<ViaHop<CM>>,
     /// The number of hops taken to reach this stage from the source.
     pub hop_count: HopCount,
     /// The cumulative delay incurred on the path to this stage, often used for routing optimizations.
@@ -57,29 +53,10 @@ pub struct RouteStage<CM: ContactManager, D: Distance<CM>> {
     /// A flag indicating whether the route has been fully initialized and is ready for routing.
     pub route_initialized: bool,
     /// A hashmap that maps destination node IDs to their respective next route stages.
-    pub next_for_destination: HashMap<NodeID, Rc<RefCell<RouteStage<CM, D>>>>,
+    pub next_for_destination: HashMap<NodeID, Rc<RefCell<RouteStage<CM>>>>,
 }
 
-impl<CM: ContactManager, D: Distance<CM>> Ord for RouteStage<CM, D> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        D::cmp(self, other)
-    }
-}
-
-impl<CM: ContactManager, D: Distance<CM>> PartialOrd for RouteStage<CM, D> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(D::cmp(self, other))
-    }
-}
-
-impl<CM: ContactManager, D: Distance<CM>> PartialEq for RouteStage<CM, D> {
-    fn eq(&self, other: &Self) -> bool {
-        D::eq(self, other)
-    }
-}
-impl<CM: ContactManager, D: Distance<CM>> Eq for RouteStage<CM, D> {}
-
-impl<CM: ContactManager, D: Distance<CM>> RouteStage<CM, D> {
+impl<CM: ContactManager> RouteStage<CM> {
     /// Creates a new `RouteStage` with the specified parameters.
     ///
     /// # Parameters
@@ -91,7 +68,7 @@ impl<CM: ContactManager, D: Distance<CM>> RouteStage<CM, D> {
     /// # Returns
     ///
     /// A new instance of `RouteStage`.
-    pub fn new(at_time: Date, to_node: NodeID, via_hop: Option<ViaHop<CM, D>>) -> Self {
+    pub fn new(at_time: Date, to_node: NodeID, via_hop: Option<ViaHop<CM>>) -> Self {
         Self {
             to_node,
             at_time,
@@ -133,7 +110,7 @@ impl<CM: ContactManager, D: Distance<CM>> RouteStage<CM, D> {
     /// # Parameters
     ///
     /// * `other` - The `RouteStage` whose values will be used to update this instance.
-    pub fn update_with(&mut self, other: &RouteStage<CM, D>) {
+    pub fn update_with(&mut self, other: &RouteStage<CM>) {
         self.to_node = other.to_node;
         self.at_time = other.at_time;
         self.is_disabled = other.is_disabled;
@@ -143,7 +120,7 @@ impl<CM: ContactManager, D: Distance<CM>> RouteStage<CM, D> {
         self.expiration = other.expiration;
     }
 
-    pub fn init_route(route: Rc<RefCell<RouteStage<CM, D>>>) {
+    pub fn init_route(route: Rc<RefCell<RouteStage<CM>>>) {
         let destination = route.borrow().to_node;
         {
             if route.borrow().route_initialized {
@@ -151,7 +128,7 @@ impl<CM: ContactManager, D: Distance<CM>> RouteStage<CM, D> {
             }
         }
 
-        let mut curr_opt: Option<Rc<RefCell<RouteStage<CM, D>>>> = Some(route.clone());
+        let mut curr_opt: Option<Rc<RefCell<RouteStage<CM>>>> = Some(route.clone());
 
         while let Some(current) = curr_opt.take() {
             let route_borrowed = current.borrow_mut();

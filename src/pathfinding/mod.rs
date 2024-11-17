@@ -1,6 +1,5 @@
 use crate::contact::Contact;
 use crate::contact_manager::{ContactManager, TxEndHopData};
-use crate::distance::Distance;
 use crate::multigraph::Multigraph;
 use crate::node::Node;
 use crate::node_manager::NodeManager;
@@ -8,7 +7,6 @@ use crate::route_stage::ViaHop;
 use crate::types::{Date, NodeID};
 use crate::{bundle::Bundle, route_stage::RouteStage};
 use std::cell::RefCell;
-use std::cmp::min;
 use std::rc::Rc;
 
 #[cfg(feature = "contact_work_area")]
@@ -19,6 +17,7 @@ pub mod first_depleted;
 pub mod first_ending;
 pub mod mpt;
 pub mod node_graph;
+mod route_stage_distance;
 
 /// Data structure that holds the results of a pathfinding operation.
 ///
@@ -28,20 +27,19 @@ pub mod node_graph;
 /// # Type Parameters
 ///
 /// * `CM` - A generic type that implements the `ContactManager` trait.
-/// * `D` - A generic type that implements the `Distance<CM>` trait.
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct PathFindingOutput<CM: ContactManager, D: Distance<CM>> {
+pub struct PathFindingOutput<CM: ContactManager> {
     /// The `Bundle` for which the pathfinding is being performed.
     pub bundle: Bundle,
     /// The `source` RouteStage from which the pathfinding is being performed.
-    pub source: Rc<RefCell<RouteStage<CM, D>>>,
+    pub source: Rc<RefCell<RouteStage<CM>>>,
     /// A list of `NodeID`s representing nodes that should be excluded from the pathfinding.
     pub excluded_nodes_sorted: Vec<NodeID>,
     /// A vector that contains a `RouteStage`s for a specific destination node ID as the index.
-    pub by_destination: Vec<Option<Rc<RefCell<RouteStage<CM, D>>>>>,
+    pub by_destination: Vec<Option<Rc<RefCell<RouteStage<CM>>>>>,
 }
 
-impl<CM: ContactManager, D: Distance<CM>> PathFindingOutput<CM, D> {
+impl<CM: ContactManager> PathFindingOutput<CM> {
     /// Creates a new `PathfindingOutput` instance, initializing the `by_destination` vector
     /// with empty vectors for each destination node and sorting the excluded nodes.
     ///
@@ -57,7 +55,7 @@ impl<CM: ContactManager, D: Distance<CM>> PathFindingOutput<CM, D> {
     /// A new `PathfindingOutput` instance.
     pub fn new(
         bundle: &Bundle,
-        source: Rc<RefCell<RouteStage<CM, D>>>,
+        source: Rc<RefCell<RouteStage<CM>>>,
         excluded_nodes_sorted: &Vec<NodeID>,
         node_count: usize,
     ) -> Self {
@@ -70,7 +68,7 @@ impl<CM: ContactManager, D: Distance<CM>> PathFindingOutput<CM, D> {
         }
     }
 
-    pub fn get_source_route(&self) -> Rc<RefCell<RouteStage<CM, D>>> {
+    pub fn get_source_route(&self) -> Rc<RefCell<RouteStage<CM>>> {
         return self.source.clone();
     }
 
@@ -95,8 +93,7 @@ impl<CM: ContactManager, D: Distance<CM>> PathFindingOutput<CM, D> {
 ///
 /// * `NM` - A generic type that implements the `NodeManager` trait.
 /// * `CM` - A generic type that implements the `ContactManager` trait.
-/// * `D` - A generic type that implements the `Distance<CM>` trait.
-pub trait Pathfinding<NM: NodeManager, CM: ContactManager, D: Distance<CM>> {
+pub trait Pathfinding<NM: NodeManager, CM: ContactManager> {
     /// Creates a new instance of the pathfinding algorithm with the provided nodes and contacts.
     ///
     /// # Parameters
@@ -107,7 +104,7 @@ pub trait Pathfinding<NM: NodeManager, CM: ContactManager, D: Distance<CM>> {
     /// # Returns
     ///
     /// A new instance of the struct implementing `Pathfinding`.
-    fn new(multigraph: Rc<RefCell<Multigraph<NM, CM, D>>>) -> Self;
+    fn new(multigraph: Rc<RefCell<Multigraph<NM, CM>>>) -> Self;
 
     /// Determines the next hop in the route for the given bundle, excluding specified nodes.
     ///
@@ -127,14 +124,14 @@ pub trait Pathfinding<NM: NodeManager, CM: ContactManager, D: Distance<CM>> {
         source: NodeID,
         bundle: &Bundle,
         excluded_nodes_sorted: &Vec<NodeID>,
-    ) -> PathFindingOutput<CM, D>;
+    ) -> PathFindingOutput<CM>;
 
     /// Get a shared pointer to the multigraph.
     ///
     /// # Returns
     ///
     /// * A shared pointer to the multigraph.
-    fn get_multigraph(&self) -> Rc<RefCell<Multigraph<NM, CM, D>>>;
+    fn get_multigraph(&self) -> Rc<RefCell<Multigraph<NM, CM>>>;
 }
 
 /// Attempts to make a hop (i.e., a transmission between nodes) for the given route stage and bundle,
@@ -152,14 +149,14 @@ pub trait Pathfinding<NM: NodeManager, CM: ContactManager, D: Distance<CM>> {
 /// # Returns
 ///
 /// An `Option` containing a `RouteStage` if a suitable hop is found, or `None` if no valid hop is available.
-fn try_make_hop<NM: NodeManager, CM: ContactManager, D: Distance<CM>>(
+fn try_make_hop<NM: NodeManager, CM: ContactManager>(
     first_contact_index: usize,
-    sndr_route: &Rc<RefCell<RouteStage<CM, D>>>,
+    sndr_route: &Rc<RefCell<RouteStage<CM>>>,
     bundle: &Bundle,
-    contacts: &Vec<Rc<RefCell<Contact<CM, D>>>>,
+    contacts: &Vec<Rc<RefCell<Contact<CM>>>>,
     tx_node: &Rc<RefCell<Node<NM>>>,
     rx_node: &Rc<RefCell<Node<NM>>>,
-) -> Option<RouteStage<CM, D>> {
+) -> Option<RouteStage<CM>> {
     let mut index = 0;
     let mut final_data = TxEndHopData {
         tx_start: 0.0,
@@ -223,7 +220,7 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager, D: Distance<CM>>(
 
     if final_data.arrival < Date::MAX {
         let seleted_contact = &contacts[index];
-        let mut route_proposition: RouteStage<CM, D> = RouteStage::new(
+        let mut route_proposition: RouteStage<CM> = RouteStage::new(
             final_data.arrival,
             seleted_contact.borrow().get_rx_node(),
             Some(ViaHop {
@@ -263,11 +260,11 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager, D: Distance<CM>>(
 /// An `Option` containing a reference-counted, mutable `Contact` that should be suppressed, if one
 /// is found; otherwise, `None`.
 #[cfg(feature = "contact_suppression")]
-pub fn get_next_to_suppress<CM: ContactManager, D: Distance<CM>>(
-    route: Rc<RefCell<RouteStage<CM, D>>>,
-    better_for_suppression_than_fn: fn(&Contact<CM, D>, &Contact<CM, D>) -> bool,
-) -> Option<Rc<RefCell<Contact<CM, D>>>> {
-    let mut to_suppress_opt: Option<Rc<RefCell<Contact<CM, D>>>> = None;
+pub fn get_next_to_suppress<CM: ContactManager>(
+    route: Rc<RefCell<RouteStage<CM>>>,
+    better_for_suppression_than_fn: fn(&Contact<CM>, &Contact<CM>) -> bool,
+) -> Option<Rc<RefCell<Contact<CM>>>> {
+    let mut to_suppress_opt: Option<Rc<RefCell<Contact<CM>>>> = None;
     let mut next_route_option = Some(route);
     while let Some(curr_route) = next_route_option.take() {
         {
@@ -327,17 +324,16 @@ macro_rules! create_new_alternative_path_variant {
         /// * `NM` - A type that implements the `NodeManager` trait.
         /// * `CM` - A type that implements the `ContactManager` trait.
         /// * `D` - A type that implements the `Distance<CM>` trait.
-        /// * `P` - A type that implements the `Pathfinding<NM, CM, D>` trait.
+        /// * `P` - A type that implements the `Pathfinding<NM, CM>` trait.
         pub struct $struct_name<
             NM: crate::node_manager::NodeManager,
             CM: ContactManager,
-            D: Distance<CM>,
-            P: crate::pathfinding::Pathfinding<NM, CM, D>,
+            P: crate::pathfinding::Pathfinding<NM, CM>,
         > {
             /// The underlying pathfinding algorithm used to find individual paths.
             pathfinding: P,
             /// An optional `Contact` that will be suppressed before the pathfinding stage.
-            next_to_suppress: Option<std::rc::Rc<std::cell::RefCell<Contact<CM, D>>>>,
+            next_to_suppress: Option<std::rc::Rc<std::cell::RefCell<Contact<CM>>>>,
 
             #[doc(hidden)]
             _phantom_nm: std::marker::PhantomData<NM>,
@@ -348,9 +344,8 @@ macro_rules! create_new_alternative_path_variant {
         impl<
                 NM: crate::node_manager::NodeManager,
                 CM: ContactManager,
-                D: Distance<CM>,
-                P: crate::pathfinding::Pathfinding<NM, CM, D>,
-            > crate::pathfinding::Pathfinding<NM, CM, D> for $struct_name<NM, CM, D, P>
+                P: crate::pathfinding::Pathfinding<NM, CM>,
+            > crate::pathfinding::Pathfinding<NM, CM> for $struct_name<NM, CM, P>
         {
             #[doc = concat!("Constructs a new `", stringify!($struct_name), "` instance with the provided nodes and contacts.")]
             ///
@@ -364,7 +359,7 @@ macro_rules! create_new_alternative_path_variant {
             ///
             #[doc = concat!("* `Self` - A new instance of `", stringify!($struct_name), "`.")]
             fn new(
-                multigraph: std::rc::Rc<std::cell::RefCell<crate::multigraph::Multigraph<NM, CM, D>>>
+                multigraph: std::rc::Rc<std::cell::RefCell<crate::multigraph::Multigraph<NM, CM>>>
             ) -> Self {
                 Self {
                     pathfinding: P::new(multigraph),
@@ -391,7 +386,7 @@ macro_rules! create_new_alternative_path_variant {
                 source: crate::types::NodeID,
                 bundle: &crate::bundle::Bundle,
                 excluded_nodes_sorted: &Vec<crate::types::NodeID>,
-            ) -> super::PathFindingOutput<CM, D> {
+            ) -> super::PathFindingOutput<CM> {
                 if let Some(contact) = &self.next_to_suppress {
                     contact.borrow_mut().suppressed = true;
                 }
@@ -413,7 +408,7 @@ macro_rules! create_new_alternative_path_variant {
             /// # Returns
             ///
             /// * A shared pointer to the multigraph.
-            fn get_multigraph(&self) -> std::rc::Rc<std::cell::RefCell<crate::multigraph::Multigraph<NM, CM, D>>> {
+            fn get_multigraph(&self) -> std::rc::Rc<std::cell::RefCell<crate::multigraph::Multigraph<NM, CM>>> {
                 return self.pathfinding.get_multigraph();
             }
         }

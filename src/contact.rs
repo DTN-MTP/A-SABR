@@ -1,5 +1,4 @@
 use crate::contact_manager::ContactManager;
-use crate::distance::Distance;
 use crate::parsing::{Lexer, Parser, ParsingState};
 #[cfg(feature = "contact_work_area")]
 use crate::route_stage::RouteStage;
@@ -61,23 +60,21 @@ impl ContactInfo {
 ///  # Type Parameters
 /// - `CM`: A type implementing the `ContactManager` trait, responsible for managing the
 ///   contact's operations.
-/// - `D`: A type implementing the `Distance<CM>` trait, which measures the distance relevant
-///   to the contact for pathfinding or routing.
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Contact<CM: ContactManager, D: Distance<CM>> {
+pub struct Contact<CM: ContactManager> {
     /// The basic information about the contact.
     pub info: ContactInfo,
     /// The manager handling the contact's operations.
     pub manager: CM,
     #[cfg(feature = "contact_work_area")]
     /// The work area for managing path construction stages (compilation option).
-    pub work_area: Rc<RefCell<RouteStage<CM, D>>>,
+    pub work_area: Rc<RefCell<RouteStage<CM>>>,
     #[cfg(feature = "contact_suppression")]
     /// Suppression option for path construction (compilation option).
     pub suppressed: bool,
 }
 
-impl<CM: ContactManager, D: Distance<CM>> Contact<CM, D> {
+impl<CM: ContactManager> Contact<CM> {
     /// Creates a new `Contact` instance if the contact information and manager are valid.
     ///
     /// # Parameters
@@ -123,7 +120,7 @@ impl<CM: ContactManager, D: Distance<CM>> Contact<CM, D> {
     }
 }
 
-impl<CM: ContactManager, D: Distance<CM>> Ord for Contact<CM, D> {
+impl<CM: ContactManager> Ord for Contact<CM> {
     fn cmp(&self, other: &Self) -> Ordering {
         if self.info.tx_node > other.info.tx_node {
             return Ordering::Greater;
@@ -147,20 +144,20 @@ impl<CM: ContactManager, D: Distance<CM>> Ord for Contact<CM, D> {
     }
 }
 
-impl<CM: ContactManager, D: Distance<CM>> PartialOrd for Contact<CM, D> {
+impl<CM: ContactManager> PartialOrd for Contact<CM> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<CM: ContactManager, D: Distance<CM>> PartialEq for Contact<CM, D> {
+impl<CM: ContactManager> PartialEq for Contact<CM> {
     fn eq(&self, other: &Self) -> bool {
         self.info.tx_node == other.info.tx_node
             && self.info.rx_node == other.info.rx_node
             && self.info.start < other.info.start
     }
 }
-impl<CM: ContactManager, D: Distance<CM>> Eq for Contact<CM, D> {}
+impl<CM: ContactManager> Eq for Contact<CM> {}
 
 impl Parser<ContactInfo> for ContactInfo {
     /// Parses a `ContactInfo` from a lexer.

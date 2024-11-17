@@ -6,7 +6,6 @@ pub mod table;
 use crate::{
     bundle::Bundle,
     contact_manager::ContactManager,
-    distance::Distance,
     node::Node,
     node_manager::NodeManager,
     pathfinding::PathFindingOutput,
@@ -19,7 +18,7 @@ use crate::{
 /// This trait defines methods for loading and storing pathfinding output
 /// related to routes in a routing system. Implementers of this trait must
 /// provide their own logic for handling route data.
-pub trait TreeStorage<NM: NodeManager, CM: ContactManager, D: Distance<CM>> {
+pub trait TreeStorage<NM: NodeManager, CM: ContactManager> {
     /// Loads the pathfinding output for a specific bundle, considering excluded nodes.
     ///
     /// # Parameters
@@ -40,7 +39,7 @@ pub trait TreeStorage<NM: NodeManager, CM: ContactManager, D: Distance<CM>> {
         node_list: &Vec<Rc<RefCell<Node<NM>>>>,
         excluded_nodes_sorted: &Vec<NodeID>,
     ) -> (
-        Option<Rc<RefCell<PathFindingOutput<CM, D>>>>,
+        Option<Rc<RefCell<PathFindingOutput<CM>>>>,
         Option<Vec<NodeID>>,
     );
 
@@ -49,20 +48,20 @@ pub trait TreeStorage<NM: NodeManager, CM: ContactManager, D: Distance<CM>> {
     /// # Parameters
     /// * `bundle` - A bundle copy for which the tree was created.
     /// * `tree` - A reference-counted mutable reference to the `PathfindingOutput` to store.
-    fn store(&mut self, bundle: &Bundle, tree: Rc<RefCell<PathFindingOutput<CM, D>>>);
+    fn store(&mut self, bundle: &Bundle, tree: Rc<RefCell<PathFindingOutput<CM>>>);
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Route<CM: ContactManager, D: Distance<CM>> {
-    pub source_stage: Rc<RefCell<RouteStage<CM, D>>>,
-    pub destination_stage: Rc<RefCell<RouteStage<CM, D>>>,
+pub struct Route<CM: ContactManager> {
+    pub source_stage: Rc<RefCell<RouteStage<CM>>>,
+    pub destination_stage: Rc<RefCell<RouteStage<CM>>>,
 }
 
-impl<CM: ContactManager, D: Distance<CM>> Route<CM, D> {
-    pub fn from_tree(tree: Rc<RefCell<PathFindingOutput<CM, D>>>, dest: NodeID) -> Option<Self> {
+impl<CM: ContactManager> Route<CM> {
+    pub fn from_tree(tree: Rc<RefCell<PathFindingOutput<CM>>>, dest: NodeID) -> Option<Self> {
         let tree_ref = tree.borrow();
         let source_stage = tree_ref.get_source_route();
-        if tree_ref.by_destination[dest as usize] == None {
+        if tree_ref.by_destination[dest as usize].is_none() {
             return None;
         }
         if let Some(destination_stage) = tree_ref.by_destination[dest as usize].clone() {
@@ -76,7 +75,7 @@ impl<CM: ContactManager, D: Distance<CM>> Route<CM, D> {
     }
 }
 
-impl<CM: ContactManager, D: Distance<CM>> Clone for Route<CM, D> {
+impl<CM: ContactManager> Clone for Route<CM> {
     fn clone(&self) -> Self {
         Route {
             source_stage: Rc::clone(&self.source_stage),
@@ -90,7 +89,7 @@ impl<CM: ContactManager, D: Distance<CM>> Clone for Route<CM, D> {
 /// This trait defines methods for loading and storing pathfinding output
 /// related to routes in a routing system. Implementers of this trait must
 /// provide their own logic for handling route data.
-pub trait RouteStorage<NM: NodeManager, CM: ContactManager, D: Distance<CM>> {
+pub trait RouteStorage<NM: NodeManager, CM: ContactManager> {
     /// Loads the pathfinding output for a specific bundle, considering excluded nodes.
     ///
     /// # Parameters
@@ -102,7 +101,7 @@ pub trait RouteStorage<NM: NodeManager, CM: ContactManager, D: Distance<CM>> {
     ///
     /// # Returns
     ///
-    /// * `Option<Route<CM, D>>` - An optional reference-counted and mutable reference
+    /// * `Option<Route<CM>>` - An optional reference-counted and mutable reference
     ///   to the `Route` if it exists; otherwise, returns `None`.
     fn select(
         &mut self,
@@ -110,9 +109,9 @@ pub trait RouteStorage<NM: NodeManager, CM: ContactManager, D: Distance<CM>> {
         curr_time: Date,
         node_list: &Vec<Rc<RefCell<Node<NM>>>>,
         excluded_nodes_sorted: &Vec<NodeID>,
-    ) -> Option<Route<CM, D>>;
+    ) -> Option<Route<CM>>;
 
-    fn store(&mut self, bundle: &Bundle, route: Route<CM, D>);
+    fn store(&mut self, bundle: &Bundle, route: Route<CM>);
 }
 
 /// A struct that manages limits and conditions for scheduling based on bundle characteristics.

@@ -1,4 +1,4 @@
-use std::{cell::RefCell, cmp::Reverse, collections::BinaryHeap, rc::Rc};
+use std::{cell::RefCell, cmp::Reverse, collections::BinaryHeap, marker::PhantomData, rc::Rc};
 
 use crate::{
     bundle::Bundle,
@@ -9,6 +9,8 @@ use crate::{
     route_stage::RouteStage,
     types::{Date, NodeID},
 };
+
+use super::route_stage_distance::DistanceWrapper;
 
 /// A structure representing a work area for multi-path tracking (MPT) pathfinding.
 ///
@@ -21,27 +23,26 @@ use crate::{
 ///
 /// # Type Parameters
 /// - `CM`: A type implementing the `ContactManager` trait, which handles contacts for routing.
-/// - `D`: A type implementing the `Distance<CM>` trait, defining the distance metric for route comparison.
-struct MptWorkArea<CM: ContactManager, D: Distance<CM>> {
+struct MptWorkArea<CM: ContactManager> {
     /// The bundle associated with this work area.
     pub bundle: Bundle,
     /// The source route stage, representing the starting point for routing.
-    pub source: Rc<RefCell<RouteStage<CM, D>>>,
+    pub source: Rc<RefCell<RouteStage<CM>>>,
     /// A sorted list of node IDs to be excluded from routing paths.
     pub excluded_nodes_sorted: Vec<NodeID>,
     /// A vector containing vectors of route stages, grouped by destination.
     /// Each inner vector represents possible routes to a specific destination,
     /// sorted in order of preference.
-    pub by_destination: Vec<Vec<Rc<RefCell<RouteStage<CM, D>>>>>,
+    pub by_destination: Vec<Vec<Rc<RefCell<RouteStage<CM>>>>>,
 }
 
-impl<CM: ContactManager, D: Distance<CM>> MptWorkArea<CM, D> {
+impl<CM: ContactManager> MptWorkArea<CM> {
     /// Creates a new `MptWorkArea` instance, initializing it with the given bundle,
     /// source route, excluded nodes, and a specified number of destination nodes.
     ///
     /// # Parameters
     /// - `bundle`: A reference to the `Bundle` representing the data payload for routing.
-    /// - `source`: An `Rc<RefCell<RouteStage<CM, D>>>` reference to the initial route stage.
+    /// - `source`: An `Rc<RefCell<RouteStage<CM>>>` reference to the initial route stage.
     /// - `excluded_nodes_sorted`: A reference to a sorted vector of `NodeID`s to be excluded from routing paths.
     /// - `node_count`: The number of destination nodes, which determines the size of `by_destination`.
     ///
@@ -49,7 +50,7 @@ impl<CM: ContactManager, D: Distance<CM>> MptWorkArea<CM, D> {
     /// A new instance of `MptWorkArea` initialized with the provided parameters.
     pub fn new(
         bundle: &Bundle,
-        source: Rc<RefCell<RouteStage<CM, D>>>,
+        source: Rc<RefCell<RouteStage<CM>>>,
         excluded_nodes_sorted: &Vec<NodeID>,
         node_count: usize,
     ) -> Self {
@@ -69,9 +70,9 @@ impl<CM: ContactManager, D: Distance<CM>> MptWorkArea<CM, D> {
     /// otherwise, `None` is added to indicate no viable route.
     ///
     /// # Returns
-    /// A `PathFindingOutput<CM, D>` containing the bundle, source route stage, excluded nodes,
+    /// A `PathFindingOutput<CM>` containing the bundle, source route stage, excluded nodes,
     /// and selected routes by destination.
-    pub fn to_pathfinding_output(self) -> PathFindingOutput<CM, D> {
+    pub fn to_pathfinding_output(self) -> PathFindingOutput<CM> {
         let mut options = Vec::new();
 
         for routes in &self.by_destination {
@@ -106,12 +107,12 @@ use super::{try_make_hop, PathFindingOutput, Pathfinding};
 ///
 /// # Returns
 ///
-/// * `Option<Rc<RefCell<RouteStage<CM, D>>>>` - Returns an `Option` containing a reference to the
+/// * `Option<Rc<RefCell<RouteStage<CM>>>>` - Returns an `Option` containing a reference to the
 ///   newly inserted route if the insertion was successful; otherwise, returns `None`.
-fn try_insert<CM: ContactManager, D: Distance<CM>>(
-    proposition: RouteStage<CM, D>,
-    tree: &mut MptWorkArea<CM, D>,
-) -> Option<Rc<RefCell<RouteStage<CM, D>>>> {
+fn try_insert<CM: ContactManager>(
+    proposition: RouteStage<CM>,
+    tree: &mut MptWorkArea<CM>,
+) -> Option<Rc<RefCell<RouteStage<CM>>>> {
     let routes_for_rx_node = &mut tree.by_destination[proposition.to_node as usize];
     let mut insert_index: usize = 0;
     let mut insert = false;
@@ -206,10 +207,12 @@ macro_rules! define_mpt {
         /// * `D` - A type that implements the `Distance<CM>` trait.
         pub struct $name<NM: NodeManager, CM: ContactManager, D: Distance<CM>> {
             /// The node multigraph for contact access.
-            graph: Rc<RefCell<Multigraph<NM, CM, D>>>,
+            graph: Rc<RefCell<Multigraph<NM, CM>>>,
+            #[doc(hidden)]
+            _phantom_distance: PhantomData<D>,
         }
 
-        impl<NM: NodeManager, CM: ContactManager, D: Distance<CM>> Pathfinding<NM, CM, D>
+        impl<NM: NodeManager, CM: ContactManager, D: Distance<CM>> Pathfinding<NM, CM>
             for $name<NM, CM, D>
         {
             /// Constructs a new `Mpt` instance with the provided nodes and contacts.
@@ -221,8 +224,11 @@ macro_rules! define_mpt {
             /// # Returns
             ///
             #[doc = concat!( " * `Self` - A new instance of `",stringify!($name),"`.")]
-            fn new(multigraph: Rc<RefCell<Multigraph<NM, CM, D>>>) -> Self {
-                Self { graph: multigraph }
+            fn new(multigraph: Rc<RefCell<Multigraph<NM, CM>>>) -> Self {
+                Self {
+                    graph: multigraph,
+                    _phantom_distance: PhantomData,
+                }
             }
 
             /// Finds the next route based on the current state and available contacts.
@@ -246,25 +252,26 @@ macro_rules! define_mpt {
                 source: NodeID,
                 bundle: &Bundle,
                 excluded_nodes_sorted: &Vec<NodeID>,
-            ) -> PathFindingOutput<CM, D> {
+            ) -> PathFindingOutput<CM> {
                 let mut graph = self.graph.borrow_mut();
                 if $with_exclusions {
                     graph.apply_exclusions_sorted(excluded_nodes_sorted);
                 }
-                let source_route: Rc<RefCell<RouteStage<CM, D>>> =
+                let source_route: Rc<RefCell<RouteStage<CM>>> =
                     Rc::new(RefCell::new(RouteStage::new(current_time, source, None)));
-                let mut tree: MptWorkArea<CM, D> = MptWorkArea::new(
+                let mut tree: MptWorkArea<CM> = MptWorkArea::new(
                     bundle,
                     source_route.clone(),
                     excluded_nodes_sorted,
                     graph.get_node_count(),
                 );
-                let mut priority_queue = BinaryHeap::new();
+                let mut priority_queue: BinaryHeap<Reverse<DistanceWrapper<CM, D>>> =
+                    BinaryHeap::new();
 
                 tree.by_destination[source as usize].push(source_route.clone());
-                priority_queue.push(Reverse(Rc::clone(&source_route)));
+                priority_queue.push(Reverse(DistanceWrapper::new(Rc::clone(&source_route))));
 
-                while let Some(Reverse(from_route)) = priority_queue.pop() {
+                while let Some(Reverse(DistanceWrapper(from_route, _))) = priority_queue.pop() {
                     if from_route.borrow().is_disabled {
                         continue;
                     }
@@ -299,7 +306,8 @@ macro_rules! define_mpt {
                             ) {
                                 // This transforms a prop in the stack to a prop in the heap
                                 if let Some(new_route) = try_insert(route_proposition, &mut tree) {
-                                    priority_queue.push(Reverse(new_route.clone()));
+                                    priority_queue
+                                        .push(Reverse(DistanceWrapper::new(new_route.clone())));
                                 }
                             }
                         }
@@ -319,7 +327,7 @@ macro_rules! define_mpt {
             /// # Returns
             ///
             /// * A shared pointer to the multigraph.
-            fn get_multigraph(&self) -> Rc<RefCell<Multigraph<NM, CM, D>>> {
+            fn get_multigraph(&self) -> Rc<RefCell<Multigraph<NM, CM>>> {
                 return self.graph.clone();
             }
         }

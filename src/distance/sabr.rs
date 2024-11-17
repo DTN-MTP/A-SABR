@@ -33,7 +33,7 @@ impl<CM: ContactManager> Distance<CM> for SABR {
     /// # Performance
     /// This function is marked with `#[inline(always)]` for potential performance optimizations.
     #[inline(always)]
-    fn cmp(first: &RouteStage<CM, Self>, second: &RouteStage<CM, Self>) -> Ordering {
+    fn cmp(first: &RouteStage<CM>, second: &RouteStage<CM>) -> Ordering {
         if first.at_time > second.at_time {
             return Ordering::Greater;
         } else if first.at_time < second.at_time {
@@ -48,30 +48,6 @@ impl<CM: ContactManager> Distance<CM> for SABR {
             return Ordering::Less;
         }
         Ordering::Equal
-    }
-
-    /// Partially compares two `RouteStage` instances by delegating to the `cmp` method.
-    ///
-    /// This function provides a partial ordering between `first` and `second`, allowing for an
-    /// `Option<Ordering>` return type that includes `None` in case a comparison cannot be made.
-    /// Here, it directly calls `cmp` to perform the comparison and wraps the result in `Some`.
-    ///
-    /// # Parameters
-    /// - `first`: The first route stage to partially compare.
-    /// - `second`: The second route stage to partially compare.
-    ///
-    /// # Returns
-    /// - `Some(Ordering)` based on the comparison of `first` and `second`.
-    /// - `None` if the comparison is not well-defined (not applicable here as `cmp` is always defined).
-    ///
-    /// # Performance
-    /// This function is marked with `#[inline(always)]` for potential performance optimizations.
-    #[inline(always)]
-    fn partial_cmp(
-        first: &RouteStage<CM, Self>,
-        second: &RouteStage<CM, Self>,
-    ) -> Option<Ordering> {
-        Some(first.cmp(second))
     }
 
     /// Checks if two `RouteStage` instances are equal based on specific criteria.
@@ -92,7 +68,7 @@ impl<CM: ContactManager> Distance<CM> for SABR {
     /// # Performance
     /// This function is marked with `#[inline(always)]` for potential performance optimizations.
     #[inline(always)]
-    fn eq(first: &RouteStage<CM, Self>, second: &RouteStage<CM, Self>) -> bool {
+    fn eq(first: &RouteStage<CM>, second: &RouteStage<CM>) -> bool {
         first.at_time == second.at_time
             && first.hop_count == second.hop_count
             && first.expiration == second.expiration
