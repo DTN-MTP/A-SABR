@@ -13,13 +13,13 @@ use super::{ContactManager, TxEndHopData};
 
 /// A segment represents a time interval with an associated value of type `T`.
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct Segment<T> {
+pub struct Segment<T> {
     /// The start time of the segment.
-    start: Date,
+    pub start: Date,
     /// The end time of the segment.
-    end: Date,
+    pub end: Date,
     /// The value associated with the time interval, which could represent rate, delay, or any other characteristic.
-    val: T,
+    pub val: T,
 }
 
 /// Manages contact segments, where each segment may have a distinct data rate and delay.
@@ -50,7 +50,7 @@ pub struct SegmentationManager {
 ///
 /// A new instance of `SegmentationManager`.
 impl SegmentationManager {
-    fn new(
+    pub fn new(
         rate_intervals: Vec<Segment<DataRate>>,
         delay_intervals: Vec<Segment<Duration>>,
     ) -> Self {

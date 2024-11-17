@@ -11,11 +11,13 @@ use crate::{
 };
 use std::{cmp::max, collections::HashSet};
 
-pub mod from_file;
+pub mod file_lexer;
+pub mod from_ion_file;
+pub mod from_tvgutil_file;
 /// `ContactPlan` is responsible for managing and validating the parsing of contacts and nodes
 /// in a network configuration. It tracks known node IDs and names to ensure uniqueness,
 /// and verifies that the node IDs match between contacts and nodes.
-pub struct ContactPlan {
+pub struct ASABRContactPlan {
     /// A set that tracks unique node IDs encountered during parsing.
     known_node_ids: HashSet<NodeID>,
     /// A set that tracks unique node names encountered during parsing.
@@ -26,21 +28,21 @@ pub struct ContactPlan {
     max_node_in_in_nodes: usize,
 }
 
-impl Default for ContactPlan {
+impl Default for ASABRContactPlan {
     /// Returns a new `ContactPlan` initialized with empty node ID and name sets, and zeroed-out maximum node IDs.
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ContactPlan {
+impl ASABRContactPlan {
     /// Creates a new `ContactPlan` with no known node IDs, no known node names, and zeroed-out max node IDs.
     ///
     /// # Returns
     ///
     /// * A new `ContactPlan` instance with default values.
     pub fn new() -> Self {
-        ContactPlan {
+        ASABRContactPlan {
             known_node_ids: HashSet::new(),
             known_node_names: HashSet::new(),
             max_node_id_in_contacts: 0,

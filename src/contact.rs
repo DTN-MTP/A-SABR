@@ -36,7 +36,7 @@ impl ContactInfo {
     /// # Returns
     ///
     /// * `Self` - A new instance of `ContactInfo`.
-    fn new(tx_node: NodeID, rx_node: NodeID, start: Date, end: Date) -> Self {
+    pub fn new(tx_node: NodeID, rx_node: NodeID, start: Date, end: Date) -> Self {
         Self {
             tx_node,
             rx_node,
