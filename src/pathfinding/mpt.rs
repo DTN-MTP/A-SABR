@@ -121,25 +121,28 @@ fn try_insert<CM: ContactManager>(
         return Some(proposition_rc);
     }
 
-    while insert_index < routes_for_rx_node.len() {
+    for (idx, route) in routes_for_rx_node.iter().enumerate() {
         // Strictly better for:
         // - arrival time
         let route = routes_for_rx_node[insert_index].borrow();
 
         if proposition.at_time < route.at_time {
             insert = true;
+            insert_index = idx;
             break;
         }
         if proposition.at_time == route.at_time {
             // - hop count
             if proposition.hop_count < route.hop_count {
                 insert = true;
+                insert_index = idx;
                 break;
             }
             if proposition.hop_count == route.hop_count {
                 // - expiration time
                 if proposition.expiration > route.expiration {
                     insert = true;
+                    insert_index = idx;
                     break;
                 }
             }
@@ -159,13 +162,13 @@ fn try_insert<CM: ContactManager>(
             } else {
                 // - hop count : ok be verify a next know route is not better
                 insert = true;
+                insert_index = idx;
             }
         }
-        insert_index += 1;
     }
 
-    let mut truncate_index = insert_index + 1;
     if insert {
+        let mut truncate_index = insert_index;
         // detect the first prune event but do nothing
         while truncate_index < routes_for_rx_node.len() {
             let route = &routes_for_rx_node[truncate_index].borrow();
@@ -186,6 +189,7 @@ fn try_insert<CM: ContactManager>(
         let proposition_rc = Rc::new(RefCell::new(proposition));
         // if everything was truncated, the following has no overhead
         routes_for_rx_node.insert(insert_index, Rc::clone(&proposition_rc));
+
         return Some(proposition_rc);
     }
 
