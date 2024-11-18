@@ -12,11 +12,12 @@ use crate::{
     types::{DataRate, Date, Duration, NodeID},
 };
 
-use std::collections::HashMap;
+use std::{collections::HashMap, io};
 
 use serde_json::Value;
 use std::fs;
 
+#[cfg_attr(feature = "debug", derive(Debug))]
 struct TVGUtilContactData {
     tx_start: Date,
     tx_end: Date,
@@ -37,7 +38,7 @@ pub trait FromTVGUtilContactData<CM: ContactManager> {
 
 macro_rules! generate_for_evl_variants {
     ($manager_name:ident) => {
-        impl FromTVGUtilContactData<EVLManager> for $manager_name {
+        impl FromTVGUtilContactData<$manager_name> for $manager_name {
             fn tvg_convert(data: TVGUtilContactData) -> Option<Contact<$manager_name>> {
                 let contact_info = contact_info_from_tvg_data(&data);
                 let manager = $manager_name::new(data.data_rate, data.delay);
@@ -75,11 +76,11 @@ pub struct TVGUtilContactPlan {}
 impl TVGUtilContactPlan {
     pub fn parse<CM: FromTVGUtilContactData<CM> + ContactManager>(
         filename: &str,
-    ) -> Result<(Vec<Node<NoManagement>>, Vec<Contact<CM>>), String> {
-        let nodes: Vec<Node<NoManagement>> = Vec::new();
-        let contacts: Vec<Contact<CM>> = Vec::new();
+    ) -> io::Result<(Vec<Node<NoManagement>>, Vec<Contact<CM>>)> {
+        let mut nodes: Vec<Node<NoManagement>> = Vec::new();
+        let mut contacts: Vec<Contact<CM>> = Vec::new();
 
-        let map_id_map: HashMap<&str, NodeID> = HashMap::new();
+        let mut map_id_map: HashMap<&str, NodeID> = HashMap::new();
 
         let json_data = fs::read_to_string(filename)?;
         let parsed: Value = serde_json::from_str(&json_data).unwrap();
@@ -107,7 +108,7 @@ impl TVGUtilContactPlan {
             let tx_node = map_id_map.get(pair[0].as_str().unwrap()).unwrap();
             let rx_node = map_id_map.get(pair[1].as_str().unwrap()).unwrap();
 
-            for contact_data in data["edges"].as_array().unwrap() {
+            for contact_data in data["contacts"].as_array().unwrap() {
                 let contact_array = contact_data.as_array().unwrap();
                 let start = contact_array[2].as_f64().unwrap() as DataRate;
                 let end = contact_array[3].as_f64().unwrap() as DataRate;
@@ -128,6 +129,13 @@ impl TVGUtilContactPlan {
                     data_rate,
                     confidence,
                 };
+                #[cfg(feature = "debug")]
+                println!(
+                    "{:#?} {:#?} {:#?}",
+                    pair[0].as_str(),
+                    pair[1].as_str(),
+                    &tvgcontact
+                );
                 let contact = CM::tvg_convert(tvgcontact).unwrap();
 
                 contacts.push(contact);

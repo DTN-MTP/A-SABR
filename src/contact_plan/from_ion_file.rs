@@ -68,13 +68,13 @@ fn contact_info_from_tvg_data(data: &IONContactData) -> ContactInfo {
 }
 
 pub trait FromIONContactData<CM: ContactManager> {
-    fn tvg_convert(data: IONContactData) -> Option<Contact<CM>>;
+    fn ion_convert(data: &IONContactData) -> Option<Contact<CM>>;
 }
 
 macro_rules! generate_for_evl_variants {
     ($manager_name:ident) => {
-        impl FromIONContactData<EVLManager> for $manager_name {
-            fn tvg_convert(data: IONContactData) -> Option<Contact<$manager_name>> {
+        impl FromIONContactData<$manager_name> for $manager_name {
+            fn ion_convert(data: &IONContactData) -> Option<Contact<$manager_name>> {
                 let contact_info = contact_info_from_tvg_data(&data);
                 let manager = $manager_name::new(data.data_rate, data.delay);
                 return Contact::try_new(contact_info, manager);
@@ -88,7 +88,7 @@ generate_for_evl_variants!(ETOManager);
 generate_for_evl_variants!(QDManager);
 
 impl FromIONContactData<SegmentationManager> for SegmentationManager {
-    fn tvg_convert(data: IONContactData) -> Option<Contact<SegmentationManager>> {
+    fn ion_convert(data: &IONContactData) -> Option<Contact<SegmentationManager>> {
         let contact_info = contact_info_from_tvg_data(&data);
         let manager = SegmentationManager::new(
             vec![Segment::<DataRate> {
@@ -160,15 +160,15 @@ fn get_confidence(vec: &Vec<String>) -> f32 {
     }
 }
 
-impl IONContactData {
+impl IONContactPlan {
     pub fn parse<CM: FromIONContactData<CM> + ContactManager>(
         filename: &str,
-    ) -> Result<(Vec<Node<NoManagement>>, Vec<Contact<CM>>), String> {
+    ) -> io::Result<(Vec<Node<NoManagement>>, Vec<Contact<CM>>)> {
         let file = File::open(filename)?;
-        let reader = BufReader::new(file);
+        let mut reader = BufReader::new(file);
         let mut map_id_map: HashMap<String, NodeID> = HashMap::new();
 
-        let ranges = vec![];
+        let mut ranges = vec![];
         let mut contact_info_map: HashMap<NodeID, HashMap<NodeID, Vec<IONContactData>>> =
             HashMap::new();
 
@@ -187,7 +187,11 @@ impl IONContactData {
             if line.trim_start().starts_with('#') {
                 continue;
             }
-            let words: Vec<String> = line.split_whitespace().rev().map(String::from).collect();
+            let words: Vec<String> = line.split_whitespace().map(String::from).collect();
+
+            if words.is_empty() {
+                continue;
+            }
 
             if words[0].as_str() != "a" {
                 continue;
@@ -231,24 +235,23 @@ impl IONContactData {
             continue;
         }
 
-        for (_tx, map) in contact_info_map {
+        for (_tx, map) in &mut contact_info_map {
             for (_rx, contacts) in map {
                 contacts.sort_unstable();
             }
         }
 
-        for range in ranges {
-            for mut contact in contact_info_map
-                .get(&range.tx_node)
-                .unwrap()
-                .get(&range.rx_node)
-                .unwrap()
-            {
-                if range.tx_start <= contact.tx_start && contact.tx_end <= range.tx_end {
-                    contact.delay = range.delay;
-                    contacts.push(contact.clone());
-                } else {
-                    panic!("This parser only support one range per contact");
+        for range in &ranges {
+            if let Some(tx_map) = contact_info_map.get_mut(&range.tx_node) {
+                if let Some(contact_vec) = tx_map.get_mut(&range.rx_node) {
+                    for contact in contact_vec.iter_mut() {
+                        if range.tx_start <= contact.tx_start && contact.tx_end <= range.tx_end {
+                            contact.delay = range.delay;
+                            contacts.push(CM::ion_convert(contact).unwrap());
+                        } else {
+                            panic!("This parser only supports one range per contact");
+                        }
+                    }
                 }
             }
         }

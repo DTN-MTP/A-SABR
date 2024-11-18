@@ -11,7 +11,7 @@ use crate::{
 };
 use std::{cmp::max, collections::HashSet};
 
-pub mod file_lexer;
+pub mod asabr_file_lexer;
 pub mod from_ion_file;
 pub mod from_tvgutil_file;
 /// `ContactPlan` is responsible for managing and validating the parsing of contacts and nodes

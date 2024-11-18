@@ -12,19 +12,19 @@ pub type NodeID = u16;
 pub type NodeName = String;
 
 /// Represents a duration in units (e.g., seconds).
-pub type Duration = f32;
+pub type Duration = f64;
 
 /// Represents a date (could represent days since a specific epoch).
-pub type Date = f32;
+pub type Date = f64;
 
 /// Represents the priority of a task or node.
 pub type Priority = u8;
 
 /// Represents the volume of data (in bytes, for example).
-pub type Volume = f32;
+pub type Volume = f64;
 
 /// Represents a data transfer rate (in bits per second).
-pub type DataRate = f32;
+pub type DataRate = f64;
 
 /// Represents the count of hops in a routing path.
 pub type HopCount = u16;
