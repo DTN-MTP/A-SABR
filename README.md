@@ -145,6 +145,8 @@ impl  ContactManager  for  NewManager {
 
 #### New managers and contact plan format
 
+##### Format A-SABR
+
 This exchangeable part might need specific configuration for its initialization. Although wrappers are planned to support existing formats (e.g. ION format), an A-SABR "native" format is leveraged to allow the addition of custom configuration capabilities for a new ```ContactManager```. Each a contact plan source (file, stream, HTTP response, etc.) is managed by a ```Lexer``` which convert the source into tokens, it's the lexer responsibility to manage eventual special characters (e.g. comment delimiters) and white spaces. Providing parsing capabilities to a component is translated by the implementation of a parsing trait, allowing the parsing logic to request tokens from the lexer in order to build the component.
 
 ```rust
@@ -175,7 +177,7 @@ If you wish to use a unique manager types (e.g. a **boxed**  ```NewManager``` fo
 The ```FileLexer``` forces you to declare the node names, and will work with the following parsing logic :
 
 ```rust
-if  let  Ok(mut  mylexer) = FileLexer::new("/path/to/contact_plan_file.txt") {
+if  let  Ok(mut  mylexer) = FileLexer::new("/path/to/asabr_cp.txt") {
   let  mut  cp = ContactPlan::new();
   let  res = cp.parse::<NoManagement, Box<NewManager>>(&mut  mylexer, None, None);
   // The type of res is : Result<(Vec<Node<NoManagement>, Vec<Contact<Box<NewManager>>>)>
@@ -208,7 +210,7 @@ let  mut  cm_map: Dispatcher<ContactDispatcher> = Dispatcher::<ContactDispatcher
 cm_map.add("new", coerce_cm::<NewManager>);
 cm_map.add("seg", coerce_cm::<SegmentationManager>);
 
-if  let  Ok(mut  mylexer) = FileLexer::new("/path/to/contact_plan_file.txt") {
+if  let  Ok(mut  mylexer) = FileLexer::new("/path/to/asabr_cp.txt") {
   let  mut  cp = ContactPlan::new();
   let  res = cp.parse::<NoManagement, Box<dyn  ContactManager>>(&mut  mylexer, None, Some(cm_map));
   // The type of res is : Result<(Vec<Node<NoManagement>, Vec<Contact<Box<dyn ContactManager>>>)>
@@ -245,6 +247,21 @@ rate 350 400 9600
 delay 300 400 1
 ```
 
+##### ION and tvg-util formats
+
+Two other format are supported for file sources. Those parsers do not variability, the NodeManager is set to ```NoManagement```, and the ```ContactManager``` of the contacts will be of the same type. Future work may include the initialization of a given manager for the contacts to the direct neighbors and another manager type for the other contacts (e.g. ETO and EVL). Those formats are provided for convenience, use A-SABR for maximal flexibility. Inialization example :
+
+
+```rust
+    if let Ok((nodes, contacts)) IONContactPlan::parse::<SegmentationManager>("cp_examples/ion_cp.txt") {
+      // ...
+    }
+
+    if let Ok((nodes, contacts)) = TVGUtilContactPlan::parse::<EVLManager>("cp_examples/tvgutil_cp.json") {
+      // ...
+    }
+```
+
 ## Multigraph
 
 In A-SABR, the terms "contact graph" and "node graph" are used for convenience as **pathfinding denominations**, but do not refer to data structures in any ways. The contacts are instead stored in a ```Multigraph``` structure regardless of the pathfinding technique, and has the sole role of providing optimized contact access. Contact access is *close** to O(1), while the use of a RB-Tree (being a sorted list implementation) would require a cursor positioning of O(log\(C\)), C being the contact count. The contacts to a receiver are sorted by start times, and the provided pathfinding implementations support contacts that overlap in time between two nodes. This feature is enabled to provide more flexibility to contact planning and possible future contact selection criteria for pathfinding.
@@ -265,7 +282,41 @@ To lower the coupling and lower memory overhead, the framework enforces a differ
 
 -  ```RoutingTable``` : Single-destination lists of routes, with best candidate election as described in SABR.
 
-#### Current limitations
+## Full Example
+
+Initialization and routing with an ASABR contact plan using ```ETOManager``` and ```SegmentationManager``` types of ```ContactManager```.
+
+
+```rust
+let mut contact_dispatch: Dispatcher<ContactDispatcher> =
+    Dispatcher::<ContactDispatcher>::new();
+contact_dispatch.add("eto", coerce_cm::<ETOManager>);
+contact_dispatch.add("seg", coerce_cm::<SegmentationManager>);
+
+if let Ok(mut mylexer) = FileLexer::new("/path/to/asabr_cp.txt") {
+  let mut cp = ASABRContactPlan::new();
+  let res = cp.parse::<NoManagement, Box<dyn ContactManager>>(&mut mylexer, None, Some(&contact_dispatch));
+
+  if let Ok((nodes, contacts)) = res{
+    {
+      let tree_cache = Rc::new(RefCell::new(TreeCache::new(true, false, 10)));
+      let mut SPSN = SpsnSabrContactGraph::<NoManagement, Box<dyn ContactManager>>::new(nodes, contacts, tree_cache, false);
+      let multicast_bundle = Bundle {
+        source: 0,
+        destinations: vec![1, 2, 3, 4],
+        priority: 0,
+        size: 1.0,
+        expiration: Date::MAX,
+      };
+      let exclusions = Vec::new();
+      let first_hops = SPSN.route(0, &multicast_bundle, 0.0, &exclusions);
+    }
+  }
+}
+
+```
+
+## Current limitations
 
 Increasing the coupling for flexibility can create some overhead (e.g. with extra control flow or memory pressure of the structure). In order to stay as close as possible to what shall be expected for operational performance, the coupling is reduced in two ways :
 
