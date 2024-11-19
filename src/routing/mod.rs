@@ -179,8 +179,7 @@ fn rec_dry_run_multicast<NM: NodeManager, CM: ContactManager>(
 ) {
     let mut route_borrowed = route.borrow_mut();
     if !is_source {
-        route_borrowed.at_time = at_time;
-        if !route_borrowed.dry_run(bundle, node_list, false) {
+        if !route_borrowed.dry_run(at_time, bundle, node_list, false) {
             return;
         }
         at_time = route_borrowed.at_time;
@@ -234,8 +233,7 @@ fn rec_update_multicast<NM: NodeManager, CM: ContactManager>(
 ) {
     let mut route_borrowed = route.borrow_mut();
     if !is_source {
-        route_borrowed.at_time = at_time;
-        if !route_borrowed.schedule(bundle, node_list) {
+        if !route_borrowed.schedule(at_time, bundle, node_list) {
             return;
         }
         at_time = route_borrowed.at_time;
@@ -295,7 +293,7 @@ fn schedule_multicast<NM: NodeManager, CM: ContactManager>(
     dry_run_to_fill_targets: bool,
 ) -> RoutingOutput<CM> {
     if dry_run_to_fill_targets {
-        dry_run_multicast(bundle, curr_time, tree.clone(), targets, node_list);
+        *targets = dry_run_multicast(bundle, curr_time, tree.clone(), targets, node_list);
     }
 
     let source_route = tree.borrow().get_source_route();
@@ -369,11 +367,9 @@ macro_rules! create_dry_run_unicast_path_variant {
                 if let Some(curr_route) = _curr_opt.take() {
                     let mut curr_route_borrowed = curr_route.borrow_mut();
 
-                    curr_route_borrowed.at_time = at_time;
-                    if !curr_route_borrowed.dry_run(bundle, node_list, false) {
+                    if !curr_route_borrowed.dry_run(at_time, bundle, node_list, false) {
                         return None;
                     }
-
                     at_time = curr_route_borrowed.at_time;
 
                     if curr_route_borrowed.to_node == dest {
@@ -457,8 +453,7 @@ fn update_unicast<NM: NodeManager, CM: ContactManager>(
         if let Some(curr_route) = _curr_opt.take() {
             let mut curr_route_borrowed = curr_route.borrow_mut();
 
-            curr_route_borrowed.at_time = at_time;
-            if !curr_route_borrowed.schedule(bundle, node_list) {
+            if !curr_route_borrowed.schedule(at_time, bundle, node_list) {
                 panic!("Faulty dry run, didn't allow a clean update!");
             }
 

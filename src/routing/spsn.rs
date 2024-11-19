@@ -160,9 +160,19 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
             .borrow_mut()
             .store(&bundle, tree_ref.clone());
 
-        if tree_ref.borrow().by_destination[dest as usize].is_none() {
-            self.unicast_guard.add_limit(bundle, dest as NodeID);
-            return None;
+        match &tree_ref.borrow().by_destination[dest as usize] {
+            // The tree is fresh, no dry run was performed, the remained expected fail case is bundle expiration
+            // Trees are not built while considering expirations for flexibility
+            // /!\ But maybe it should, issues expected with non-SABR distances
+            Some(route) => {
+                if route.borrow().at_time > bundle.expiration {
+                    return None;
+                }
+            }
+            None => {
+                self.unicast_guard.add_limit(bundle, dest as NodeID);
+                return None;
+            }
         }
 
         return Some(schedule_unicast(
@@ -214,6 +224,7 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
                 ));
             }
         }
+
         let new_tree = self
             .pathfinding
             .get_next(curr_time, source, bundle, excluded_nodes);
@@ -221,6 +232,7 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
         self.route_storage.borrow_mut().store(&bundle, tree.clone());
 
         let mut targets = Vec::new();
+
         return Some(schedule_multicast(
             bundle,
             curr_time,

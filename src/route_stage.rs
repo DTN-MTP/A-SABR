@@ -154,6 +154,7 @@ impl<CM: ContactManager> RouteStage<CM> {
     ///
     /// # Arguments
     ///
+    /// * `at_time` - current time at the tx node.
     /// * `bundle` - The bundle to be transmitted.
     /// * `node_list` - A reference to the list of nodes where transmission and reception occur.
     ///
@@ -163,6 +164,7 @@ impl<CM: ContactManager> RouteStage<CM> {
     /// * `false` if the scheduling process failed for any reason, such as a node being excluded, timing constraints, or invalid transmission conditions.
     pub fn schedule<NM: NodeManager>(
         &mut self,
+        at_time: Date,
         bundle: &Bundle,
         node_list: &Vec<Rc<RefCell<Node<NM>>>>,
     ) -> bool {
@@ -176,9 +178,9 @@ impl<CM: ContactManager> RouteStage<CM> {
             let mut rx_node = node_list[contact_borrowed.get_rx_node() as usize].borrow_mut();
 
             #[cfg(feature = "enable_node_management")]
-            let sending_time = tx_node.manager.schedule_process(self.at_time, bundle);
+            let sending_time = tx_node.manager.schedule_process(at_time, bundle);
             #[cfg(not(feature = "enable_node_management"))]
-            let sending_time = self.at_time;
+            let sending_time = at_time;
 
             if let Some(res) = contact_borrowed
                 .manager
@@ -193,6 +195,7 @@ impl<CM: ContactManager> RouteStage<CM> {
                 }
 
                 let arrival_time = res.tx_end + res.delay;
+
                 if arrival_time > bundle.expiration {
                     return false;
                 }
@@ -222,6 +225,7 @@ impl<CM: ContactManager> RouteStage<CM> {
     ///
     /// # Arguments
     ///
+    /// * `at_time` - current time at the tx node.
     /// * `bundle` - The bundle to simulate transmission for.
     /// * `node_list` - A reference to the list of nodes where transmission and reception occur.
     /// * `with_exclusions` - If `true`, checks whether the receiving node is excluded from the transmission. If `false`, no exclusions are checked.
@@ -232,6 +236,7 @@ impl<CM: ContactManager> RouteStage<CM> {
     /// * `false` if the dry run fails, such as due to an excluded node, invalid timing, or any other condition preventing transmission.
     pub fn dry_run<NM: NodeManager>(
         &mut self,
+        at_time: Date,
         bundle: &Bundle,
         node_list: &Vec<Rc<RefCell<Node<NM>>>>,
         with_exclusions: bool,
@@ -255,9 +260,9 @@ impl<CM: ContactManager> RouteStage<CM> {
             let mut rx_node = node_list[contact_borrowed.get_rx_node() as usize].borrow_mut();
 
             #[cfg(feature = "enable_node_management")]
-            let sending_time = tx_node.manager.dry_run_process(self.at_time, bundle);
+            let sending_time = tx_node.manager.dry_run_process(at_time, bundle);
             #[cfg(not(feature = "enable_node_management"))]
-            let sending_time = self.at_time;
+            let sending_time = at_time;
 
             if let Some(res) = contact_borrowed
                 .manager
@@ -269,6 +274,7 @@ impl<CM: ContactManager> RouteStage<CM> {
                 }
 
                 let arrival_time = res.tx_end + res.delay;
+
                 if arrival_time > bundle.expiration {
                     return false;
                 }
