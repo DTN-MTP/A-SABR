@@ -18,7 +18,7 @@ use serde_json::Value;
 use std::fs;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct TVGUtilContactData {
+pub struct TVGUtilContactData {
     tx_start: Date,
     tx_end: Date,
     tx_node: NodeID,

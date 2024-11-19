@@ -1,5 +1,5 @@
 use crate::{
-    contact::{self, Contact, ContactInfo},
+    contact::{Contact, ContactInfo},
     contact_manager::{
         eto::ETOManager,
         evl::EVLManager,
@@ -12,13 +12,13 @@ use crate::{
     types::{DataRate, Date, Duration, NodeID},
 };
 
-use std::{cmp::Ordering, collections::HashMap, hash::RandomState};
+use std::{cmp::Ordering, collections::HashMap};
 use std::{
     fs::File,
     io::{self, BufRead, BufReader},
 };
 
-struct IONContactData {
+pub struct IONContactData {
     tx_start: Date,
     tx_end: Date,
     tx_node: NodeID,
