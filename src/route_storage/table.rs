@@ -100,33 +100,42 @@ impl<NM: NodeManager, CM: ContactManager, D: Distance<CM>> RouteStorage<NM, CM>
             self.tables.resize((dest + 1) as usize, vec![])
         }
 
-        let routes = &self.tables[dest as usize];
+        let routes = &mut self.tables[dest as usize];
 
         let mut best_route_option: Option<Rc<RefCell<RouteStage<CM>>>> = None;
         let mut best_index = 0;
+        let mut index = 0;
 
-        for (index, route) in routes.iter().enumerate() {
-            if let Some(new_candidate) = dry_run_unicast_path_with_exclusions(
-                bundle,
-                curr_time,
-                route.source_stage.clone(),
-                route.destination_stage.clone(),
-                node_list,
-            ) {
-                match best_route_option {
-                    Some(ref best_route) => {
-                        if D::cmp(&new_candidate.borrow(), &best_route.borrow()) == Ordering::Less {
+        routes.retain_mut(|route| {
+
+            if curr_time > route.destination_stage.borrow().expiration {
+                index += 1;
+                false
+            } else {
+                if let Some(new_candidate) = dry_run_unicast_path_with_exclusions(
+                    bundle,
+                    curr_time,
+                    route.source_stage.clone(),
+                    route.destination_stage.clone(),
+                    node_list,
+                ) {
+                    match best_route_option {
+                        Some(ref best_route) => {
+                            if D::cmp(&new_candidate.borrow(), &best_route.borrow()) == Ordering::Less {
+                                best_route_option = Some(new_candidate);
+                                best_index = index;
+                            }
+                        }
+                        None => {
                             best_route_option = Some(new_candidate);
                             best_index = index;
                         }
                     }
-                    None => {
-                        best_route_option = Some(new_candidate);
-                        best_index = index;
-                    }
-                }
+                };
+            index += 1;
+            false
             }
-        }
+        });
 
         if best_route_option.is_some() {
             return Some(routes[best_index].clone());
