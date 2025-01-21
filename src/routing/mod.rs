@@ -204,8 +204,14 @@ fn rec_dry_run_multicast<NM: NodeManager, CM: ContactManager>(
     node_list: &Vec<Rc<RefCell<Node<NM>>>>,
 ) {
     let mut route_borrowed = route.borrow_mut();
+
+    #[cfg(feature = "bundle_processing")]
+    let bundle_to_consider = route_borrowed.bundle_opt.clone();
+    #[cfg(not(feature = "bundle_processing"))]
+    let bundle_to_consider = bundle;
+
     if !is_source {
-        if !route_borrowed.dry_run(at_time, bundle, node_list, false) {
+        if !route_borrowed.dry_run(at_time, &bundle_to_consider, node_list, false) {
             return;
         }
         at_time = route_borrowed.at_time;
@@ -228,7 +234,7 @@ fn rec_dry_run_multicast<NM: NodeManager, CM: ContactManager>(
     }
     for (_, (next_route, destinations)) in next_routes.into_iter() {
         rec_dry_run_multicast(
-            bundle,
+            &bundle_to_consider,
             at_time,
             &destinations,
             reachable_after_dry_run,
@@ -258,8 +264,14 @@ fn rec_update_multicast<NM: NodeManager, CM: ContactManager>(
     node_list: &Vec<Rc<RefCell<Node<NM>>>>,
 ) {
     let mut route_borrowed = route.borrow_mut();
+
+    #[cfg(feature = "bundle_processing")]
+    let bundle_to_consider = route_borrowed.bundle_opt.clone();
+    #[cfg(not(feature = "bundle_processing"))]
+    let bundle_to_consider = bundle;
+
     if !is_source {
-        if !route_borrowed.schedule(at_time, bundle, node_list) {
+        if !route_borrowed.schedule(at_time, &bundle_to_consider, node_list) {
             return;
         }
         at_time = route_borrowed.at_time;
@@ -283,7 +295,7 @@ fn rec_update_multicast<NM: NodeManager, CM: ContactManager>(
 
     for (_, (next_route, destinations)) in next_routes.into_iter() {
         rec_update_multicast(
-            bundle,
+            &bundle_to_consider,
             at_time,
             &destinations,
             next_route.clone(),
@@ -393,7 +405,13 @@ macro_rules! create_dry_run_unicast_path_variant {
                 if let Some(curr_route) = _curr_opt.take() {
                     let mut curr_route_borrowed = curr_route.borrow_mut();
 
-                    if !curr_route_borrowed.dry_run(at_time, bundle, node_list, false) {
+                    #[cfg(feature = "bundle_processing")]
+                    let bundle_to_consider = curr_route_borrowed.bundle_opt.clone();
+                    #[cfg(not(feature = "bundle_processing"))]
+                    let bundle_to_consider = bundle;
+
+                    if !curr_route_borrowed.dry_run(at_time, &bundle_to_consider, node_list, false)
+                    {
                         return None;
                     }
                     at_time = curr_route_borrowed.at_time;
@@ -479,7 +497,12 @@ fn update_unicast<NM: NodeManager, CM: ContactManager>(
         if let Some(curr_route) = _curr_opt.take() {
             let mut curr_route_borrowed = curr_route.borrow_mut();
 
-            if !curr_route_borrowed.schedule(at_time, bundle, node_list) {
+            #[cfg(feature = "bundle_processing")]
+            let bundle_to_consider = curr_route_borrowed.bundle_opt.clone();
+            #[cfg(not(feature = "bundle_processing"))]
+            let bundle_to_consider = bundle;
+
+            if !curr_route_borrowed.schedule(at_time, &bundle_to_consider, node_list) {
                 panic!("Faulty dry run, didn't allow a clean update!");
             }
 

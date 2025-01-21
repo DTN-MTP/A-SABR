@@ -14,7 +14,7 @@ pub struct NoManagement {}
 
 /// This manager has no effect.
 impl NodeManager for NoManagement {
-    fn dry_run_process(&self, at_time: Date, _bundle: &Bundle) -> Date {
+    fn dry_run_process(&self, at_time: Date, _bundle: &mut Bundle) -> Date {
         return at_time;
     }
 
@@ -26,7 +26,7 @@ impl NodeManager for NoManagement {
         true
     }
 
-    fn schedule_process(&self, at_time: Date, _bundle: &Bundle) -> Date {
+    fn schedule_process(&self, at_time: Date, _bundle: &mut Bundle) -> Date {
         return at_time;
     }
 

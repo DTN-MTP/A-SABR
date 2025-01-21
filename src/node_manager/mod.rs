@@ -21,7 +21,7 @@ pub trait NodeManager {
     ///
     /// # Returns
     /// - A `Date` indicating the estimated completion time for processing the bundle.
-    fn dry_run_process(&self, at_time: Date, bundle: &Bundle) -> Date;
+    fn dry_run_process(&self, at_time: Date, bundle: &mut Bundle) -> Date;
 
     /// Simulates transmitting a `Bundle` within a specified time window.
     ///
@@ -62,7 +62,7 @@ pub trait NodeManager {
     ///
     /// # Returns
     /// - A `Date` indicating the completion time for the processing task.
-    fn schedule_process(&self, at_time: Date, bundle: &Bundle) -> Date;
+    fn schedule_process(&self, at_time: Date, bundle: &mut Bundle) -> Date;
 
     /// Schedules the transmission of a `Bundle` within a specified time window.
     ///
@@ -96,7 +96,7 @@ pub trait NodeManager {
 /// Implementation of `NodeManager` for boxed types that implement `NodeManager`.
 impl<NM: NodeManager> NodeManager for Box<NM> {
     /// Delegates the dry_run method to the boxed object.
-    fn dry_run_process(&self, at_time: Date, bundle: &Bundle) -> Date {
+    fn dry_run_process(&self, at_time: Date, bundle: &mut Bundle) -> Date {
         (**self).dry_run_process(at_time, bundle)
     }
     /// Delegates the dry_run method to the boxed object.
@@ -108,7 +108,7 @@ impl<NM: NodeManager> NodeManager for Box<NM> {
         (**self).dry_run_rx(start, end, bundle)
     }
     /// Delegates the schedule method to the boxed object.
-    fn schedule_process(&self, at_time: Date, bundle: &Bundle) -> Date {
+    fn schedule_process(&self, at_time: Date, bundle: &mut Bundle) -> Date {
         (**self).schedule_process(at_time, bundle)
     }
     /// Delegates the schedule method to the boxed object.
@@ -124,7 +124,7 @@ impl<NM: NodeManager> NodeManager for Box<NM> {
 /// Implementation of `NodeManager` for boxed dynamic types (`Box<dyn ContactManager>`).
 impl NodeManager for Box<dyn NodeManager> {
     /// Delegates the dry_run method to the boxed object.
-    fn dry_run_process(&self, at_time: Date, bundle: &Bundle) -> Date {
+    fn dry_run_process(&self, at_time: Date, bundle: &mut Bundle) -> Date {
         (**self).dry_run_process(at_time, bundle)
     }
     /// Delegates the dry_run method to the boxed object.
@@ -136,7 +136,7 @@ impl NodeManager for Box<dyn NodeManager> {
         (**self).dry_run_rx(start, end, bundle)
     }
     /// Delegates the schedule method to the boxed object.
-    fn schedule_process(&self, at_time: Date, bundle: &Bundle) -> Date {
+    fn schedule_process(&self, at_time: Date, bundle: &mut Bundle) -> Date {
         (**self).schedule_process(at_time, bundle)
     }
     /// Delegates the schedule method to the boxed object.

@@ -100,7 +100,14 @@ macro_rules! define_contact_graph {
                     graph.apply_exclusions_sorted(excluded_nodes_sorted);
                 }
                 let source_route: Rc<RefCell<RouteStage<CM>>> =
-                    Rc::new(RefCell::new(RouteStage::new(current_time, source, None)));
+                    Rc::new(RefCell::new(RouteStage::new(
+                        current_time,
+                        source,
+                        None,
+                        #[cfg(feature = "bundle_processing")]
+                        bundle.clone(),
+                    )));
+
                 let mut tree: PathFindingOutput<CM> = PathFindingOutput::new(
                     &bundle,
                     source_route.clone(),

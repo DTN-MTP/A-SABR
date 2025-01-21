@@ -15,6 +15,7 @@ serde_json = "1.0"
 default = []
 debug = []
 contact_work_area = []
+bundle_processing = ["enable_node_management"]
 contact_suppression = []
 first_depleted = []
 enable_node_management = []

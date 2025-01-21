@@ -20,14 +20,13 @@ pub fn benchmark(c: &mut Criterion) {
     };
     let curr_time = 60.0;
     let excluded_nodes: Vec<NodeID> = vec![];
-    let spsn_opts = SpsnOptions{ check_size: false, check_priority: false, max_entries: 10 };
+    let spsn_opts = SpsnOptions {
+        check_size: false,
+        check_priority: false,
+        max_entries: 10,
+    };
 
-    let mut router_types = vec![
-        "SpsnMpt",
-        "SpsnNodeGraph",
-        "SpsnHopMpt",
-        "SpsnHopNodeGraph",
-    ];
+    let mut router_types = vec!["SpsnMpt", "SpsnNodeGraph", "SpsnHopMpt", "SpsnHopNodeGraph"];
 
     #[cfg(feature = "contact_work_area")]
     router_types.extend(["SpsnContactGraph", "SpsnHopContactGraph"]);

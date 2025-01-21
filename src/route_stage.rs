@@ -54,6 +54,10 @@ pub struct RouteStage<CM: ContactManager> {
     pub route_initialized: bool,
     /// A hashmap that maps destination node IDs to their respective next route stages.
     pub next_for_destination: HashMap<NodeID, Rc<RefCell<RouteStage<CM>>>>,
+
+    #[cfg(feature = "bundle_processing")]
+    /// The stage of the bundle that arrives at to_node
+    pub bundle_opt: Bundle,
 }
 
 impl<CM: ContactManager> RouteStage<CM> {
@@ -68,7 +72,13 @@ impl<CM: ContactManager> RouteStage<CM> {
     /// # Returns
     ///
     /// A new instance of `RouteStage`.
-    pub fn new(at_time: Date, to_node: NodeID, via_hop: Option<ViaHop<CM>>) -> Self {
+
+    pub fn new(
+        at_time: Date,
+        to_node: NodeID,
+        via_hop: Option<ViaHop<CM>>,
+        #[cfg(feature = "bundle_processing")] bundle: Bundle,
+    ) -> Self {
         Self {
             to_node,
             at_time,
@@ -79,11 +89,19 @@ impl<CM: ContactManager> RouteStage<CM> {
             expiration: Date::MAX,
             route_initialized: false,
             next_for_destination: HashMap::new(),
+            #[cfg(feature = "bundle_processing")]
+            bundle_opt: bundle,
         }
     }
 
     pub fn clone(&self) -> RouteStage<CM> {
-        let mut route = Self::new(self.at_time, self.to_node, self.via.clone());
+        let mut route = Self::new(
+            self.at_time,
+            self.to_node,
+            self.via.clone(),
+            #[cfg(feature = "bundle_processing")]
+            self.bundle_opt.clone(),
+        );
         route.is_disabled = self.is_disabled;
         route.via = self.via.clone();
         route.hop_count = self.hop_count;
@@ -91,44 +109,6 @@ impl<CM: ContactManager> RouteStage<CM> {
         route.expiration = self.expiration;
 
         return route;
-    }
-
-    /// Creates a new `RouteStage` intended for use as a work area.
-    ///
-    /// # Parameters
-    ///
-    /// * `to_node` - The destination node ID.
-    ///
-    /// # Returns
-    ///
-    /// A new instance of `RouteStage` with default values suitable for a work area.
-    pub fn new_work_area(to_node: NodeID) -> Self {
-        Self {
-            to_node,
-            at_time: Date::MAX,
-            is_disabled: false,
-            via: None,
-            hop_count: HopCount::MAX,
-            cumulative_delay: Duration::MAX,
-            expiration: Date::MAX,
-            route_initialized: false,
-            next_for_destination: HashMap::new(),
-        }
-    }
-
-    /// Updates this `RouteStage` with values from another `RouteStage`.
-    ///
-    /// # Parameters
-    ///
-    /// * `other` - The `RouteStage` whose values will be used to update this instance.
-    pub fn update_with(&mut self, other: &RouteStage<CM>) {
-        self.to_node = other.to_node;
-        self.at_time = other.at_time;
-        self.is_disabled = other.is_disabled;
-        self.via = other.via.clone();
-        self.hop_count = other.hop_count;
-        self.cumulative_delay = other.cumulative_delay;
-        self.expiration = other.expiration;
     }
 
     pub fn init_route(route: Rc<RefCell<RouteStage<CM>>>) {
@@ -183,43 +163,56 @@ impl<CM: ContactManager> RouteStage<CM> {
             let mut contact_borrowed = via.contact.borrow_mut();
             let info = contact_borrowed.info;
 
+            // If bundle processing is enabled, a mutable bundle copy is required to be attached to the RouteStage.
+            #[cfg(feature = "bundle_processing")]
+            let mut bundle_to_consider = bundle.clone();
+            #[cfg(not(feature = "bundle_processing"))]
+            let bundle_to_consider = bundle;
+
             #[cfg(feature = "enable_node_management")]
             let mut tx_node = node_list[contact_borrowed.get_tx_node() as usize].borrow_mut();
             #[cfg(feature = "enable_node_management")]
             let mut rx_node = node_list[contact_borrowed.get_rx_node() as usize].borrow_mut();
 
-            #[cfg(feature = "enable_node_management")]
-            let sending_time = tx_node.manager.schedule_process(at_time, bundle);
-            #[cfg(not(feature = "enable_node_management"))]
+            #[cfg(feature = "bundle_processing")]
+            let sending_time = tx_node
+                .manager
+                .schedule_process(at_time, &mut bundle_to_consider);
+            #[cfg(not(feature = "bundle_processing"))]
             let sending_time = at_time;
 
-            if let Some(res) = contact_borrowed
-                .manager
-                .schedule(&info, sending_time, bundle)
+            if let Some(res) =
+                contact_borrowed
+                    .manager
+                    .schedule(&info, sending_time, &bundle_to_consider)
             {
                 #[cfg(feature = "enable_node_management")]
                 if !tx_node
                     .manager
-                    .schedule_tx(res.tx_start, res.tx_end, bundle)
+                    .schedule_tx(res.tx_start, res.tx_end, &bundle_to_consider)
                 {
                     return false;
                 }
 
                 let arrival_time = res.tx_end + res.delay;
 
-                if arrival_time > bundle.expiration {
+                if arrival_time > bundle_to_consider.expiration {
                     return false;
                 }
                 #[cfg(feature = "enable_node_management")]
                 if !rx_node.manager.schedule_rx(
                     res.tx_start + res.delay,
                     res.tx_end + res.delay,
-                    bundle,
+                    &bundle_to_consider,
                 ) {
                     return false;
                 }
 
                 self.at_time = arrival_time;
+                #[cfg(feature = "bundle_processing")]
+                {
+                    self.bundle_opt = bundle_to_consider;
+                }
                 return true;
             }
         }
@@ -253,7 +246,7 @@ impl<CM: ContactManager> RouteStage<CM> {
         with_exclusions: bool,
     ) -> bool {
         if let Some(via) = &self.via {
-            let mut contact_borrowed = via.contact.borrow_mut();
+            let contact_borrowed = via.contact.borrow_mut();
             let info = contact_borrowed.info;
 
             if with_exclusions {
@@ -265,40 +258,57 @@ impl<CM: ContactManager> RouteStage<CM> {
                 }
             }
 
+            // If bundle processing is enabled, a mutable bundle copy is required to be attached to the RouteStage.
+            #[cfg(feature = "bundle_processing")]
+            let mut bundle_to_consider = bundle.clone();
+            #[cfg(not(feature = "bundle_processing"))]
+            let bundle_to_consider = bundle;
+
             #[cfg(feature = "enable_node_management")]
             let mut tx_node = node_list[contact_borrowed.get_tx_node() as usize].borrow_mut();
             #[cfg(feature = "enable_node_management")]
             let mut rx_node = node_list[contact_borrowed.get_rx_node() as usize].borrow_mut();
 
-            #[cfg(feature = "enable_node_management")]
-            let sending_time = tx_node.manager.dry_run_process(at_time, bundle);
-            #[cfg(not(feature = "enable_node_management"))]
+            #[cfg(feature = "bundle_processing")]
+            let sending_time = tx_node
+                .manager
+                .dry_run_process(at_time, &mut bundle_to_consider);
+
+            #[cfg(not(feature = "bundle_processing"))]
             let sending_time = at_time;
 
-            if let Some(res) = contact_borrowed
-                .manager
-                .dry_run(&info, sending_time, bundle)
+            if let Some(res) =
+                contact_borrowed
+                    .manager
+                    .dry_run(&info, sending_time, &bundle_to_consider)
             {
                 #[cfg(feature = "enable_node_management")]
-                if !tx_node.manager.dry_run_tx(res.tx_start, res.tx_end, bundle) {
+                if !tx_node
+                    .manager
+                    .dry_run_tx(res.tx_start, res.tx_end, &bundle_to_consider)
+                {
                     return false;
                 }
 
                 let arrival_time = res.tx_end + res.delay;
 
-                if arrival_time > bundle.expiration {
+                if arrival_time > bundle_to_consider.expiration {
                     return false;
                 }
                 #[cfg(feature = "enable_node_management")]
                 if !rx_node.manager.dry_run_rx(
                     res.tx_start + res.delay,
                     res.tx_end + res.delay,
-                    bundle,
+                    &bundle_to_consider,
                 ) {
                     return false;
                 }
 
                 self.at_time = arrival_time;
+                #[cfg(feature = "bundle_processing")]
+                {
+                    self.bundle_opt = bundle_to_consider;
+                }
                 return true;
             }
         }
