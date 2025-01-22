@@ -101,15 +101,11 @@ impl<NM: NodeManager, CM: ContactManager, D: Distance<CM>> RouteStorage<NM, CM>
         }
 
         let routes = &mut self.tables[dest as usize];
+        let mut best_route_option: Option<Route<CM>> = None;
 
-        let mut best_route_option: Option<Rc<RefCell<RouteStage<CM>>>> = None;
-        let mut best_index = 0;
-        let mut index = 0;
-
-        routes.retain_mut(|route| {
+        routes.retain(|route| {
 
             if curr_time > route.destination_stage.borrow().expiration {
-                index += 1;
                 false
             } else {
                 if let Some(new_candidate) = dry_run_unicast_path_with_exclusions(
@@ -121,25 +117,19 @@ impl<NM: NodeManager, CM: ContactManager, D: Distance<CM>> RouteStorage<NM, CM>
                 ) {
                     match best_route_option {
                         Some(ref best_route) => {
-                            if D::cmp(&new_candidate.borrow(), &best_route.borrow()) == Ordering::Less {
-                                best_route_option = Some(new_candidate);
-                                best_index = index;
+                            if D::cmp(&new_candidate.borrow(), &best_route.destination_stage.borrow()) == Ordering::Less {
+                                best_route_option = Some(route.clone());
                             }
                         }
                         None => {
-                            best_route_option = Some(new_candidate);
-                            best_index = index;
+                            best_route_option = Some(route.clone());
                         }
                     }
                 };
-            index += 1;
             false
             }
         });
 
-        if best_route_option.is_some() {
-            return Some(routes[best_index].clone());
-        }
-        None
+        return best_route_option;
     }
 }
