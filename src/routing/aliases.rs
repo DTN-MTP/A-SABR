@@ -1,13 +1,12 @@
 use crate::{
     contact::Contact,
     contact_manager::ContactManager,
-    distance::{hop::Hop, sabr::SABR, Distance},
+    distance::{hop::Hop, sabr::SABR},
     node::Node,
-    node_manager::{none::NoManagement, NodeManager},
+    node_manager::NodeManager,
     pathfinding::{
         mpt::{MptPath, MptTree},
         node_graph::{NodeGraphPath, NodeGraphTree},
-        Pathfinding,
     },
     route_storage::{cache::TreeCache, table::RoutingTable},
 };

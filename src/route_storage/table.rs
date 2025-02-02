@@ -2,7 +2,7 @@ use std::{cell::RefCell, cmp::Ordering, marker::PhantomData, rc::Rc};
 
 use crate::{
     bundle::Bundle, contact_manager::ContactManager, distance::Distance, node_manager::NodeManager,
-    route_stage::RouteStage, routing::dry_run_unicast_path_with_exclusions, types::NodeID,
+    routing::dry_run_unicast_path_with_exclusions, types::NodeID,
 };
 
 use super::{Route, RouteStorage};
@@ -104,7 +104,6 @@ impl<NM: NodeManager, CM: ContactManager, D: Distance<CM>> RouteStorage<NM, CM>
         let mut best_route_option: Option<Route<CM>> = None;
 
         routes.retain(|route| {
-
             if curr_time > route.destination_stage.borrow().expiration {
                 false
             } else {
@@ -117,7 +116,11 @@ impl<NM: NodeManager, CM: ContactManager, D: Distance<CM>> RouteStorage<NM, CM>
                 ) {
                     match best_route_option {
                         Some(ref best_route) => {
-                            if D::cmp(&new_candidate.borrow(), &best_route.destination_stage.borrow()) == Ordering::Less {
+                            if D::cmp(
+                                &new_candidate.borrow(),
+                                &best_route.destination_stage.borrow(),
+                            ) == Ordering::Less
+                            {
                                 best_route_option = Some(route.clone());
                             }
                         }
@@ -126,7 +129,7 @@ impl<NM: NodeManager, CM: ContactManager, D: Distance<CM>> RouteStorage<NM, CM>
                         }
                     }
                 };
-            false
+                false
             }
         });
 

@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::{
     bundle::Bundle,
     parsing::{DispatchParser, Lexer, Parser, ParsingState},

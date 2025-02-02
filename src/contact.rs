@@ -14,9 +14,9 @@ use std::rc::Rc;
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ContactInfo {
     ///The ID of the transmitting node.
-    tx_node: NodeID,
+    pub tx_node: NodeID,
     /// The ID of the receiving node.
-    rx_node: NodeID,
+    pub rx_node: NodeID,
     /// The start time of the contact.
     pub start: Date,
     /// The end time of the contact.
@@ -87,8 +87,6 @@ impl<CM: ContactManager> Contact<CM> {
     /// * `Option<Self>` - Returns `Some(Contact)` if creation was successful; otherwise, returns `None`.
     pub fn try_new(info: ContactInfo, mut manager: CM) -> Option<Self> {
         if info.try_init() && manager.try_init(&info) {
-            #[cfg(feature = "contact_work_area")]
-            let to_node = info.rx_node;
             return Some(Contact {
                 info,
                 manager,

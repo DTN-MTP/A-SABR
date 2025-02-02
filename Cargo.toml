@@ -26,3 +26,7 @@ criterion = "0.3"
 [[bench]]
 name = "spsn_benchmark"
 harness = false
+
+[[example]]
+name = "dijkstra_accuracy"
+path = "examples/dijkstra_accuracy/dijkstra_accuracy.rs"

@@ -32,3 +32,5 @@ pub mod contact_plan;
 pub mod distance;
 /// Module containing the logic to enable parsing abilities for the components.
 pub mod parsing;
+
+pub mod utils;

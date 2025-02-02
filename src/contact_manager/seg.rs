@@ -1,9 +1,6 @@
 // The Segmented contacts are composites, construct the contact by adding intervals
 // Use is_wellformed for sanity check
 
-use std::cmp::max;
-use std::collections::HashMap;
-
 use crate::bundle::Bundle;
 use crate::contact::ContactInfo;
 use crate::parsing::{DispatchParser, Lexer, Parser, ParsingState};
