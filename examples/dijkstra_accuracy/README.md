@@ -21,7 +21,7 @@ In scenario 1, the source is the node 0 and the destination is node 3. In the sc
 
 ### Behavior
 
-In both scenario, `NodeGraph` is unable to find the best existing path (SABR distance). Cause: each node can only have one parent, and the parent of node 2 will consistently be node 1 (best path to node 2 is C0 -> C2)
+In both scenarios, `NodeGraph` is unable to find the best existing path (SABR distance). Cause: each node can only have one parent, and the parent of node 2 will consistently be node 1 (best path to node 2 is C0 -> C2)
 
 In the scenario 2, `ContactGraph` is unable to find the correct path. Cause: each contact can only have one parent, the parent of C3 is C2, because the best path to node 3 is C0 -> C2 -> C3.
 
