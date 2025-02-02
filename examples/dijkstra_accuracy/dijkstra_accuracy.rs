@@ -10,7 +10,7 @@ use a_sabr::{
     utils::{init_pathfinding, pretty_print},
 };
 
-fn edge_case_exemple(cp_path: &str, dest: NodeID) {
+fn edge_case_example(cp_path: &str, dest: NodeID) {
     let bundle = Bundle {
         source: 0,
         destinations: vec![dest],
@@ -54,8 +54,8 @@ fn edge_case_exemple(cp_path: &str, dest: NodeID) {
 }
 
 fn main() {
-    edge_case_exemple("examples/dijkstra_accuracy/contact_plan_1.cp", 3);
-    edge_case_exemple("examples/dijkstra_accuracy/contact_plan_2.cp", 4);
+    edge_case_example("examples/dijkstra_accuracy/contact_plan_1.cp", 3);
+    edge_case_example("examples/dijkstra_accuracy/contact_plan_2.cp", 4);
 
     println!("\nN.B.: Results with the single end-to-end \"Path\" variant. We would get the same results with their \"Tree\" versions.");
 }
