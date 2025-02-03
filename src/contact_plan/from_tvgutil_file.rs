@@ -110,8 +110,8 @@ impl TVGUtilContactPlan {
 
             for contact_data in data["contacts"].as_array().unwrap() {
                 let contact_array = contact_data.as_array().unwrap();
-                let start = contact_array[2].as_f64().unwrap() as DataRate;
-                let end = contact_array[3].as_f64().unwrap() as DataRate;
+                let start = contact_array[2].as_f64().unwrap() as Date;
+                let end = contact_array[3].as_f64().unwrap() as Date;
                 let first_level_array = contact_array[4].as_array().unwrap();
                 let second_level_array = first_level_array[0].as_array().unwrap();
                 let confidence = second_level_array[1].as_f64().unwrap() as f32;
