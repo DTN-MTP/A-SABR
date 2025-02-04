@@ -187,10 +187,12 @@ impl<CM: ContactManager> RouteStage<CM> {
                     .schedule(&info, sending_time, &bundle_to_consider)
             {
                 #[cfg(feature = "enable_node_management")]
-                if !tx_node
-                    .manager
-                    .schedule_tx(res.tx_start, res.tx_end, &bundle_to_consider)
-                {
+                if !tx_node.manager.schedule_tx(
+                    sending_time,
+                    res.tx_start,
+                    res.tx_end,
+                    &bundle_to_consider,
+                ) {
                     return false;
                 }
 
@@ -283,10 +285,12 @@ impl<CM: ContactManager> RouteStage<CM> {
                     .dry_run(&info, sending_time, &bundle_to_consider)
             {
                 #[cfg(feature = "enable_node_management")]
-                if !tx_node
-                    .manager
-                    .dry_run_tx(res.tx_start, res.tx_end, &bundle_to_consider)
-                {
+                if !tx_node.manager.dry_run_tx(
+                    sending_time,
+                    res.tx_start,
+                    res.tx_end,
+                    &bundle_to_consider,
+                ) {
                     return false;
                 }
 

@@ -16,7 +16,7 @@ impl NodeManager for NoManagement {
         return at_time;
     }
 
-    fn dry_run_tx(&self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
+    fn dry_run_tx(&self, _waiting_since: Date, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
         true
     }
 
@@ -28,7 +28,13 @@ impl NodeManager for NoManagement {
         return at_time;
     }
 
-    fn schedule_tx(&mut self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
+    fn schedule_tx(
+        &mut self,
+        _waiting_since: Date,
+        _start: Date,
+        _end: Date,
+        _bundle: &Bundle,
+    ) -> bool {
         true
     }
 

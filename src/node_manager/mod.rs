@@ -29,13 +29,14 @@ pub trait NodeManager {
     /// within the provided start and end times, without actually transmitting the data.
     ///
     /// # Parameters
+    /// - `waiting_since`: The arrival time at the transmiter (allows to calculate a retention time)
     /// - `start`: The start time of the transmission window.
     /// - `end`: The end time of the transmission window.
     /// - `bundle`: A reference to the `Bundle` to be transmitted.
     ///
     /// # Returns
     /// - `true` if the bundle can be transmitted within the time window, `false` otherwise.
-    fn dry_run_tx(&self, start: Date, end: Date, bundle: &Bundle) -> bool;
+    fn dry_run_tx(&self, waiting_since: Date, start: Date, end: Date, bundle: &Bundle) -> bool;
 
     /// Simulates receiving a `Bundle` within a specified time window.
     ///
@@ -70,13 +71,15 @@ pub trait NodeManager {
     /// transmitted within the provided time window. If successful, the bundle is transmitted.
     ///
     /// # Parameters
+    /// - `waiting_since`: The arrival time at the transmiter (allows to calculate a retention time)
     /// - `start`: The start time of the transmission window.
     /// - `end`: The end time of the transmission window.
     /// - `bundle`: A reference to the `Bundle` to be transmitted.
     ///
     /// # Returns
     /// - `true` if the transmission is successfully scheduled within the window, `false` otherwise.
-    fn schedule_tx(&mut self, start: Date, end: Date, bundle: &Bundle) -> bool;
+    fn schedule_tx(&mut self, waiting_since: Date, start: Date, end: Date, bundle: &Bundle)
+        -> bool;
 
     /// Schedules the reception of a `Bundle` within a specified time window.
     ///
@@ -100,8 +103,8 @@ impl<NM: NodeManager> NodeManager for Box<NM> {
         (**self).dry_run_process(at_time, bundle)
     }
     /// Delegates the dry_run method to the boxed object.
-    fn dry_run_tx(&self, start: Date, end: Date, bundle: &Bundle) -> bool {
-        (**self).dry_run_tx(start, end, bundle)
+    fn dry_run_tx(&self, waiting_since: Date, start: Date, end: Date, bundle: &Bundle) -> bool {
+        (**self).dry_run_tx(waiting_since, start, end, bundle)
     }
     /// Delegates the dry_run method to the boxed object.
     fn dry_run_rx(&self, start: Date, end: Date, bundle: &Bundle) -> bool {
@@ -112,8 +115,14 @@ impl<NM: NodeManager> NodeManager for Box<NM> {
         (**self).schedule_process(at_time, bundle)
     }
     /// Delegates the schedule method to the boxed object.
-    fn schedule_tx(&mut self, start: Date, end: Date, bundle: &Bundle) -> bool {
-        (**self).dry_run_tx(start, end, bundle)
+    fn schedule_tx(
+        &mut self,
+        waiting_since: Date,
+        start: Date,
+        end: Date,
+        bundle: &Bundle,
+    ) -> bool {
+        (**self).dry_run_tx(waiting_since, start, end, bundle)
     }
     /// Delegates the schedule method to the boxed object.
     fn schedule_rx(&mut self, start: Date, end: Date, bundle: &Bundle) -> bool {
@@ -128,8 +137,8 @@ impl NodeManager for Box<dyn NodeManager> {
         (**self).dry_run_process(at_time, bundle)
     }
     /// Delegates the dry_run method to the boxed object.
-    fn dry_run_tx(&self, start: Date, end: Date, bundle: &Bundle) -> bool {
-        (**self).dry_run_tx(start, end, bundle)
+    fn dry_run_tx(&self, waiting_since: Date, start: Date, end: Date, bundle: &Bundle) -> bool {
+        (**self).dry_run_tx(waiting_since, start, end, bundle)
     }
     /// Delegates the dry_run method to the boxed object.
     fn dry_run_rx(&self, start: Date, end: Date, bundle: &Bundle) -> bool {
@@ -140,8 +149,14 @@ impl NodeManager for Box<dyn NodeManager> {
         (**self).schedule_process(at_time, bundle)
     }
     /// Delegates the schedule method to the boxed object.
-    fn schedule_tx(&mut self, start: Date, end: Date, bundle: &Bundle) -> bool {
-        (**self).dry_run_tx(start, end, bundle)
+    fn schedule_tx(
+        &mut self,
+        waiting_since: Date,
+        start: Date,
+        end: Date,
+        bundle: &Bundle,
+    ) -> bool {
+        (**self).dry_run_tx(waiting_since, start, end, bundle)
     }
     /// Delegates the schedule method to the boxed object.
     fn schedule_rx(&mut self, start: Date, end: Date, bundle: &Bundle) -> bool {

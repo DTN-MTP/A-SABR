@@ -199,11 +199,12 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
             &bundle_to_consider,
         ) {
             #[cfg(feature = "enable_node_management")]
-            if !tx_node
-                .borrow()
-                .manager
-                .dry_run_tx(hop.tx_start, hop.tx_end, &bundle_to_consider)
-            {
+            if !tx_node.borrow().manager.dry_run_tx(
+                sending_time,
+                hop.tx_start,
+                hop.tx_end,
+                &bundle_to_consider,
+            ) {
                 continue;
             }
 
