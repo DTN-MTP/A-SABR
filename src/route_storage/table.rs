@@ -129,7 +129,7 @@ impl<NM: NodeManager, CM: ContactManager, D: Distance<CM>> RouteStorage<NM, CM>
                         }
                     }
                 };
-                false
+                true
             }
         });
 
