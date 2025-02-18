@@ -15,9 +15,9 @@ use std::{cell::RefCell, rc::Rc};
 #[cfg(feature = "contact_work_area")]
 use crate::pathfinding::contact_graph::{ContactGraphPath, ContactGraphTree};
 #[cfg(all(feature = "contact_suppression", feature = "first_depleted"))]
-use crate::pathfinding::first_depleted::FirstDepleted;
+use crate::pathfinding::limiting_contact::first_depleted::FirstDepleted;
 #[cfg(feature = "contact_suppression")]
-use crate::pathfinding::first_ending::FirstEnding;
+use crate::pathfinding::limiting_contact::first_ending::FirstEnding;
 
 use super::{cgr::Cgr, spsn::Spsn, Router};
 

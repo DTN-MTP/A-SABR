@@ -15,7 +15,9 @@ serde_json = "1.0"
 default = []
 debug = []
 contact_work_area = []
-bundle_processing = ["enable_node_management"]
+node_rx = []
+node_tx = []
+node_proc = []
 contact_suppression = []
 first_depleted = []
 enable_node_management = []
@@ -30,3 +32,7 @@ harness = false
 [[example]]
 name = "dijkstra_accuracy"
 path = "examples/dijkstra_accuracy/dijkstra_accuracy.rs"
+
+[[example]]
+name = "satellite_constellation"
+path = "examples/satellite_constellation/satellite_constellation.rs"

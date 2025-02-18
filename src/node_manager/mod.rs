@@ -21,6 +21,7 @@ pub trait NodeManager {
     ///
     /// # Returns
     /// - A `Date` indicating the estimated completion time for processing the bundle.
+    #[cfg(feature = "node_proc")]
     fn dry_run_process(&self, at_time: Date, bundle: &mut Bundle) -> Date;
 
     /// Simulates transmitting a `Bundle` within a specified time window.
@@ -36,6 +37,7 @@ pub trait NodeManager {
     ///
     /// # Returns
     /// - `true` if the bundle can be transmitted within the time window, `false` otherwise.
+    #[cfg(feature = "node_tx")]
     fn dry_run_tx(&self, waiting_since: Date, start: Date, end: Date, bundle: &Bundle) -> bool;
 
     /// Simulates receiving a `Bundle` within a specified time window.
@@ -50,6 +52,7 @@ pub trait NodeManager {
     ///
     /// # Returns
     /// - `true` if the bundle can be received within the time window, `false` otherwise.
+    #[cfg(feature = "node_rx")]
     fn dry_run_rx(&self, start: Date, end: Date, bundle: &Bundle) -> bool;
 
     /// Schedules the processing of a `Bundle` at a specified time.
@@ -63,6 +66,7 @@ pub trait NodeManager {
     ///
     /// # Returns
     /// - A `Date` indicating the completion time for the processing task.
+    #[cfg(feature = "node_proc")]
     fn schedule_process(&self, at_time: Date, bundle: &mut Bundle) -> Date;
 
     /// Schedules the transmission of a `Bundle` within a specified time window.
@@ -78,6 +82,7 @@ pub trait NodeManager {
     ///
     /// # Returns
     /// - `true` if the transmission is successfully scheduled within the window, `false` otherwise.
+    #[cfg(feature = "node_tx")]
     fn schedule_tx(&mut self, waiting_since: Date, start: Date, end: Date, bundle: &Bundle)
         -> bool;
 
@@ -93,28 +98,34 @@ pub trait NodeManager {
     ///
     /// # Returns
     /// - `true` if the reception is successfully scheduled within the window, `false` otherwise.
+    #[cfg(feature = "node_rx")]
     fn schedule_rx(&mut self, start: Date, end: Date, bundle: &Bundle) -> bool;
 }
 
 /// Implementation of `NodeManager` for boxed types that implement `NodeManager`.
 impl<NM: NodeManager> NodeManager for Box<NM> {
     /// Delegates the dry_run method to the boxed object.
+    #[cfg(feature = "node_proc")]
     fn dry_run_process(&self, at_time: Date, bundle: &mut Bundle) -> Date {
         (**self).dry_run_process(at_time, bundle)
     }
     /// Delegates the dry_run method to the boxed object.
+    #[cfg(feature = "node_tx")]
     fn dry_run_tx(&self, waiting_since: Date, start: Date, end: Date, bundle: &Bundle) -> bool {
         (**self).dry_run_tx(waiting_since, start, end, bundle)
     }
     /// Delegates the dry_run method to the boxed object.
+    #[cfg(feature = "node_rx")]
     fn dry_run_rx(&self, start: Date, end: Date, bundle: &Bundle) -> bool {
         (**self).dry_run_rx(start, end, bundle)
     }
     /// Delegates the schedule method to the boxed object.
+    #[cfg(feature = "node_proc")]
     fn schedule_process(&self, at_time: Date, bundle: &mut Bundle) -> Date {
         (**self).schedule_process(at_time, bundle)
     }
     /// Delegates the schedule method to the boxed object.
+    #[cfg(feature = "node_tx")]
     fn schedule_tx(
         &mut self,
         waiting_since: Date,
@@ -125,6 +136,7 @@ impl<NM: NodeManager> NodeManager for Box<NM> {
         (**self).dry_run_tx(waiting_since, start, end, bundle)
     }
     /// Delegates the schedule method to the boxed object.
+    #[cfg(feature = "node_rx")]
     fn schedule_rx(&mut self, start: Date, end: Date, bundle: &Bundle) -> bool {
         (**self).dry_run_rx(start, end, bundle)
     }
@@ -133,22 +145,27 @@ impl<NM: NodeManager> NodeManager for Box<NM> {
 /// Implementation of `NodeManager` for boxed dynamic types (`Box<dyn ContactManager>`).
 impl NodeManager for Box<dyn NodeManager> {
     /// Delegates the dry_run method to the boxed object.
+    #[cfg(feature = "node_proc")]
     fn dry_run_process(&self, at_time: Date, bundle: &mut Bundle) -> Date {
         (**self).dry_run_process(at_time, bundle)
     }
     /// Delegates the dry_run method to the boxed object.
+    #[cfg(feature = "node_tx")]
     fn dry_run_tx(&self, waiting_since: Date, start: Date, end: Date, bundle: &Bundle) -> bool {
         (**self).dry_run_tx(waiting_since, start, end, bundle)
     }
     /// Delegates the dry_run method to the boxed object.
+    #[cfg(feature = "node_rx")]
     fn dry_run_rx(&self, start: Date, end: Date, bundle: &Bundle) -> bool {
         (**self).dry_run_rx(start, end, bundle)
     }
     /// Delegates the schedule method to the boxed object.
+    #[cfg(feature = "node_proc")]
     fn schedule_process(&self, at_time: Date, bundle: &mut Bundle) -> Date {
         (**self).schedule_process(at_time, bundle)
     }
     /// Delegates the schedule method to the boxed object.
+    #[cfg(feature = "node_tx")]
     fn schedule_tx(
         &mut self,
         waiting_since: Date,
@@ -159,6 +176,7 @@ impl NodeManager for Box<dyn NodeManager> {
         (**self).dry_run_tx(waiting_since, start, end, bundle)
     }
     /// Delegates the schedule method to the boxed object.
+    #[cfg(feature = "node_rx")]
     fn schedule_rx(&mut self, start: Date, end: Date, bundle: &Bundle) -> bool {
         (**self).dry_run_rx(start, end, bundle)
     }

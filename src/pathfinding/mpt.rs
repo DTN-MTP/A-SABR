@@ -283,7 +283,7 @@ macro_rules! define_mpt {
                         current_time,
                         source,
                         None,
-                        #[cfg(feature = "bundle_processing")]
+                        #[cfg(feature = "node_proc")]
                         bundle.clone(),
                     )));
                 let mut tree: MptWorkArea<CM> = MptWorkArea::new(

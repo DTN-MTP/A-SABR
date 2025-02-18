@@ -104,7 +104,7 @@ macro_rules! define_contact_graph {
                         current_time,
                         source,
                         None,
-                        #[cfg(feature = "bundle_processing")]
+                        #[cfg(feature = "node_proc")]
                         bundle.clone(),
                     )));
 

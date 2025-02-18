@@ -84,7 +84,7 @@ macro_rules! define_node_graph {
                         current_time,
                         source,
                         None,
-                        #[cfg(feature = "bundle_processing")]
+                        #[cfg(feature = "node_proc")]
                         bundle.clone(),
                     )));
                 let mut tree: PathFindingOutput<CM> = PathFindingOutput::new(

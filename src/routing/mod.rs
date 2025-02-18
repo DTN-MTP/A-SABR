@@ -205,9 +205,9 @@ fn rec_dry_run_multicast<NM: NodeManager, CM: ContactManager>(
 ) {
     let mut route_borrowed = route.borrow_mut();
 
-    #[cfg(feature = "bundle_processing")]
+    #[cfg(feature = "node_proc")]
     let bundle_to_consider = route_borrowed.bundle_opt.clone();
-    #[cfg(not(feature = "bundle_processing"))]
+    #[cfg(not(feature = "node_proc"))]
     let bundle_to_consider = bundle;
 
     if !is_source {
@@ -265,9 +265,9 @@ fn rec_update_multicast<NM: NodeManager, CM: ContactManager>(
 ) {
     let mut route_borrowed = route.borrow_mut();
 
-    #[cfg(feature = "bundle_processing")]
+    #[cfg(feature = "node_proc")]
     let bundle_to_consider = route_borrowed.bundle_opt.clone();
-    #[cfg(not(feature = "bundle_processing"))]
+    #[cfg(not(feature = "node_proc"))]
     let bundle_to_consider = bundle;
 
     if !is_source {
@@ -405,9 +405,9 @@ macro_rules! create_dry_run_unicast_path_variant {
                 if let Some(curr_route) = _curr_opt.take() {
                     let mut curr_route_borrowed = curr_route.borrow_mut();
 
-                    #[cfg(feature = "bundle_processing")]
+                    #[cfg(feature = "node_proc")]
                     let bundle_to_consider = curr_route_borrowed.bundle_opt.clone();
-                    #[cfg(not(feature = "bundle_processing"))]
+                    #[cfg(not(feature = "node_proc"))]
                     let bundle_to_consider = bundle;
 
                     if !curr_route_borrowed.dry_run(at_time, &bundle_to_consider, node_list, false)
@@ -497,9 +497,9 @@ fn update_unicast<NM: NodeManager, CM: ContactManager>(
         if let Some(curr_route) = _curr_opt.take() {
             let mut curr_route_borrowed = curr_route.borrow_mut();
 
-            #[cfg(feature = "bundle_processing")]
+            #[cfg(feature = "node_proc")]
             let bundle_to_consider = curr_route_borrowed.bundle_opt.clone();
-            #[cfg(not(feature = "bundle_processing"))]
+            #[cfg(not(feature = "node_proc"))]
             let bundle_to_consider = bundle;
 
             if !curr_route_borrowed.schedule(at_time, &bundle_to_consider, node_list) {

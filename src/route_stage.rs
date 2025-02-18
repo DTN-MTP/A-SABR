@@ -55,7 +55,7 @@ pub struct RouteStage<CM: ContactManager> {
     /// A hashmap that maps destination node IDs to their respective next route stages.
     pub next_for_destination: HashMap<NodeID, Rc<RefCell<RouteStage<CM>>>>,
 
-    #[cfg(feature = "bundle_processing")]
+    #[cfg(feature = "node_proc")]
     /// The stage of the bundle that arrives at to_node
     pub bundle_opt: Bundle,
 }
@@ -77,7 +77,7 @@ impl<CM: ContactManager> RouteStage<CM> {
         at_time: Date,
         to_node: NodeID,
         via_hop: Option<ViaHop<CM>>,
-        #[cfg(feature = "bundle_processing")] bundle: Bundle,
+        #[cfg(feature = "node_proc")] bundle: Bundle,
     ) -> Self {
         Self {
             to_node,
@@ -89,7 +89,7 @@ impl<CM: ContactManager> RouteStage<CM> {
             expiration: Date::MAX,
             route_initialized: false,
             next_for_destination: HashMap::new(),
-            #[cfg(feature = "bundle_processing")]
+            #[cfg(feature = "node_proc")]
             bundle_opt: bundle,
         }
     }
@@ -99,7 +99,7 @@ impl<CM: ContactManager> RouteStage<CM> {
             self.at_time,
             self.to_node,
             self.via.clone(),
-            #[cfg(feature = "bundle_processing")]
+            #[cfg(feature = "node_proc")]
             self.bundle_opt.clone(),
         );
         route.is_disabled = self.is_disabled;
@@ -139,7 +139,7 @@ impl<CM: ContactManager> RouteStage<CM> {
     /// Schedules the transmission of a `bundle` through a network using the provided node list.
     ///
     /// This function schedules the transmission by interacting with the contact manager and the nodes
-    /// in the `node_list`. If node management is enabled (not behind the `enable_node_management` feature flag),
+    /// in the `node_list`. If node management is enabled (features node_rx, node_tx, and node_proc),
     /// the nodes will be queried for their transmission and reception schedules. The function will return `true`
     /// if the scheduling is successful and the bundle is scheduled, or `false` if any failure occurs.
     ///
@@ -164,21 +164,21 @@ impl<CM: ContactManager> RouteStage<CM> {
             let info = contact_borrowed.info;
 
             // If bundle processing is enabled, a mutable bundle copy is required to be attached to the RouteStage.
-            #[cfg(feature = "bundle_processing")]
+            #[cfg(feature = "node_proc")]
             let mut bundle_to_consider = bundle.clone();
-            #[cfg(not(feature = "bundle_processing"))]
+            #[cfg(not(feature = "node_proc"))]
             let bundle_to_consider = bundle;
 
-            #[cfg(feature = "enable_node_management")]
+            #[cfg(any(feature = "node_tx", feature= "node_proc"))]
             let mut tx_node = node_list[contact_borrowed.get_tx_node() as usize].borrow_mut();
-            #[cfg(feature = "enable_node_management")]
+            #[cfg(feature = "node_rx")]
             let mut rx_node = node_list[contact_borrowed.get_rx_node() as usize].borrow_mut();
 
-            #[cfg(feature = "bundle_processing")]
+            #[cfg(feature = "node_proc")]
             let sending_time = tx_node
                 .manager
                 .schedule_process(at_time, &mut bundle_to_consider);
-            #[cfg(not(feature = "bundle_processing"))]
+            #[cfg(not(feature = "node_proc"))]
             let sending_time = at_time;
 
             if let Some(res) =
@@ -186,7 +186,7 @@ impl<CM: ContactManager> RouteStage<CM> {
                     .manager
                     .schedule(&info, sending_time, &bundle_to_consider)
             {
-                #[cfg(feature = "enable_node_management")]
+                #[cfg(feature = "node_tx")]
                 if !tx_node.manager.schedule_tx(
                     sending_time,
                     res.tx_start,
@@ -201,7 +201,7 @@ impl<CM: ContactManager> RouteStage<CM> {
                 if arrival_time > bundle_to_consider.expiration {
                     return false;
                 }
-                #[cfg(feature = "enable_node_management")]
+                #[cfg(feature = "node_rx")]
                 if !rx_node.manager.schedule_rx(
                     res.tx_start + res.delay,
                     res.tx_end + res.delay,
@@ -211,7 +211,7 @@ impl<CM: ContactManager> RouteStage<CM> {
                 }
 
                 self.at_time = arrival_time;
-                #[cfg(feature = "bundle_processing")]
+                #[cfg(feature = "node_proc")]
                 {
                     self.bundle_opt = bundle_to_consider;
                 }
@@ -261,22 +261,22 @@ impl<CM: ContactManager> RouteStage<CM> {
             }
 
             // If bundle processing is enabled, a mutable bundle copy is required to be attached to the RouteStage.
-            #[cfg(feature = "bundle_processing")]
+            #[cfg(feature = "node_proc")]
             let mut bundle_to_consider = bundle.clone();
-            #[cfg(not(feature = "bundle_processing"))]
+            #[cfg(not(feature = "node_proc"))]
             let bundle_to_consider = bundle;
 
-            #[cfg(feature = "enable_node_management")]
+            #[cfg(any(feature = "node_tx", feature= "node_proc"))]
             let mut tx_node = node_list[contact_borrowed.get_tx_node() as usize].borrow_mut();
-            #[cfg(feature = "enable_node_management")]
+            #[cfg(feature = "node_rx")]
             let mut rx_node = node_list[contact_borrowed.get_rx_node() as usize].borrow_mut();
 
-            #[cfg(feature = "bundle_processing")]
+            #[cfg(feature = "node_proc")]
             let sending_time = tx_node
                 .manager
                 .dry_run_process(at_time, &mut bundle_to_consider);
 
-            #[cfg(not(feature = "bundle_processing"))]
+            #[cfg(not(feature = "node_proc"))]
             let sending_time = at_time;
 
             if let Some(res) =
@@ -284,7 +284,7 @@ impl<CM: ContactManager> RouteStage<CM> {
                     .manager
                     .dry_run(&info, sending_time, &bundle_to_consider)
             {
-                #[cfg(feature = "enable_node_management")]
+                #[cfg(feature = "node_tx")]
                 if !tx_node.manager.dry_run_tx(
                     sending_time,
                     res.tx_start,
@@ -299,7 +299,7 @@ impl<CM: ContactManager> RouteStage<CM> {
                 if arrival_time > bundle_to_consider.expiration {
                     return false;
                 }
-                #[cfg(feature = "enable_node_management")]
+                #[cfg(feature = "node_rx")]
                 if !rx_node.manager.dry_run_rx(
                     res.tx_start + res.delay,
                     res.tx_end + res.delay,
@@ -309,7 +309,7 @@ impl<CM: ContactManager> RouteStage<CM> {
                 }
 
                 self.at_time = arrival_time;
-                #[cfg(feature = "bundle_processing")]
+                #[cfg(feature = "node_proc")]
                 {
                     self.bundle_opt = bundle_to_consider;
                 }
