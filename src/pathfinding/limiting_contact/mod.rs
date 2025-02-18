@@ -1,12 +1,12 @@
 use crate::contact::Contact;
 use crate::contact_manager::ContactManager;
-use crate:: route_stage::RouteStage;
+use crate::route_stage::RouteStage;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-pub mod first_ending;
 #[cfg(feature = "first_depleted")]
 pub mod first_depleted;
+pub mod first_ending;
 #[cfg(feature = "first_depleted")]
 pub use first_depleted::FirstDepleted;
 

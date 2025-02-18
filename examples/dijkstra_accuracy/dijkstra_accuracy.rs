@@ -23,15 +23,15 @@ fn edge_case_example(cp_path: &str, dest: NodeID) {
         NoManagement,
         EVLManager,
         NodeGraphPath<NoManagement, EVLManager, SABR>,
-    >(&cp_path);
+    >(&cp_path, None, None);
     let mut contact_graph = init_pathfinding::<
         NoManagement,
         EVLManager,
         ContactGraphPath<NoManagement, EVLManager, SABR>,
-    >(&cp_path);
+    >(&cp_path, None, None);
     let mut mpt_graph =
         init_pathfinding::<NoManagement, EVLManager, MptPath<NoManagement, EVLManager, SABR>>(
-            &cp_path,
+            &cp_path, None, None,
         );
 
     println!("");
@@ -54,6 +54,9 @@ fn edge_case_example(cp_path: &str, dest: NodeID) {
 }
 
 fn main() {
+    #[cfg(not(feature = "contact_work_area"))]
+    panic!("Please enable the contact_work_area feature.");
+
     edge_case_example("examples/dijkstra_accuracy/contact_plan_1.cp", 3);
     edge_case_example("examples/dijkstra_accuracy/contact_plan_2.cp", 4);
 

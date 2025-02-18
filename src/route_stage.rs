@@ -169,7 +169,7 @@ impl<CM: ContactManager> RouteStage<CM> {
             #[cfg(not(feature = "node_proc"))]
             let bundle_to_consider = bundle;
 
-            #[cfg(any(feature = "node_tx", feature= "node_proc"))]
+            #[cfg(any(feature = "node_tx", feature = "node_proc"))]
             let mut tx_node = node_list[contact_borrowed.get_tx_node() as usize].borrow_mut();
             #[cfg(feature = "node_rx")]
             let mut rx_node = node_list[contact_borrowed.get_rx_node() as usize].borrow_mut();
@@ -266,7 +266,7 @@ impl<CM: ContactManager> RouteStage<CM> {
             #[cfg(not(feature = "node_proc"))]
             let bundle_to_consider = bundle;
 
-            #[cfg(any(feature = "node_tx", feature= "node_proc"))]
+            #[cfg(any(feature = "node_tx", feature = "node_proc"))]
             let mut tx_node = node_list[contact_borrowed.get_tx_node() as usize].borrow_mut();
             #[cfg(feature = "node_rx")]
             let mut rx_node = node_list[contact_borrowed.get_rx_node() as usize].borrow_mut();

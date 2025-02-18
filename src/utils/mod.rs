@@ -5,7 +5,7 @@ use crate::{
     contact_plan::{asabr_file_lexer::FileLexer, from_asabr_lexer::ASABRContactPlan},
     multigraph::Multigraph,
     node_manager::NodeManager,
-    parsing::{DispatchParser, Parser},
+    parsing::{DispatchParser, Dispatcher, Lexer, Parser, ParsingState},
     pathfinding::Pathfinding,
     route_stage::RouteStage,
 };
@@ -16,10 +16,14 @@ pub fn init_pathfinding<
     P: Pathfinding<NM, CM>,
 >(
     cp_path: &str,
+    node_marker_map: Option<&Dispatcher<'_, fn(&mut dyn Lexer) -> ParsingState<NM>>>,
+    contact_marker_map: Option<&Dispatcher<'_, fn(&mut dyn Lexer) -> ParsingState<CM>>>,
 ) -> P {
     let mut mylexer = FileLexer::new(cp_path).unwrap();
     let mut cp = ASABRContactPlan::new();
-    let nodes_n_contacts = cp.parse::<NM, CM>(&mut mylexer, None, None).unwrap();
+    let nodes_n_contacts = cp
+        .parse::<NM, CM>(&mut mylexer, node_marker_map, contact_marker_map)
+        .unwrap();
 
     return P::new(Rc::new(RefCell::new(Multigraph::new(
         nodes_n_contacts.0,
