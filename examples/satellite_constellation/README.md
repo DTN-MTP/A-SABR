@@ -28,7 +28,7 @@ Retention is effectively disabled when `dry_run_tx == schedule_tx` for those two
 
 The network encompasses three nodes: 0, 1, and 2. The only path from node 0 to node 2 passes through node 1. The contacts require a retention time of at least one second at node 1 due to the start and end times of contacts C0 and C1.
 
-In the first contact plan (contact_plan_1.cp), no node management is in place. In the second contact plan (contact_plan_2.cp), node 1 is assigned the `NoRetention` manager (indicated by the `noret` marker), while nodes 0 and 2 remain without resource management.
+In the first contact plan (contact_plan_1.cp), retention is allowed as no constrains are applied for resource management (a `NoManagement` manager is assigned to each node statically). In the second contact plan (contact_plan_2.cp), node 1 is assigned the `NoRetention` manager (dynamically, thanks to the `noret` marker), to disallow message retention at this node. Nodes 0 and 2 remain able to retain bundles (`NoManagement` managers indicated the `none` marker).
 
 ### Behavior
 
