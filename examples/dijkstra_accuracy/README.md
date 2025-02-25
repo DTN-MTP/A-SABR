@@ -14,7 +14,8 @@ The implementation of Dijkstra over a time-varying graph shall be the core focus
 
 This example covers the accuracy edge cases over the two following scenarios:
 
-![Description](dijkstra_edge_cases.png)
+
+<img src="dijkstra_edge_cases.png" alt="Dijkstra edge case scenarios" style="display: block; margin: 25px auto">
 
 In scenario 1, the source is the node 0 and the destination is node 3. In the scenario 2, the destination is node 4 and the contact C3 is altered to last from t=20 (prev. t=30) until t=40 (unchanged). Node 2 is a relay and shows 2 interfaces: it can receive and transmit simultaneously with 2 different nodes.
 

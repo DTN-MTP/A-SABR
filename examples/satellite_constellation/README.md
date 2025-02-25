@@ -24,7 +24,7 @@ Retention is effectively disabled when `dry_run_tx == schedule_tx` for those two
 
 ### Scenario
 
-![Description](no_retention_tests.png)
+<img src="no_retention_tests.png" alt="No retention scenario" style="display: block; margin: 25px auto">
 
 The network encompasses three nodes: 0, 1, and 2. The only path from node 0 to node 2 passes through node 1. The contacts require a retention time of at least one second at node 1 due to the start and end times of contacts C0 and C1.
 
@@ -32,4 +32,4 @@ In the first contact plan (contact_plan_1.cp), retention is allowed as no constr
 
 ### Behavior
 
-As long as avoid retention on the path to node 2 is impossible. Pathfinding using with a `NoRetention` manager on node 1 shall fail to find a route to node 2.
+As long as avoiding retention on the path to node 2 is impossible. Pathfinding using with a `NoRetention` manager on node 1 shall fail to find a route to node 2.
