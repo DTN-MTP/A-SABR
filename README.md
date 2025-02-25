@@ -1,9 +1,12 @@
 
-# Adaptive Schedule-Aware Bundle Routing [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Rust](https://img.shields.io/badge/rust-1.82%2B-orange.svg)](https://www.rust-lang.org)
+# Adaptive Schedule-Aware Bundle Routing
 
-## Description
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Rust](https://img.shields.io/badge/rust-1.82%2B-orange.svg)](https://www.rust-lang.org)
+
 
 Current version is a beta release (contact olivier.de-jonckere@lirmm.fr for more information). See source documentation [here](https://dtn-mtp.github.io/A-SABR/).
+
+## Description
 
 The A-SABR project provides a framework to instantiate routing algorithms from research activities up to operational contexts. This project was developed after the experience gathered from CGR at the Jet Propulsion Laboratory and the scalability researches around Schedule-Aware Bundle Routing (SABR)'s scalability with SPSN at the University of Dresden.
 
