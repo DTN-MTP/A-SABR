@@ -3,12 +3,13 @@ use a_sabr::{
     contact_manager::evl::EVLManager,
     distance::sabr::SABR,
     node_manager::none::NoManagement,
-    pathfinding::{
-        contact_graph::ContactGraphPath, mpt::MptPath, node_graph::NodeGraphPath, Pathfinding,
-    },
+    pathfinding::{mpt::MptPath, node_graph::NodeGraphPath, Pathfinding},
     types::NodeID,
     utils::{init_pathfinding, pretty_print},
 };
+
+#[cfg(feature = "contact_work_area")]
+use a_sabr::pathfinding::contact_graph::ContactGraphPath;
 
 fn edge_case_example(cp_path: &str, dest: NodeID) {
     let bundle = Bundle {
@@ -24,6 +25,8 @@ fn edge_case_example(cp_path: &str, dest: NodeID) {
         EVLManager,
         NodeGraphPath<NoManagement, EVLManager, SABR>,
     >(&cp_path, None, None);
+
+    #[cfg(feature = "contact_work_area")]
     let mut contact_graph = init_pathfinding::<
         NoManagement,
         EVLManager,
@@ -44,9 +47,12 @@ fn edge_case_example(cp_path: &str, dest: NodeID) {
     print!("With NodeGraphPath pathfinding. ");
     pretty_print(res.by_destination[dest as usize].clone().unwrap());
 
-    let res = contact_graph.get_next(0.0, 0, &bundle, &vec![]);
-    print!("With ContactGraphPath pathfinding. ");
-    pretty_print(res.by_destination[dest as usize].clone().unwrap());
+    #[cfg(feature = "contact_work_area")]
+    {
+        let res = contact_graph.get_next(0.0, 0, &bundle, &vec![]);
+        print!("With ContactGraphPath pathfinding. ");
+        pretty_print(res.by_destination[dest as usize].clone().unwrap());
+    }
 
     let res = mpt_graph.get_next(0.0, 0, &bundle, &vec![]);
     print!("With MptPath pathfinding. ");
@@ -55,7 +61,7 @@ fn edge_case_example(cp_path: &str, dest: NodeID) {
 
 fn main() {
     #[cfg(not(feature = "contact_work_area"))]
-    panic!("Please enable the contact_work_area feature.");
+    panic!("Please enable the 'contact_work_area' feature.");
 
     edge_case_example("examples/dijkstra_accuracy/contact_plan_1.cp", 3);
     edge_case_example("examples/dijkstra_accuracy/contact_plan_2.cp", 4);

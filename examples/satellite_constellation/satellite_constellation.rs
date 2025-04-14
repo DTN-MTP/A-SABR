@@ -14,7 +14,7 @@ struct NoRetention {}
 
 impl NodeManager for NoRetention {
     #[cfg(feature = "node_tx")]
-    fn dry_run_tx(&self, waiting_since: Date, start: Date, end: Date, bundle: &Bundle) -> bool {
+    fn dry_run_tx(&self, waiting_since: Date, start: Date, _end: Date, _bundle: &Bundle) -> bool {
         return waiting_since == start;
     }
 
@@ -23,10 +23,31 @@ impl NodeManager for NoRetention {
         &mut self,
         waiting_since: Date,
         start: Date,
-        end: Date,
-        bundle: &Bundle,
+        _end: Date,
+        _bundle: &Bundle,
     ) -> bool {
         return waiting_since == start;
+    }
+
+    // For following 4 implementations are provided just to make the rust_analyzer happy
+
+    #[cfg(feature = "node_proc")]
+    fn dry_run_process(&self, _at_time: Date, _bundle: &mut Bundle) -> Date {
+        panic!("Please disable the 'node_proc' and 'node_rx' features.");
+    }
+
+    #[cfg(feature = "node_proc")]
+    fn schedule_process(&self, _at_time: Date, _bundle: &mut Bundle) -> Date {
+        panic!("Please disable the 'node_proc' and 'node_rx' features.");
+    }
+
+    #[cfg(feature = "node_rx")]
+    fn dry_run_rx(&self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
+        panic!("Please disable the 'node_proc' and 'node_rx' features.");
+    }
+    #[cfg(feature = "node_rx")]
+    fn schedule_rx(&mut self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
+        panic!("Please disable the 'node_proc' and 'node_rx' features.");
     }
 }
 
@@ -74,7 +95,7 @@ fn edge_case_example<NM: NodeManager + Parser<NM> + DispatchParser<NM>>(
 
 fn main() {
     #[cfg(not(feature = "node_tx"))]
-    panic!("Please enable the node_tx feature.");
+    panic!("Please enable the 'node_tx' feature.");
 
     let mut node_dispatch: Dispatcher<NodeDispatcher> = Dispatcher::<NodeDispatcher>::new();
     node_dispatch.add("noret", coerce_nm::<NoRetention>);
