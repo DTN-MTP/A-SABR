@@ -92,6 +92,12 @@ pub struct Multigraph<NM: NodeManager, CM: ContactManager> {
 impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
     /// Creates a new `Multigraph` from a list of nodes and a contact plan.
     ///
+    /// Note: For Dijkstra, we need fast access for the senders. To this end, the index
+    /// in the "senders" Vec matches the  transmitter NodeID. There is a small memory
+    /// overhead if some nodes are not transmitters in the contact plan. Regarding the
+    /// receivers, only fast iteration is required. The indices of the senders[tx_id].receivers
+    /// Vec do not match the receivers NodeID, and no entry exists if a node never receives.
+    ///
     /// # Parameters
     ///
     /// * `nodes` - A vector of nodes to be included in the multigraph.
@@ -103,44 +109,61 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
     pub fn new(mut nodes: Vec<Node<NM>>, mut contact_plan: Vec<Contact<CM>>) -> Self {
         // the contact plan might not be sorted
         // having a sorted list of contacts allow easy multigraph creation
-        let mut data: Vec<Sender<NM, CM>> = Vec::new();
         let node_count = nodes.len();
+        let mut senders: Vec<Sender<NM, CM>> = Vec::with_capacity(node_count);
 
         contact_plan.sort_unstable();
         nodes.sort_unstable();
-        nodes.reverse();
 
-        let mut all_refs = Vec::new();
+        let mut all_refs = Vec::with_capacity(node_count);
 
-        while let Some(node) = nodes.pop() {
+        for node in nodes {
             let node_ref = Rc::new(RefCell::new(node));
-            data.push(Sender {
+            // to avoid realloc and preprocessing to get the perfect layout
+            // we just alloc with the worst case capacity and we shrink later
+            senders.push(Sender {
                 node: Rc::clone(&node_ref),
-                receivers: Vec::new(),
+                receivers: Vec::with_capacity(node_count),
             });
             all_refs.push(node_ref)
         }
 
-        for sender in &mut data {
-            for node_ref in &all_refs {
-                sender.receivers.push(Receiver {
-                    node: Rc::clone(node_ref),
-                    contacts_to_receiver: Vec::new(),
-                    next: 0,
-                });
+        while let Some(last_contact) = contact_plan.last() {
+            let tx_id = last_contact.get_tx_node();
+            let rx_id = last_contact.get_rx_node();
+
+            let mut contact_count_to_drain = 0;
+
+            for contact in contact_plan.iter().rev() {
+                if contact.get_rx_node() != rx_id as NodeID
+                    || contact.get_tx_node() != tx_id as NodeID
+                {
+                    break;
+                }
+                contact_count_to_drain += 1;
             }
+
+            let first_to_drain = contact_plan.len() - contact_count_to_drain;
+            let mut contacts_to_receiver = Vec::with_capacity(contact_count_to_drain);
+            let drain = contact_plan.drain(first_to_drain..);
+
+            for contact in drain {
+                contacts_to_receiver.push(Rc::new(RefCell::new(contact)));
+            }
+
+            senders[tx_id as usize].receivers.push(Receiver {
+                node: all_refs[rx_id as usize].clone(),
+                contacts_to_receiver: contacts_to_receiver,
+                next: 0,
+            });
         }
 
-        for contact in contact_plan {
-            let tx_node_id: NodeID = contact.get_tx_node();
-            let rx_node_id: NodeID = contact.get_rx_node();
-            data[tx_node_id as usize].receivers[rx_node_id as usize]
-                .contacts_to_receiver
-                .push(Rc::new(RefCell::new(contact)));
+        for sender in &mut senders {
+            sender.receivers.shrink_to_fit();
         }
 
         Self {
-            senders: data,
+            senders,
             nodes: all_refs,
             node_count,
         }
