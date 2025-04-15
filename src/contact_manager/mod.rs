@@ -218,18 +218,16 @@ macro_rules! impl_struct_conditional_methods {
 
     (false) => {
         pub fn enqueue(&mut self, bundle: &crate::bundle::Bundle) {
-            let new_size = self.queue_size + bundle.size;
-            if new_size > self.original_volume {
-                panic!("Queue will overflow the contact's volume");
+            // Can overflow with overbooking
+            for prio in 0..bundle.priority as usize + 1 {
+                self.queue_size[prio as usize] += bundle.size;
             }
-            self.queue_size = new_size;
         }
 
         pub fn dequeue(&mut self, bundle: &crate::bundle::Bundle) {
-            if self.queue_size < bundle.size {
-                panic!("Attempting to dequeue a bundle larger than the current queue size");
+            for prio in 0..bundle.priority as usize + 1 {
+                self.queue_size[prio as usize] -= bundle.size;
             }
-            self.queue_size -= bundle.size;
         }
     };
 }
@@ -260,7 +258,7 @@ macro_rules! generate_basic_volume_manager {
             /// The delay between transmissions.
             delay: crate::types::Duration,
             /// The volume scheduled for this contact.
-            queue_size: crate::types::Volume,
+            queue_size: [crate::types::Volume; 3],
             /// The total volume at initialization.
             original_volume: crate::types::Volume,
         }
@@ -280,7 +278,7 @@ macro_rules! generate_basic_volume_manager {
                 Self {
                     rate,
                     delay,
-                    queue_size: 0.0,
+                    queue_size: [0.0; 3],
                     original_volume: 0.0,
                 }
             }
@@ -306,8 +304,11 @@ macro_rules! generate_basic_volume_manager {
                 contact_data: &crate::contact::ContactInfo,
                 at_time: crate::types::Date,
                 bundle: &crate::bundle::Bundle,
+
             ) -> Option<crate::contact_manager::ContactManagerTxData> {
-                if bundle.size > self.original_volume - self.queue_size {
+                let b_prio = bundle.priority as usize;
+                if bundle.size > self.original_volume - self.queue_size[b_prio] {
+
                     return None;
                 }
                 let mut tx_start = if contact_data.start > at_time {
@@ -318,7 +319,7 @@ macro_rules! generate_basic_volume_manager {
 
                 // Conditionally add queue delay based on $add_delay
                 if $add_delay {
-                    tx_start += self.queue_size / self.rate;
+                    tx_start += self.queue_size[b_prio] / self.rate;
                 }
 
                 let tx_end = tx_start + bundle.size / self.rate;
@@ -356,8 +357,11 @@ macro_rules! generate_basic_volume_manager {
             ) -> Option<crate::contact_manager::ContactManagerTxData> {
                 if let Some(data) = self.dry_run_tx(contact_data, at_time, bundle) {
                     // Conditionally update queue size based on $auto_update
+                    // Can overflow with overbooking
                     if $auto_update {
-                        self.queue_size += bundle.size;
+                        for prio in 0..bundle.priority as usize + 1 {
+                            self.queue_size[prio] += bundle.size;
+                        }
                     }
                     return Some(data);
                 }

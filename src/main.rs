@@ -2,7 +2,9 @@ use std::{cell::RefCell, env, rc::Rc};
 
 use a_sabr::{
     bundle::Bundle,
-    contact_manager::{eto::ETOManager, evl::EVLManager, qd::QDManager, seg::SegmentationManager, ContactManager},
+    contact_manager::{
+        eto::ETOManager, evl::EVLManager, qd::QDManager, seg::SegmentationManager, ContactManager,
+    },
     contact_plan::{asabr_file_lexer::FileLexer, from_asabr_lexer::ASABRContactPlan},
     node_manager::none::NoManagement,
     parsing::{coerce_cm, ContactDispatcher, Dispatcher},
@@ -32,7 +34,6 @@ fn main() {
     contact_dispatch.add("evl", coerce_cm::<ETOManager>);
     contact_dispatch.add("seg", coerce_cm::<SegmentationManager>);
 
-
     // We parse the contact plan (A-SABR format thanks to ASABRContactPlan) and the lexer
     let (nodes, contacts) = cp
         .parse::<NoManagement, Box<dyn ContactManager>>(&mut mylexer, None, Some(&contact_dispatch))
@@ -41,7 +42,8 @@ fn main() {
     // We create a storage for the Paths
     let table = Rc::new(RefCell::new(TreeCache::new(true, false, 10)));
     // We initialize the routing algorithm with the storage and the contacts/nodes created thanks to the parser
-    let mut spsn = SpsnMpt::<NoManagement, Box<dyn ContactManager>>::new(nodes, contacts, table, false);
+    let mut spsn =
+        SpsnMpt::<NoManagement, Box<dyn ContactManager>>::new(nodes, contacts, table, false);
 
     // We will route a bundle
     let b = Bundle {
