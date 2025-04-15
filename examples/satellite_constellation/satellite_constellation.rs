@@ -29,8 +29,7 @@ impl NodeManager for NoRetention {
         return waiting_since == start;
     }
 
-    // For following 4 implementations are provided just to make the rust_analyzer happy
-
+    // The following 4 implementations are provided just to make the rust_analyzer happy
     #[cfg(feature = "node_proc")]
     fn dry_run_process(&self, _at_time: Date, _bundle: &mut Bundle) -> Date {
         panic!("Please disable the 'node_proc' and 'node_rx' features.");
@@ -106,4 +105,14 @@ fn main() {
         "examples/satellite_constellation/contact_plan_2.cp",
         Some(&node_dispatch),
     );
+
+    // === OUTPUT ===
+    // Running with contact plan location=examples/satellite_constellation/contact_plan_1.cp, and destination node=2
+    // Route to node 2 at t=11 with 2 hop(s):
+    //         - Reach node 0 at t=0 with 0 hop(s)
+    //         - Reach node 1 at t=0 with 1 hop(s)
+    //         - Reach node 2 at t=11 with 2 hop(s)
+
+    // Running with contact plan location=examples/satellite_constellation/contact_plan_2.cp, and destination node=2
+    // No route found to node 2.
 }

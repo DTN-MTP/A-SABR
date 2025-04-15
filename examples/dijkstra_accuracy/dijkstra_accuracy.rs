@@ -67,4 +67,43 @@ fn main() {
     edge_case_example("examples/dijkstra_accuracy/contact_plan_2.cp", 4);
 
     println!("\nN.B.: Results with the single end-to-end \"Path\" variant. We would get the same results with their \"Tree\" versions.");
+
+    // === OUTPUT ===
+    // Running with contact plan location=examples/dijkstra_accuracy/contact_plan_1.cp, and destination node=3
+
+    // With NodeGraphPath pathfinding. Route to node 3 at t=30 with 3 hop(s):
+    //         - Reach node 0 at t=0 with 0 hop(s)
+    //         - Reach node 1 at t=0 with 1 hop(s)
+    //         - Reach node 2 at t=10 with 2 hop(s)
+    //         - Reach node 3 at t=30 with 3 hop(s)
+    // With ContactGraphPath pathfinding. Route to node 3 at t=30 with 2 hop(s):
+    //         - Reach node 0 at t=0 with 0 hop(s)
+    //         - Reach node 2 at t=25 with 1 hop(s)
+    //         - Reach node 3 at t=30 with 2 hop(s)
+    // With MptPath pathfinding. Route to node 3 at t=30 with 2 hop(s):
+    //         - Reach node 0 at t=0 with 0 hop(s)
+    //         - Reach node 2 at t=25 with 1 hop(s)
+    //         - Reach node 3 at t=30 with 2 hop(s)
+
+    // Running with contact plan location=examples/dijkstra_accuracy/contact_plan_2.cp, and destination node=4
+
+    // With NodeGraphPath pathfinding. Route to node 4 at t=50 with 4 hop(s):
+    //         - Reach node 0 at t=0 with 0 hop(s)
+    //         - Reach node 1 at t=0 with 1 hop(s)
+    //         - Reach node 2 at t=10 with 2 hop(s)
+    //         - Reach node 3 at t=20 with 3 hop(s)
+    //         - Reach node 4 at t=50 with 4 hop(s)
+    // With ContactGraphPath pathfinding. Route to node 4 at t=50 with 4 hop(s):
+    //         - Reach node 0 at t=0 with 0 hop(s)
+    //         - Reach node 1 at t=0 with 1 hop(s)
+    //         - Reach node 2 at t=10 with 2 hop(s)
+    //         - Reach node 3 at t=20 with 3 hop(s)
+    //         - Reach node 4 at t=50 with 4 hop(s)
+    // With MptPath pathfinding. Route to node 4 at t=50 with 3 hop(s):
+    //         - Reach node 0 at t=0 with 0 hop(s)
+    //         - Reach node 2 at t=25 with 1 hop(s)
+    //         - Reach node 3 at t=25 with 2 hop(s)
+    //         - Reach node 4 at t=50 with 3 hop(s)
+
+    // N.B.: Results with the single end-to-end "Path" variant. We would get the same results with their "Tree" versions.
 }
