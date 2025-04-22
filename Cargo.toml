@@ -36,3 +36,7 @@ path = "examples/dijkstra_accuracy/dijkstra_accuracy.rs"
 [[example]]
 name = "satellite_constellation"
 path = "examples/satellite_constellation/satellite_constellation.rs"
+
+[[example]]
+name = "bundle_processing"
+path = "examples/bundle_processing/bundle_processing.rs"
