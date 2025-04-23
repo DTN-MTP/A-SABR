@@ -1,8 +1,6 @@
-use std::{cell::RefCell, rc::Rc};
-
 use a_sabr::{
     bundle::Bundle, contact_manager::seg::SegmentationManager,
-    contact_plan::from_tvgutil_file::TVGUtilContactPlan, route_storage::cache::TreeCache,
+    contact_plan::from_tvgutil_file::TVGUtilContactPlan, node_manager::none::NoManagement,
     routing::aliases::*, types::NodeID,
 };
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
@@ -63,8 +61,11 @@ pub fn benchmark(c: &mut Criterion) {
         group.bench_function(router_type, |b| {
             b.iter_batched(
                 || {
-                    let (nodes, contacts) =
-                        TVGUtilContactPlan::parse::<SegmentationManager>(ptvg_filepath).unwrap();
+                    let (nodes, contacts) = TVGUtilContactPlan::parse::<
+                        NoManagement,
+                        SegmentationManager,
+                    >(ptvg_filepath)
+                    .unwrap();
 
                     build_generic_router(router_type, nodes, contacts, Some(spsn_opts.clone()))
                 },

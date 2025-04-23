@@ -31,7 +31,7 @@ pub fn init_pathfinding<
     ))));
 }
 
-pub fn pretty_print<CM: ContactManager>(route: Rc<RefCell<RouteStage<CM>>>) {
+pub fn pretty_print<NM: NodeManager, CM: ContactManager>(route: Rc<RefCell<RouteStage<NM, CM>>>) {
     let mut backtrace: Vec<String> = Vec::new();
     println!(
         "Route to node {} at t={} with {} hop(s): ",

@@ -8,7 +8,7 @@ use crate::{
         ContactManager,
     },
     node::{Node, NodeInfo},
-    node_manager::none::NoManagement,
+    node_manager::{none::NoManagement, NodeManager},
     types::{DataRate, Date, Duration, NodeID},
 };
 
@@ -32,28 +32,28 @@ fn contact_info_from_tvg_data(data: &TVGUtilContactData) -> ContactInfo {
     return ContactInfo::new(data.tx_node, data.rx_node, data.tx_start, data.tx_end);
 }
 
-pub trait FromTVGUtilContactData<CM: ContactManager> {
-    fn tvg_convert(data: TVGUtilContactData) -> Option<Contact<CM>>;
+pub trait FromTVGUtilContactData<NM: NodeManager, CM: ContactManager> {
+    fn tvg_convert(data: TVGUtilContactData) -> Option<Contact<NM, CM>>;
 }
 
 macro_rules! generate_for_evl_variants {
-    ($manager_name:ident) => {
-        impl FromTVGUtilContactData<$manager_name> for $manager_name {
-            fn tvg_convert(data: TVGUtilContactData) -> Option<Contact<$manager_name>> {
+    ($nm_name:ident, $cm_name:ident) => {
+        impl FromTVGUtilContactData<$nm_name, $cm_name> for $cm_name {
+            fn tvg_convert(data: TVGUtilContactData) -> Option<Contact<$nm_name, $cm_name>> {
                 let contact_info = contact_info_from_tvg_data(&data);
-                let manager = $manager_name::new(data.data_rate, data.delay);
+                let manager = $cm_name::new(data.data_rate, data.delay);
                 return Contact::try_new(contact_info, manager);
             }
         }
     };
 }
 
-generate_for_evl_variants!(EVLManager);
-generate_for_evl_variants!(ETOManager);
-generate_for_evl_variants!(QDManager);
+generate_for_evl_variants!(NoManagement, EVLManager);
+generate_for_evl_variants!(NoManagement, ETOManager);
+generate_for_evl_variants!(NoManagement, QDManager);
 
-impl FromTVGUtilContactData<SegmentationManager> for SegmentationManager {
-    fn tvg_convert(data: TVGUtilContactData) -> Option<Contact<SegmentationManager>> {
+impl FromTVGUtilContactData<NoManagement, SegmentationManager> for SegmentationManager {
+    fn tvg_convert(data: TVGUtilContactData) -> Option<Contact<NoManagement, SegmentationManager>> {
         let contact_info = contact_info_from_tvg_data(&data);
         let manager = SegmentationManager::new(
             vec![Segment::<DataRate> {
@@ -74,11 +74,11 @@ impl FromTVGUtilContactData<SegmentationManager> for SegmentationManager {
 pub struct TVGUtilContactPlan {}
 
 impl TVGUtilContactPlan {
-    pub fn parse<CM: FromTVGUtilContactData<CM> + ContactManager>(
+    pub fn parse<NM: NodeManager, CM: FromTVGUtilContactData<NM, CM> + ContactManager>(
         filename: &str,
-    ) -> io::Result<(Vec<Node<NoManagement>>, Vec<Contact<CM>>)> {
+    ) -> io::Result<(Vec<Node<NoManagement>>, Vec<Contact<NM, CM>>)> {
         let mut nodes: Vec<Node<NoManagement>> = Vec::new();
-        let mut contacts: Vec<Contact<CM>> = Vec::new();
+        let mut contacts: Vec<Contact<NM, CM>> = Vec::new();
 
         let mut map_id_map: HashMap<&str, NodeID> = HashMap::new();
 

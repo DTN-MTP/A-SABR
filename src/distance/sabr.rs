@@ -1,6 +1,9 @@
 use std::cmp::Ordering;
 
-use crate::{contact_manager::ContactManager, pathfinding::mpt::MptOrd, route_stage::RouteStage};
+use crate::{
+    contact_manager::ContactManager, node_manager::NodeManager, pathfinding::mpt::MptOrd,
+    route_stage::RouteStage,
+};
 
 use super::Distance;
 
@@ -12,7 +15,7 @@ use super::Distance;
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct SABR {}
 
-impl<CM: ContactManager> Distance<CM> for SABR {
+impl<NM: NodeManager, CM: ContactManager> Distance<NM, CM> for SABR {
     /// Compares two `RouteStage` instances to determine their ordering based on
     /// the SABR standard tie-break rules.
     ///
@@ -33,7 +36,7 @@ impl<CM: ContactManager> Distance<CM> for SABR {
     /// # Performance
     /// This function is marked with `#[inline(always)]` for potential performance optimizations.
     #[inline(always)]
-    fn cmp(first: &RouteStage<CM>, second: &RouteStage<CM>) -> Ordering {
+    fn cmp(first: &RouteStage<NM, CM>, second: &RouteStage<NM, CM>) -> Ordering {
         if first.at_time > second.at_time {
             return Ordering::Greater;
         } else if first.at_time < second.at_time {
@@ -68,20 +71,20 @@ impl<CM: ContactManager> Distance<CM> for SABR {
     /// # Performance
     /// This function is marked with `#[inline(always)]` for potential performance optimizations.
     #[inline(always)]
-    fn eq(first: &RouteStage<CM>, second: &RouteStage<CM>) -> bool {
+    fn eq(first: &RouteStage<NM, CM>, second: &RouteStage<NM, CM>) -> bool {
         first.at_time == second.at_time
             && first.hop_count == second.hop_count
             && first.expiration == second.expiration
     }
 }
 
-impl<CM: ContactManager> MptOrd<CM> for SABR {
+impl<NM: NodeManager, CM: ContactManager> MptOrd<NM, CM> for SABR {
     // For SABR, the secondary metric to consider is the hop count.
-    fn can_retain(prop: &RouteStage<CM>, known: &RouteStage<CM>) -> bool {
+    fn can_retain(prop: &RouteStage<NM, CM>, known: &RouteStage<NM, CM>) -> bool {
         return prop.hop_count < known.hop_count;
     }
     // Ignore expiration constraints to prioritize performance.
-    fn must_prune(prop: &RouteStage<CM>, known: &RouteStage<CM>) -> bool {
+    fn must_prune(prop: &RouteStage<NM, CM>, known: &RouteStage<NM, CM>) -> bool {
         return prop.at_time <= known.at_time && prop.hop_count <= known.hop_count;
     }
 }

@@ -1,6 +1,5 @@
 use crate::{bundle::Bundle, types::Date};
 use std::any::Any;
-
 pub mod none;
 
 /// A trait for managing and scheduling operations on nodes in a network.

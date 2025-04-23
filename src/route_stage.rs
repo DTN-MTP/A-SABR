@@ -13,14 +13,14 @@ use std::rc::Rc;
 /// This struct encapsulates the `Contact` and parent `RouteStage` information necessary to move from
 /// one stage to the next.
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct ViaHop<CM: ContactManager> {
+pub struct ViaHop<NM: NodeManager, CM: ContactManager> {
     /// A reference to the contact for this hop, representing the intermediate node.
-    pub contact: Rc<RefCell<Contact<CM>>>,
+    pub contact: Rc<RefCell<Contact<NM, CM>>>,
     /// A reference to the parent route stage for this hop.
-    pub parent_route: Rc<RefCell<RouteStage<CM>>>,
+    pub parent_route: Rc<RefCell<RouteStage<NM, CM>>>,
 }
 
-impl<CM: ContactManager> Clone for ViaHop<CM> {
+impl<NM: NodeManager, CM: ContactManager> Clone for ViaHop<NM, CM> {
     fn clone(&self) -> Self {
         ViaHop {
             contact: Rc::clone(&self.contact),
@@ -35,7 +35,7 @@ impl<CM: ContactManager> Clone for ViaHop<CM> {
 /// - `CM`: A type implementing the `ContactManager` trait, responsible for managing the
 ///   contact's operations.
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct RouteStage<CM: ContactManager> {
+pub struct RouteStage<NM: NodeManager, CM: ContactManager> {
     /// The ID of the destination node for this route stage.
     pub to_node: NodeID,
     /// The time at which this route stage is considered to be valid or relevant.
@@ -43,7 +43,7 @@ pub struct RouteStage<CM: ContactManager> {
     /// A flag that indicates if this stage of the route is disabled.
     pub is_disabled: bool,
     /// An optional `ViaHop` that stores information about the intermediate hops that lead to this stage.
-    pub via: Option<ViaHop<CM>>,
+    pub via: Option<ViaHop<NM, CM>>,
     /// The number of hops taken to reach this stage from the source.
     pub hop_count: HopCount,
     /// The cumulative delay incurred on the path to this stage, often used for routing optimizations.
@@ -53,14 +53,14 @@ pub struct RouteStage<CM: ContactManager> {
     /// A flag indicating whether the route has been fully initialized and is ready for routing.
     pub route_initialized: bool,
     /// A hashmap that maps destination node IDs to their respective next route stages.
-    pub next_for_destination: HashMap<NodeID, Rc<RefCell<RouteStage<CM>>>>,
+    pub next_for_destination: HashMap<NodeID, Rc<RefCell<RouteStage<NM, CM>>>>,
 
     #[cfg(feature = "node_proc")]
     /// The stage of the bundle that arrives at to_node
     pub bundle_opt: Bundle,
 }
 
-impl<CM: ContactManager> RouteStage<CM> {
+impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
     /// Creates a new `RouteStage` with the specified parameters.
     ///
     /// # Parameters
@@ -76,7 +76,7 @@ impl<CM: ContactManager> RouteStage<CM> {
     pub fn new(
         at_time: Date,
         to_node: NodeID,
-        via_hop: Option<ViaHop<CM>>,
+        via_hop: Option<ViaHop<NM, CM>>,
         #[cfg(feature = "node_proc")] bundle: Bundle,
     ) -> Self {
         Self {
@@ -94,7 +94,7 @@ impl<CM: ContactManager> RouteStage<CM> {
         }
     }
 
-    pub fn clone(&self) -> RouteStage<CM> {
+    pub fn clone(&self) -> RouteStage<NM, CM> {
         let mut route = Self::new(
             self.at_time,
             self.to_node,
@@ -111,7 +111,7 @@ impl<CM: ContactManager> RouteStage<CM> {
         return route;
     }
 
-    pub fn init_route(route: Rc<RefCell<RouteStage<CM>>>) {
+    pub fn init_route(route: Rc<RefCell<RouteStage<NM, CM>>>) {
         let destination = route.borrow().to_node;
         {
             if route.borrow().route_initialized {
@@ -119,7 +119,7 @@ impl<CM: ContactManager> RouteStage<CM> {
             }
         }
 
-        let mut curr_opt: Option<Rc<RefCell<RouteStage<CM>>>> = Some(route.clone());
+        let mut curr_opt: Option<Rc<RefCell<RouteStage<NM, CM>>>> = Some(route.clone());
 
         while let Some(current) = curr_opt.take() {
             let route_borrowed = current.borrow_mut();
@@ -153,7 +153,7 @@ impl<CM: ContactManager> RouteStage<CM> {
     ///
     /// * `true` if the scheduling process was successful and the bundle is properly scheduled.
     /// * `false` if the scheduling process failed for any reason, such as a node being excluded, timing constraints, or invalid transmission conditions.
-    pub fn schedule<NM: NodeManager>(
+    pub fn schedule(
         &mut self,
         at_time: Date,
         bundle: &Bundle,
@@ -240,7 +240,7 @@ impl<CM: ContactManager> RouteStage<CM> {
     ///
     /// * `true` if the dry run was successful and the bundle can be transmitted according to the simulation.
     /// * `false` if the dry run fails, such as due to an excluded node, invalid timing, or any other condition preventing transmission.
-    pub fn dry_run<NM: NodeManager>(
+    pub fn dry_run(
         &mut self,
         at_time: Date,
         bundle: &Bundle,

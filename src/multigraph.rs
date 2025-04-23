@@ -36,7 +36,7 @@ pub struct Receiver<NM: NodeManager, CM: ContactManager> {
     /// The node represented by this receiver, wrapped in `Rc<RefCell<...>>`.
     pub node: Rc<RefCell<Node<NM>>>,
     /// A list of contacts providing paths to this receiver.
-    pub contacts_to_receiver: Vec<Rc<RefCell<Contact<CM>>>>,
+    pub contacts_to_receiver: Vec<Rc<RefCell<Contact<NM, CM>>>>,
     /// The index of the next contact to be checked for relevance.
     pub next: usize,
 }
@@ -106,7 +106,7 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
     /// # Returns
     ///
     /// * `Self` - A new instance of `Multigraph`.
-    pub fn new(mut nodes: Vec<Node<NM>>, mut contact_plan: Vec<Contact<CM>>) -> Self {
+    pub fn new(mut nodes: Vec<Node<NM>>, mut contact_plan: Vec<Contact<NM, CM>>) -> Self {
         // the contact plan might not be sorted
         // having a sorted list of contacts allow easy multigraph creation
         let node_count = nodes.len();

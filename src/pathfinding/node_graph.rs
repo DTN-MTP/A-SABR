@@ -25,15 +25,15 @@ macro_rules! define_node_graph {
         ///
         /// * `NM` - A type that implements the `NodeManager` trait.
         /// * `CM` - A type that implements the `ContactManager` trait.
-        /// * `D` - A type that implements the `Distance<CM>` trait.
-        pub struct $name<NM: NodeManager, CM: ContactManager, D: Distance<CM>> {
+        /// * `D` - A type that implements the `Distance<NM, CM>` trait.
+        pub struct $name<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> {
             /// The node multigraph for contact access.
             graph: Rc<RefCell<Multigraph<NM, CM>>>,
             #[doc(hidden)]
             _phantom_distance: PhantomData<D>,
         }
 
-        impl<NM: NodeManager, CM: ContactManager, D: Distance<CM>> Pathfinding<NM, CM>
+        impl<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> Pathfinding<NM, CM>
             for $name<NM, CM, D>
         {
             /// Constructs a new `NodeGraph` instance with the provided nodes and contacts.
@@ -73,13 +73,13 @@ macro_rules! define_node_graph {
                 source: NodeID,
                 bundle: &Bundle,
                 excluded_nodes_sorted: &Vec<NodeID>,
-            ) -> PathFindingOutput<CM> {
+            ) -> PathFindingOutput<NM, CM> {
                 let mut graph = self.graph.borrow_mut();
 
                 if $with_exclusions {
                     graph.apply_exclusions_sorted(excluded_nodes_sorted);
                 }
-                let source_route: Rc<RefCell<RouteStage<CM>>> =
+                let source_route: Rc<RefCell<RouteStage<NM, CM>>> =
                     Rc::new(RefCell::new(RouteStage::new(
                         current_time,
                         source,
@@ -87,14 +87,14 @@ macro_rules! define_node_graph {
                         #[cfg(feature = "node_proc")]
                         bundle.clone(),
                     )));
-                let mut tree: PathFindingOutput<CM> = PathFindingOutput::new(
+                let mut tree: PathFindingOutput<NM, CM> = PathFindingOutput::new(
                     bundle,
                     source_route.clone(),
                     excluded_nodes_sorted,
                     graph.senders.len(),
                 );
 
-                let mut priority_queue: BinaryHeap<Reverse<DistanceWrapper<CM, D>>> =
+                let mut priority_queue: BinaryHeap<Reverse<DistanceWrapper<NM, CM, D>>> =
                     BinaryHeap::new();
 
                 for node_id in 0..graph.get_node_count() {

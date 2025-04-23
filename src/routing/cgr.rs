@@ -28,7 +28,7 @@ pub struct Cgr<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: R
 }
 
 impl<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: RouteStorage<NM, CM>>
-    Router<CM> for Cgr<NM, CM, P, S>
+    Router<NM, CM> for Cgr<NM, CM, P, S>
 {
     fn route(
         &mut self,
@@ -36,7 +36,7 @@ impl<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: RouteStorag
         bundle: &Bundle,
         curr_time: Date,
         excluded_nodes: &Vec<NodeID>,
-    ) -> Option<RoutingOutput<CM>> {
+    ) -> Option<RoutingOutput<NM, CM>> {
         if bundle.destinations.len() == 1 {
             return self.route_unicast(source, bundle, curr_time, excluded_nodes);
         }
@@ -50,7 +50,7 @@ impl<S: RouteStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfindin
 {
     pub fn new(
         nodes: Vec<Node<NM>>,
-        contacts: Vec<Contact<CM>>,
+        contacts: Vec<Contact<NM, CM>>,
         route_storage: Rc<RefCell<S>>,
     ) -> Self {
         Self {
@@ -68,7 +68,7 @@ impl<S: RouteStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfindin
         bundle: &Bundle,
         curr_time: Date,
         excluded_nodes: &Vec<NodeID>,
-    ) -> Option<RoutingOutput<CM>> {
+    ) -> Option<RoutingOutput<NM, CM>> {
         let dest = bundle.destinations[0];
         let mut bundle_no_constraints = bundle.clone();
         bundle_no_constraints.priority = 1;

@@ -25,18 +25,18 @@ pub mod node_graph;
 ///
 /// * `CM` - A generic type that implements the `ContactManager` trait.
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct PathFindingOutput<CM: ContactManager> {
+pub struct PathFindingOutput<NM: NodeManager, CM: ContactManager> {
     /// The `Bundle` for which the pathfinding is being performed.
     pub bundle: Bundle,
     /// The `source` RouteStage from which the pathfinding is being performed.
-    pub source: Rc<RefCell<RouteStage<CM>>>,
+    pub source: Rc<RefCell<RouteStage<NM, CM>>>,
     /// A list of `NodeID`s representing nodes that should be excluded from the pathfinding.
     pub excluded_nodes_sorted: Vec<NodeID>,
     /// A vector that contains a `RouteStage`s for a specific destination node ID as the index.
-    pub by_destination: Vec<Option<Rc<RefCell<RouteStage<CM>>>>>,
+    pub by_destination: Vec<Option<Rc<RefCell<RouteStage<NM, CM>>>>>,
 }
 
-impl<CM: ContactManager> PathFindingOutput<CM> {
+impl<NM: NodeManager, CM: ContactManager> PathFindingOutput<NM, CM> {
     /// Creates a new `PathfindingOutput` instance, initializing the `by_destination` vector
     /// with empty vectors for each destination node and sorting the excluded nodes.
     ///
@@ -52,7 +52,7 @@ impl<CM: ContactManager> PathFindingOutput<CM> {
     /// A new `PathfindingOutput` instance.
     pub fn new(
         bundle: &Bundle,
-        source: Rc<RefCell<RouteStage<CM>>>,
+        source: Rc<RefCell<RouteStage<NM, CM>>>,
         excluded_nodes_sorted: &Vec<NodeID>,
         node_count: usize,
     ) -> Self {
@@ -65,7 +65,7 @@ impl<CM: ContactManager> PathFindingOutput<CM> {
         }
     }
 
-    pub fn get_source_route(&self) -> Rc<RefCell<RouteStage<CM>>> {
+    pub fn get_source_route(&self) -> Rc<RefCell<RouteStage<NM, CM>>> {
         return self.source.clone();
     }
 
@@ -121,7 +121,7 @@ pub trait Pathfinding<NM: NodeManager, CM: ContactManager> {
         source: NodeID,
         bundle: &Bundle,
         excluded_nodes_sorted: &Vec<NodeID>,
-    ) -> PathFindingOutput<CM>;
+    ) -> PathFindingOutput<NM, CM>;
 
     /// Get a shared pointer to the multigraph.
     ///
@@ -148,12 +148,12 @@ pub trait Pathfinding<NM: NodeManager, CM: ContactManager> {
 /// An `Option` containing a `RouteStage` if a suitable hop is found, or `None` if no valid hop is available.
 fn try_make_hop<NM: NodeManager, CM: ContactManager>(
     first_contact_index: usize,
-    sndr_route: &Rc<RefCell<RouteStage<CM>>>,
+    sndr_route: &Rc<RefCell<RouteStage<NM, CM>>>,
     bundle: &Bundle,
-    contacts: &Vec<Rc<RefCell<Contact<CM>>>>,
+    contacts: &Vec<Rc<RefCell<Contact<NM, CM>>>>,
     tx_node: &Rc<RefCell<Node<NM>>>,
     rx_node: &Rc<RefCell<Node<NM>>>,
-) -> Option<RouteStage<CM>> {
+) -> Option<RouteStage<NM, CM>> {
     let mut index = 0;
     let mut final_data = TxEndHopData {
         tx_start: 0.0,
@@ -224,7 +224,7 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
 
     if final_data.arrival < Date::MAX {
         let seleted_contact = &contacts[index];
-        let mut route_proposition: RouteStage<CM> = RouteStage::new(
+        let mut route_proposition: RouteStage<NM, CM> = RouteStage::new(
             final_data.arrival,
             seleted_contact.borrow().get_rx_node(),
             Some(ViaHop {

@@ -39,7 +39,7 @@ pub trait TreeStorage<NM: NodeManager, CM: ContactManager> {
         node_list: &Vec<Rc<RefCell<Node<NM>>>>,
         excluded_nodes_sorted: &Vec<NodeID>,
     ) -> (
-        Option<Rc<RefCell<PathFindingOutput<CM>>>>,
+        Option<Rc<RefCell<PathFindingOutput<NM, CM>>>>,
         Option<Vec<NodeID>>,
     );
 
@@ -48,17 +48,17 @@ pub trait TreeStorage<NM: NodeManager, CM: ContactManager> {
     /// # Parameters
     /// * `bundle` - A bundle copy for which the tree was created.
     /// * `tree` - A reference-counted mutable reference to the `PathfindingOutput` to store.
-    fn store(&mut self, bundle: &Bundle, tree: Rc<RefCell<PathFindingOutput<CM>>>);
+    fn store(&mut self, bundle: &Bundle, tree: Rc<RefCell<PathFindingOutput<NM, CM>>>);
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Route<CM: ContactManager> {
-    pub source_stage: Rc<RefCell<RouteStage<CM>>>,
-    pub destination_stage: Rc<RefCell<RouteStage<CM>>>,
+pub struct Route<NM: NodeManager, CM: ContactManager> {
+    pub source_stage: Rc<RefCell<RouteStage<NM, CM>>>,
+    pub destination_stage: Rc<RefCell<RouteStage<NM, CM>>>,
 }
 
-impl<CM: ContactManager> Route<CM> {
-    pub fn from_tree(tree: Rc<RefCell<PathFindingOutput<CM>>>, dest: NodeID) -> Option<Self> {
+impl<NM: NodeManager, CM: ContactManager> Route<NM, CM> {
+    pub fn from_tree(tree: Rc<RefCell<PathFindingOutput<NM, CM>>>, dest: NodeID) -> Option<Self> {
         let tree_ref = tree.borrow();
         let source_stage = tree_ref.get_source_route();
         if tree_ref.by_destination[dest as usize].is_none() {
@@ -74,7 +74,7 @@ impl<CM: ContactManager> Route<CM> {
     }
 }
 
-impl<CM: ContactManager> Clone for Route<CM> {
+impl<NM: NodeManager, CM: ContactManager> Clone for Route<NM, CM> {
     fn clone(&self) -> Self {
         Route {
             source_stage: Rc::clone(&self.source_stage),
@@ -100,7 +100,7 @@ pub trait RouteStorage<NM: NodeManager, CM: ContactManager> {
     ///
     /// # Returns
     ///
-    /// * `Option<Route<CM>>` - An optional reference-counted and mutable reference
+    /// * `Option<Route<NM, CM>>` - An optional reference-counted and mutable reference
     ///   to the `Route` if it exists; otherwise, returns `None`.
     fn select(
         &mut self,
@@ -108,9 +108,9 @@ pub trait RouteStorage<NM: NodeManager, CM: ContactManager> {
         curr_time: Date,
         node_list: &Vec<Rc<RefCell<Node<NM>>>>,
         excluded_nodes_sorted: &Vec<NodeID>,
-    ) -> Option<Route<CM>>;
+    ) -> Option<Route<NM, CM>>;
 
-    fn store(&mut self, bundle: &Bundle, route: Route<CM>);
+    fn store(&mut self, bundle: &Bundle, route: Route<NM, CM>);
 }
 
 /// A struct that manages limits and conditions for scheduling based on bundle characteristics.

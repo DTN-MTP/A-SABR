@@ -57,10 +57,10 @@ impl ASABRContactPlan {
     /// # Type Parameters
     ///
     /// * `CM` - A generic type that implements the `ContactManager` trait, used to manage the contact.
-    fn add_contact<CM: ContactManager>(
+    fn add_contact<NM: NodeManager, CM: ContactManager>(
         &mut self,
-        contact: Contact<CM>,
-        contacts: &mut Vec<Contact<CM>>,
+        contact: Contact<NM, CM>,
+        contacts: &mut Vec<Contact<NM, CM>>,
     ) {
         let value = max(contact.get_tx_node(), contact.get_rx_node());
         self.max_node_id_in_contacts = max(self.max_node_id_in_contacts, value.into());
@@ -120,7 +120,7 @@ impl ASABRContactPlan {
     ///
     /// # Returns
     ///
-    /// * `Result<(Vec<Node<NM>>, Vec<Contact<CM>>), String>` - Returns a tuple containing vectors of parsed
+    /// * `Result<(Vec<Node<NM>>, Vec<Contact<NM, CM>>), String>` - Returns a tuple containing vectors of parsed
     ///   nodes and contacts, or an error message if there is an issue during parsing.
     ///
     /// # Type Parameters
@@ -137,8 +137,8 @@ impl ASABRContactPlan {
         lexer: &mut dyn Lexer,
         node_marker_map: Option<&Dispatcher<fn(&mut dyn Lexer) -> ParsingState<NM>>>,
         contact_marker_map: Option<&Dispatcher<fn(&mut dyn Lexer) -> ParsingState<CM>>>,
-    ) -> Result<(Vec<Node<NM>>, Vec<Contact<CM>>), String> {
-        let mut contacts: Vec<Contact<CM>> = Vec::new();
+    ) -> Result<(Vec<Node<NM>>, Vec<Contact<NM, CM>>), String> {
+        let mut contacts: Vec<Contact<NM, CM>> = Vec::new();
         let mut nodes: Vec<Node<NM>> = Vec::new();
 
         loop {

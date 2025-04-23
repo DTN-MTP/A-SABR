@@ -130,9 +130,9 @@ pub struct SpsnOptions {
 pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'static>(
     router_type: &str,
     nodes: Vec<Node<NM>>,
-    contacts: Vec<Contact<CM>>,
+    contacts: Vec<Contact<NM, CM>>,
     spsn_options: Option<SpsnOptions>,
-) -> Box<dyn Router<CM>> {
+) -> Box<dyn Router<NM, CM>> {
     if let Some(options) = spsn_options {
         let check_size = options.check_size;
         let check_priority = options.check_priority;

@@ -44,8 +44,8 @@ pub struct Spsn<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: 
     _phantom_cm: PhantomData<CM>,
 }
 
-impl<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: TreeStorage<NM, CM>> Router<CM>
-    for Spsn<NM, CM, P, S>
+impl<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: TreeStorage<NM, CM>>
+    Router<NM, CM> for Spsn<NM, CM, P, S>
 {
     fn route(
         &mut self,
@@ -53,7 +53,7 @@ impl<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: TreeStorage
         bundle: &Bundle,
         curr_time: Date,
         excluded_nodes: &Vec<NodeID>,
-    ) -> Option<RoutingOutput<CM>> {
+    ) -> Option<RoutingOutput<NM, CM>> {
         if bundle.destinations.len() == 1 {
             return self.route_unicast(source, bundle, curr_time, excluded_nodes);
         }
@@ -79,7 +79,7 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
     /// * `Self` - A new instance of the `SPSN` struct.
     pub fn new(
         nodes: Vec<Node<NM>>,
-        contacts: Vec<Contact<CM>>,
+        contacts: Vec<Contact<NM, CM>>,
         route_storage: Rc<RefCell<S>>,
         with_priorities: bool,
     ) -> Self {
@@ -107,7 +107,7 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
     /// - `excluded_nodes`: A list of nodes to exclude from the unicast path.
     ///
     /// # Returns
-    /// An `Option<RoutingOutput<CM>>` containing the routing result, or `None` if routing fails or
+    /// An `Option<RoutingOutput<NM, CM>>` containing the routing result, or `None` if routing fails or
     /// is aborted.
     fn route_unicast(
         &mut self,
@@ -115,7 +115,7 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
         bundle: &Bundle,
         curr_time: Date,
         excluded_nodes: &Vec<NodeID>,
-    ) -> Option<RoutingOutput<CM>> {
+    ) -> Option<RoutingOutput<NM, CM>> {
         if self.unicast_guard.must_abort(bundle) {
             return None;
         }
@@ -186,7 +186,7 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
     /// - `excluded_nodes`: A list of nodes to exclude from the multicast paths.
     ///
     /// # Returns
-    /// An `Option<RoutingOutput<CM>>` containing the multicast routing result, or `None` if
+    /// An `Option<RoutingOutput<NM, CM>>` containing the multicast routing result, or `None` if
     /// routing fails.
     pub fn route_multicast(
         &mut self,
@@ -194,7 +194,7 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
         bundle: &Bundle,
         curr_time: Date,
         excluded_nodes: &Vec<NodeID>,
-    ) -> Option<RoutingOutput<CM>> {
+    ) -> Option<RoutingOutput<NM, CM>> {
         if let (Some(tree), Some(mut reachable_nodes)) = self.route_storage.borrow().select(
             bundle,
             curr_time,

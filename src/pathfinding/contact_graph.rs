@@ -29,7 +29,7 @@ macro_rules! define_contact_graph {
         ///
         /// * `NM` - A type that implements the `NodeManager` trait.
         /// * `CM` - A type that implements the `ContactManager` trait.
-        pub struct $name<NM: NodeManager, CM: ContactManager, D: Distance<CM>> {
+        pub struct $name<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> {
             /// The node multigraph for contact access.
             graph: Rc<RefCell<Multigraph<NM, CM>>>,
             /// For tree construction, tracks the nodes visited as transmitters.
@@ -45,7 +45,7 @@ macro_rules! define_contact_graph {
             _phantom_distance: PhantomData<D>,
         }
 
-        impl<NM: NodeManager, CM: ContactManager, D: Distance<CM>> Pathfinding<NM, CM>
+        impl<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> Pathfinding<NM, CM>
             for $name<NM, CM, D>
         {
             /// Constructs a new `ContactGraph` instance with the provided nodes and contacts.
@@ -94,12 +94,12 @@ macro_rules! define_contact_graph {
                 source: NodeID,
                 bundle: &Bundle,
                 excluded_nodes_sorted: &Vec<NodeID>,
-            ) -> PathFindingOutput<CM> {
+            ) -> PathFindingOutput<NM, CM> {
                 let mut graph = self.graph.borrow_mut();
                 if $with_exclusions {
                     graph.apply_exclusions_sorted(excluded_nodes_sorted);
                 }
-                let source_route: Rc<RefCell<RouteStage<CM>>> =
+                let source_route: Rc<RefCell<RouteStage<NM, CM>>> =
                     Rc::new(RefCell::new(RouteStage::new(
                         current_time,
                         source,
@@ -108,15 +108,15 @@ macro_rules! define_contact_graph {
                         bundle.clone(),
                     )));
 
-                let mut tree: PathFindingOutput<CM> = PathFindingOutput::new(
+                let mut tree: PathFindingOutput<NM, CM> = PathFindingOutput::new(
                     &bundle,
                     source_route.clone(),
                     &excluded_nodes_sorted,
                     graph.senders.len(),
                 );
-                let mut priority_queue: BinaryHeap<Reverse<DistanceWrapper<CM, D>>> =
+                let mut priority_queue: BinaryHeap<Reverse<DistanceWrapper<NM, CM, D>>> =
                     BinaryHeap::new();
-                let mut altered_contacts: Vec<Rc<RefCell<Contact<CM>>>> = Vec::new();
+                let mut altered_contacts: Vec<Rc<RefCell<Contact<NM, CM>>>> = Vec::new();
 
                 if $is_tree_output {
                     self.visited_as_tx_ids.fill(false);

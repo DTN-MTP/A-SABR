@@ -8,7 +8,7 @@ use crate::{
         ContactManager,
     },
     node::{Node, NodeInfo},
-    node_manager::none::NoManagement,
+    node_manager::{none::NoManagement, NodeManager},
     types::{DataRate, Date, Duration, NodeID},
 };
 
@@ -67,28 +67,28 @@ fn contact_info_from_tvg_data(data: &IONContactData) -> ContactInfo {
     return ContactInfo::new(data.tx_node, data.rx_node, data.tx_start, data.tx_end);
 }
 
-pub trait FromIONContactData<CM: ContactManager> {
-    fn ion_convert(data: &IONContactData) -> Option<Contact<CM>>;
+pub trait FromIONContactData<NM: NodeManager, CM: ContactManager> {
+    fn ion_convert(data: &IONContactData) -> Option<Contact<NM, CM>>;
 }
 
 macro_rules! generate_for_evl_variants {
-    ($manager_name:ident) => {
-        impl FromIONContactData<$manager_name> for $manager_name {
-            fn ion_convert(data: &IONContactData) -> Option<Contact<$manager_name>> {
+    ($nm_name:ident, $cm_name:ident) => {
+        impl FromIONContactData<$nm_name, $cm_name> for $cm_name {
+            fn ion_convert(data: &IONContactData) -> Option<Contact<$nm_name, $cm_name>> {
                 let contact_info = contact_info_from_tvg_data(&data);
-                let manager = $manager_name::new(data.data_rate, data.delay);
+                let manager = $cm_name::new(data.data_rate, data.delay);
                 return Contact::try_new(contact_info, manager);
             }
         }
     };
 }
 
-generate_for_evl_variants!(EVLManager);
-generate_for_evl_variants!(ETOManager);
-generate_for_evl_variants!(QDManager);
+generate_for_evl_variants!(NoManagement, EVLManager);
+generate_for_evl_variants!(NoManagement, ETOManager);
+generate_for_evl_variants!(NoManagement, QDManager);
 
-impl FromIONContactData<SegmentationManager> for SegmentationManager {
-    fn ion_convert(data: &IONContactData) -> Option<Contact<SegmentationManager>> {
+impl FromIONContactData<NoManagement, SegmentationManager> for SegmentationManager {
+    fn ion_convert(data: &IONContactData) -> Option<Contact<NoManagement, SegmentationManager>> {
         let contact_info = contact_info_from_tvg_data(&data);
         let manager = SegmentationManager::new(
             vec![Segment::<DataRate> {
@@ -161,9 +161,9 @@ fn get_confidence(vec: &Vec<String>) -> f32 {
 }
 
 impl IONContactPlan {
-    pub fn parse<CM: FromIONContactData<CM> + ContactManager>(
+    pub fn parse<NM: NodeManager, CM: FromIONContactData<NM, CM> + ContactManager>(
         filename: &str,
-    ) -> io::Result<(Vec<Node<NoManagement>>, Vec<Contact<CM>>)> {
+    ) -> io::Result<(Vec<Node<NoManagement>>, Vec<Contact<NM, CM>>)> {
         let file = File::open(filename)?;
         let mut reader = BufReader::new(file);
         let mut map_id_map: HashMap<String, NodeID> = HashMap::new();

@@ -1,5 +1,6 @@
 use crate::contact::Contact;
 use crate::contact_manager::ContactManager;
+use crate::node_manager::NodeManager;
 use crate::route_stage::RouteStage;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -30,11 +31,11 @@ pub use first_ending::FirstEnding;
 /// An `Option` containing a reference-counted, mutable `Contact` that should be suppressed, if one
 /// is found; otherwise, `None`.
 #[cfg(feature = "contact_suppression")]
-pub fn get_next_to_suppress<CM: ContactManager>(
-    route: Rc<RefCell<RouteStage<CM>>>,
-    better_for_suppression_than_fn: fn(&Contact<CM>, &Contact<CM>) -> bool,
-) -> Option<Rc<RefCell<Contact<CM>>>> {
-    let mut to_suppress_opt: Option<Rc<RefCell<Contact<CM>>>> = None;
+pub fn get_next_to_suppress<NM: NodeManager, CM: ContactManager>(
+    route: Rc<RefCell<RouteStage<NM, CM>>>,
+    better_for_suppression_than_fn: fn(&Contact<NM, CM>, &Contact<NM, CM>) -> bool,
+) -> Option<Rc<RefCell<Contact<NM, CM>>>> {
+    let mut to_suppress_opt: Option<Rc<RefCell<Contact<NM, CM>>>> = None;
     let mut next_route_option = Some(route);
     while let Some(curr_route) = next_route_option.take() {
         {
@@ -93,7 +94,7 @@ macro_rules! create_new_alternative_path_variant {
         ///
         /// * `NM` - A type that implements the `NodeManager` trait.
         /// * `CM` - A type that implements the `ContactManager` trait.
-        /// * `D` - A type that implements the `Distance<CM>` trait.
+        /// * `D` - A type that implements the `Distance<NM, CM>` trait.
         /// * `P` - A type that implements the `Pathfinding<NM, CM>` trait.
         pub struct $struct_name<
             NM: crate::node_manager::NodeManager,
@@ -102,7 +103,7 @@ macro_rules! create_new_alternative_path_variant {
         > {
             /// The underlying pathfinding algorithm used to find individual paths.
             pathfinding: P,
-            suppression_map: Vec<Vec<std::rc::Rc<std::cell::RefCell<Contact<CM>>>>>,
+            suppression_map: Vec<Vec<std::rc::Rc<std::cell::RefCell<Contact<NM, CM>>>>>,
 
             #[doc(hidden)]
             _phantom_nm: std::marker::PhantomData<NM>,
@@ -157,7 +158,7 @@ macro_rules! create_new_alternative_path_variant {
                 source: crate::types::NodeID,
                 bundle: &crate::bundle::Bundle,
                 excluded_nodes_sorted: &Vec<crate::types::NodeID>,
-            ) -> crate::pathfinding::PathFindingOutput<CM> {
+            ) -> crate::pathfinding::PathFindingOutput<NM, CM> {
 
                 self.suppression_map[bundle.destinations[0] as usize].retain(|contact| {
                     if contact.borrow().info.end < current_time {

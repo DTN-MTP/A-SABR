@@ -1,5 +1,6 @@
 use crate::{
     contact::Contact, contact_manager::ContactManager, create_new_alternative_path_variant,
+    node_manager::NodeManager,
 };
 
 /// Compares the original transmission volume of two `Contact`s and determines if the first
@@ -15,7 +16,10 @@ use crate::{
 /// A boolean value:
 /// * `true` if `a` has a smaller original transmission volume than `b`.
 /// * `false` otherwise.
-fn had_less_volume_than<CM: ContactManager>(a: &Contact<CM>, b: &Contact<CM>) -> bool {
+fn had_less_volume_than<NM: NodeManager, CM: ContactManager>(
+    a: &Contact<NM, CM>,
+    b: &Contact<NM, CM>,
+) -> bool {
     return a.manager.get_original_volume() < b.manager.get_original_volume();
 }
 

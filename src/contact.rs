@@ -1,4 +1,5 @@
 use crate::contact_manager::ContactManager;
+use crate::node_manager::NodeManager;
 use crate::parsing::{Lexer, Parser, ParsingState};
 #[cfg(feature = "contact_work_area")]
 use crate::route_stage::RouteStage;
@@ -6,6 +7,7 @@ use crate::types::{Date, NodeID, Token};
 #[cfg(feature = "contact_work_area")]
 use std::cell::RefCell;
 use std::cmp::Ordering;
+use std::marker::PhantomData;
 #[cfg(feature = "contact_work_area")]
 use std::rc::Rc;
 
@@ -61,20 +63,24 @@ impl ContactInfo {
 /// - `CM`: A type implementing the `ContactManager` trait, responsible for managing the
 ///   contact's operations.
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Contact<CM: ContactManager> {
+pub struct Contact<NM: NodeManager, CM: ContactManager> {
     /// The basic information about the contact.
     pub info: ContactInfo,
     /// The manager handling the contact's operations.
     pub manager: CM,
     #[cfg(feature = "contact_work_area")]
     /// The work area for managing path construction stages (compilation option).
-    pub work_area: Option<Rc<RefCell<RouteStage<CM>>>>,
+    pub work_area: Option<Rc<RefCell<RouteStage<NM, CM>>>>,
     #[cfg(feature = "contact_suppression")]
     /// Suppression option for path construction (compilation option).
     pub suppressed: bool,
+
+    // for compilation
+    #[doc(hidden)]
+    _phantom_nm: PhantomData<NM>,
 }
 
-impl<CM: ContactManager> Contact<CM> {
+impl<NM: NodeManager, CM: ContactManager> Contact<NM, CM> {
     /// Creates a new `Contact` instance if the contact information and manager are valid.
     ///
     /// # Parameters
@@ -94,6 +100,8 @@ impl<CM: ContactManager> Contact<CM> {
                 work_area: None,
                 #[cfg(feature = "contact_suppression")]
                 suppressed: false,
+                // for compilation
+                _phantom_nm: PhantomData,
             });
         }
         None
@@ -118,7 +126,7 @@ impl<CM: ContactManager> Contact<CM> {
     }
 }
 
-impl<CM: ContactManager> Ord for Contact<CM> {
+impl<NM: NodeManager, CM: ContactManager> Ord for Contact<NM, CM> {
     fn cmp(&self, other: &Self) -> Ordering {
         if self.info.tx_node > other.info.tx_node {
             return Ordering::Greater;
@@ -142,20 +150,20 @@ impl<CM: ContactManager> Ord for Contact<CM> {
     }
 }
 
-impl<CM: ContactManager> PartialOrd for Contact<CM> {
+impl<NM: NodeManager, CM: ContactManager> PartialOrd for Contact<NM, CM> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<CM: ContactManager> PartialEq for Contact<CM> {
+impl<NM: NodeManager, CM: ContactManager> PartialEq for Contact<NM, CM> {
     fn eq(&self, other: &Self) -> bool {
         self.info.tx_node == other.info.tx_node
             && self.info.rx_node == other.info.rx_node
             && self.info.start < other.info.start
     }
 }
-impl<CM: ContactManager> Eq for Contact<CM> {}
+impl<NM: NodeManager, CM: ContactManager> Eq for Contact<NM, CM> {}
 
 impl Parser<ContactInfo> for ContactInfo {
     /// Parses a `ContactInfo` from a lexer.
