@@ -94,21 +94,13 @@ impl<NM: NodeManager, CM: ContactManager> TreeStorage<NM, CM> for TreeCache<NM, 
             }
             match multicast {
                 false => {
-                    if let Some(_res) =
-                        dry_run_unicast_tree(bundle, curr_time, tree.clone(), node_list)
-                    {
+                    if let Some(_res) = dry_run_unicast_tree(bundle, curr_time, tree.clone()) {
                         return (Some(tree.clone()), None);
                     }
                 }
                 true => {
                     let mut reachable_nodes = Vec::new();
-                    dry_run_multicast(
-                        bundle,
-                        curr_time,
-                        tree.clone(),
-                        &mut reachable_nodes,
-                        node_list,
-                    );
+                    dry_run_multicast(bundle, curr_time, tree.clone(), &mut reachable_nodes);
                     return (Some(tree.clone()), Some(reachable_nodes));
                 }
             }

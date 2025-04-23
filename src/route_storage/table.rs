@@ -112,7 +112,6 @@ impl<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> RouteStorage<NM, 
                     curr_time,
                     route.source_stage.clone(),
                     route.destination_stage.clone(),
-                    node_list,
                 ) {
                     match best_route_option {
                         Some(ref best_route) => {

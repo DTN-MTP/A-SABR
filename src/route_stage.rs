@@ -18,6 +18,8 @@ pub struct ViaHop<NM: NodeManager, CM: ContactManager> {
     pub contact: Rc<RefCell<Contact<NM, CM>>>,
     /// A reference to the parent route stage for this hop.
     pub parent_route: Rc<RefCell<RouteStage<NM, CM>>>,
+    pub tx_node: Rc<RefCell<Node<NM>>>,
+    pub rx_node: Rc<RefCell<Node<NM>>>,
 }
 
 impl<NM: NodeManager, CM: ContactManager> Clone for ViaHop<NM, CM> {
@@ -25,6 +27,8 @@ impl<NM: NodeManager, CM: ContactManager> Clone for ViaHop<NM, CM> {
         ViaHop {
             contact: Rc::clone(&self.contact),
             parent_route: Rc::clone(&self.parent_route),
+            tx_node: Rc::clone(&self.tx_node),
+            rx_node: Rc::clone(&self.rx_node),
         }
     }
 }
@@ -153,12 +157,7 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
     ///
     /// * `true` if the scheduling process was successful and the bundle is properly scheduled.
     /// * `false` if the scheduling process failed for any reason, such as a node being excluded, timing constraints, or invalid transmission conditions.
-    pub fn schedule(
-        &mut self,
-        at_time: Date,
-        bundle: &Bundle,
-        node_list: &Vec<Rc<RefCell<Node<NM>>>>,
-    ) -> bool {
+    pub fn schedule(&mut self, at_time: Date, bundle: &Bundle) -> bool {
         if let Some(via) = &self.via {
             let mut contact_borrowed = via.contact.borrow_mut();
             let info = contact_borrowed.info;
@@ -170,9 +169,9 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
             let bundle_to_consider = bundle;
 
             #[cfg(any(feature = "node_tx", feature = "node_proc"))]
-            let mut tx_node = node_list[contact_borrowed.get_tx_node() as usize].borrow_mut();
+            let mut tx_node = via.tx_node.borrow_mut();
             #[cfg(feature = "node_rx")]
-            let mut rx_node = node_list[contact_borrowed.get_rx_node() as usize].borrow_mut();
+            let mut rx_node = via.rx_node.borrow_mut();
 
             #[cfg(feature = "node_proc")]
             let sending_time = tx_node
@@ -240,20 +239,14 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
     ///
     /// * `true` if the dry run was successful and the bundle can be transmitted according to the simulation.
     /// * `false` if the dry run fails, such as due to an excluded node, invalid timing, or any other condition preventing transmission.
-    pub fn dry_run(
-        &mut self,
-        at_time: Date,
-        bundle: &Bundle,
-        node_list: &Vec<Rc<RefCell<Node<NM>>>>,
-        with_exclusions: bool,
-    ) -> bool {
+    pub fn dry_run(&mut self, at_time: Date, bundle: &Bundle, with_exclusions: bool) -> bool {
         if let Some(via) = &self.via {
             let contact_borrowed = via.contact.borrow_mut();
             let info = contact_borrowed.info;
 
             if with_exclusions {
                 {
-                    let node = node_list[contact_borrowed.get_rx_node() as usize].borrow();
+                    let node = via.rx_node.borrow();
                     if node.info.excluded {
                         return false;
                     }
@@ -267,10 +260,9 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
             let bundle_to_consider = bundle;
 
             #[cfg(any(feature = "node_tx", feature = "node_proc"))]
-            let mut tx_node = node_list[contact_borrowed.get_tx_node() as usize].borrow_mut();
+            let tx_node = via.tx_node.borrow_mut();
             #[cfg(feature = "node_rx")]
-            let mut rx_node = node_list[contact_borrowed.get_rx_node() as usize].borrow_mut();
-
+            let rx_node = via.rx_node.borrow_mut();
             #[cfg(feature = "node_proc")]
             let sending_time = tx_node
                 .manager

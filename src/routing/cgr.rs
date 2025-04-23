@@ -93,7 +93,6 @@ impl<S: RouteStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfindin
                 bundle,
                 curr_time,
                 route.source_stage.clone(),
-                &self.pathfinding.get_multigraph().borrow_mut().nodes,
             ));
         }
 
@@ -117,7 +116,6 @@ impl<S: RouteStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfindin
                     curr_time,
                     route.source_stage.clone(),
                     route.destination_stage.clone(),
-                    &self.pathfinding.get_multigraph().borrow_mut().nodes,
                 );
 
                 if let Some(_) = dry_run {
@@ -125,7 +123,6 @@ impl<S: RouteStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfindin
                         bundle,
                         curr_time,
                         route.source_stage.clone(),
-                        &self.pathfinding.get_multigraph().borrow_mut().nodes,
                     ));
                 }
             } else {

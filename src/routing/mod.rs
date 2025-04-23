@@ -4,7 +4,6 @@ use crate::{
     bundle::Bundle,
     contact::Contact,
     contact_manager::ContactManager,
-    node::Node,
     node_manager::NodeManager,
     pathfinding::PathFindingOutput,
     route_stage::RouteStage,
@@ -156,7 +155,6 @@ pub fn dry_run_multicast<NM: NodeManager, CM: ContactManager>(
     at_time: Date,
     tree: Rc<RefCell<PathFindingOutput<NM, CM>>>,
     reachable_destinations: &mut Vec<NodeID>,
-    node_list: &Vec<Rc<RefCell<Node<NM>>>>,
 ) -> Vec<NodeID> {
     let tree_ref = tree.borrow();
     for dest in &bundle.destinations {
@@ -176,7 +174,6 @@ pub fn dry_run_multicast<NM: NodeManager, CM: ContactManager>(
         &mut reached_destinations,
         source_route,
         true,
-        node_list,
     );
 
     return reached_destinations;
@@ -203,7 +200,6 @@ fn rec_dry_run_multicast<NM: NodeManager, CM: ContactManager>(
     reachable_after_dry_run: &mut Vec<NodeID>,
     route: Rc<RefCell<RouteStage<NM, CM>>>,
     is_source: bool,
-    node_list: &Vec<Rc<RefCell<Node<NM>>>>,
 ) {
     let mut route_borrowed = route.borrow_mut();
 
@@ -213,7 +209,7 @@ fn rec_dry_run_multicast<NM: NodeManager, CM: ContactManager>(
     let bundle_to_consider = bundle;
 
     if !is_source {
-        if !route_borrowed.dry_run(at_time, &bundle_to_consider, node_list, false) {
+        if !route_borrowed.dry_run(at_time, &bundle_to_consider, false) {
             return;
         }
         at_time = route_borrowed.at_time;
@@ -242,7 +238,6 @@ fn rec_dry_run_multicast<NM: NodeManager, CM: ContactManager>(
             reachable_after_dry_run,
             next_route.clone(),
             false,
-            node_list,
         );
     }
 }
@@ -263,7 +258,6 @@ fn rec_update_multicast<NM: NodeManager, CM: ContactManager>(
     reachable_after_dry_run: &Vec<NodeID>,
     route: Rc<RefCell<RouteStage<NM, CM>>>,
     is_source: bool,
-    node_list: &Vec<Rc<RefCell<Node<NM>>>>,
 ) {
     let mut route_borrowed = route.borrow_mut();
 
@@ -273,7 +267,7 @@ fn rec_update_multicast<NM: NodeManager, CM: ContactManager>(
     let bundle_to_consider = bundle;
 
     if !is_source {
-        if !route_borrowed.schedule(at_time, &bundle_to_consider, node_list) {
+        if !route_borrowed.schedule(at_time, &bundle_to_consider) {
             return;
         }
         at_time = route_borrowed.at_time;
@@ -302,7 +296,6 @@ fn rec_update_multicast<NM: NodeManager, CM: ContactManager>(
             &destinations,
             next_route.clone(),
             false,
-            node_list,
         );
     }
 }
@@ -329,23 +322,15 @@ fn schedule_multicast<NM: NodeManager, CM: ContactManager>(
     curr_time: Date,
     tree: Rc<RefCell<PathFindingOutput<NM, CM>>>,
     targets: &mut Vec<NodeID>,
-    node_list: &Vec<Rc<RefCell<Node<NM>>>>,
     dry_run_to_fill_targets: bool,
 ) -> RoutingOutput<NM, CM> {
     if dry_run_to_fill_targets {
-        *targets = dry_run_multicast(bundle, curr_time, tree.clone(), targets, node_list);
+        *targets = dry_run_multicast(bundle, curr_time, tree.clone(), targets);
     }
 
     let source_route = tree.borrow().get_source_route();
 
-    rec_update_multicast(
-        bundle,
-        curr_time,
-        targets,
-        source_route.clone(),
-        true,
-        node_list,
-    );
+    rec_update_multicast(bundle, curr_time, targets, source_route.clone(), true);
 
     return build_multicast_output(source_route, targets);
 }
@@ -390,7 +375,6 @@ macro_rules! create_dry_run_unicast_path_variant {
             mut at_time: Date,
             source_route: Rc<RefCell<RouteStage<NM, CM>>>,
             dest_route: Rc<RefCell<RouteStage<NM, CM>>>,
-            node_list: &Vec<Rc<RefCell<Node<NM>>>>,
         ) -> Option<Rc<RefCell<RouteStage<NM, CM>>>> {
             let mut _curr_opt: Option<Rc<RefCell<RouteStage<NM, CM>>>> = None;
             let dest = bundle.destinations[0];
@@ -412,8 +396,7 @@ macro_rules! create_dry_run_unicast_path_variant {
                     #[cfg(not(feature = "node_proc"))]
                     let bundle_to_consider = bundle;
 
-                    if !curr_route_borrowed.dry_run(at_time, &bundle_to_consider, node_list, false)
-                    {
+                    if !curr_route_borrowed.dry_run(at_time, &bundle_to_consider, false) {
                         return None;
                     }
                     at_time = curr_route_borrowed.at_time;
@@ -460,7 +443,6 @@ pub fn dry_run_unicast_tree<NM: NodeManager, CM: ContactManager>(
     bundle: &Bundle,
     at_time: Date,
     tree: Rc<RefCell<PathFindingOutput<NM, CM>>>,
-    node_list: &Vec<Rc<RefCell<Node<NM>>>>,
 ) -> Option<Rc<RefCell<RouteStage<NM, CM>>>> {
     let dest = bundle.destinations[0];
     let tree_ref = tree.borrow();
@@ -469,7 +451,7 @@ pub fn dry_run_unicast_tree<NM: NodeManager, CM: ContactManager>(
     }
     let source_route = tree_ref.get_source_route();
     if let Some(dest_route) = tree_ref.by_destination[dest as usize].clone() {
-        return dry_run_unicast_path(bundle, at_time, source_route, dest_route, node_list);
+        return dry_run_unicast_path(bundle, at_time, source_route, dest_route);
     }
     None
 }
@@ -487,7 +469,6 @@ fn update_unicast<NM: NodeManager, CM: ContactManager>(
     dest: NodeID,
     mut at_time: Date,
     source_route: Rc<RefCell<RouteStage<NM, CM>>>,
-    node_list: &Vec<Rc<RefCell<Node<NM>>>>,
 ) {
     let mut _curr_opt: Option<Rc<RefCell<RouteStage<NM, CM>>>> = None;
 
@@ -504,7 +485,7 @@ fn update_unicast<NM: NodeManager, CM: ContactManager>(
             #[cfg(not(feature = "node_proc"))]
             let bundle_to_consider = bundle;
 
-            if !curr_route_borrowed.schedule(at_time, &bundle_to_consider, node_list) {
+            if !curr_route_borrowed.schedule(at_time, &bundle_to_consider) {
                 panic!("Faulty dry run, didn't allow a clean update!");
             }
 
@@ -547,7 +528,6 @@ fn schedule_unicast<NM: NodeManager, CM: ContactManager>(
     bundle: &Bundle,
     curr_time: Date,
     tree: Rc<RefCell<PathFindingOutput<NM, CM>>>,
-    node_list: &Vec<Rc<RefCell<Node<NM>>>>,
     init_tree: bool,
 ) -> RoutingOutput<NM, CM> {
     if init_tree {
@@ -556,7 +536,7 @@ fn schedule_unicast<NM: NodeManager, CM: ContactManager>(
 
     let dest = bundle.destinations[0];
     let source_route = tree.borrow().get_source_route();
-    update_unicast(bundle, dest, curr_time, source_route.clone(), node_list);
+    update_unicast(bundle, dest, curr_time, source_route.clone());
     return build_unicast_output(source_route, dest);
 }
 
@@ -579,9 +559,8 @@ fn schedule_unicast_path<NM: NodeManager, CM: ContactManager>(
     bundle: &Bundle,
     curr_time: Date,
     source_route: Rc<RefCell<RouteStage<NM, CM>>>,
-    node_list: &Vec<Rc<RefCell<Node<NM>>>>,
 ) -> RoutingOutput<NM, CM> {
     let dest = bundle.destinations[0];
-    update_unicast(bundle, dest, curr_time, source_route.clone(), node_list);
+    update_unicast(bundle, dest, curr_time, source_route.clone());
     return build_unicast_output(source_route, dest);
 }

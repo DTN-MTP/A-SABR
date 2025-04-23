@@ -230,6 +230,8 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
             Some(ViaHop {
                 contact: seleted_contact.clone(),
                 parent_route: sndr_route.clone(),
+                tx_node: tx_node.clone(),
+                rx_node: rx_node.clone(),
             }),
             #[cfg(feature = "node_proc")]
             bundle_to_consider,

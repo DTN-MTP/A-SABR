@@ -130,13 +130,7 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
         );
 
         if let Some(tree) = tree_option {
-            return Some(schedule_unicast(
-                bundle,
-                curr_time,
-                tree,
-                &self.pathfinding.get_multigraph().borrow_mut().nodes,
-                false,
-            ));
+            return Some(schedule_unicast(bundle, curr_time, tree, false));
         }
 
         let new_tree = self
@@ -163,13 +157,7 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
             }
         }
 
-        return Some(schedule_unicast(
-            bundle,
-            curr_time,
-            tree_ref,
-            &self.pathfinding.get_multigraph().borrow_mut().nodes,
-            true,
-        ));
+        return Some(schedule_unicast(bundle, curr_time, tree_ref, true));
     }
 
     /// Routes a bundle to multiple destination nodes using multicast routing.
@@ -207,7 +195,6 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
                     curr_time,
                     tree,
                     &mut reachable_nodes,
-                    &self.pathfinding.get_multigraph().borrow_mut().nodes,
                     false,
                 ));
             }
@@ -226,7 +213,6 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
             curr_time,
             tree,
             &mut targets,
-            &self.pathfinding.get_multigraph().borrow_mut().nodes,
             true,
         ));
     }
