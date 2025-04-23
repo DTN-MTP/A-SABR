@@ -165,7 +165,7 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
 
     // If bundle processing is enabled, a mutable bundle copy is required to be attached to the RouteStage.
     #[cfg(feature = "node_proc")]
-    let mut bundle_to_consider = sndr_route.borrow().bundle_opt.clone();
+    let mut bundle_to_consider = sndr_route.borrow().bundle.clone();
     #[cfg(not(feature = "node_proc"))]
     let bundle_to_consider = bundle;
 

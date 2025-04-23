@@ -61,7 +61,7 @@ pub struct RouteStage<NM: NodeManager, CM: ContactManager> {
 
     #[cfg(feature = "node_proc")]
     /// The stage of the bundle that arrives at to_node
-    pub bundle_opt: Bundle,
+    pub bundle: Bundle,
 }
 
 impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
@@ -94,7 +94,7 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
             route_initialized: false,
             next_for_destination: HashMap::new(),
             #[cfg(feature = "node_proc")]
-            bundle_opt: bundle,
+            bundle: bundle,
         }
     }
 
@@ -104,7 +104,7 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
             self.to_node,
             self.via.clone(),
             #[cfg(feature = "node_proc")]
-            self.bundle_opt.clone(),
+            self.bundle.clone(),
         );
         route.is_disabled = self.is_disabled;
         route.via = self.via.clone();
@@ -212,7 +212,7 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
                 self.at_time = arrival_time;
                 #[cfg(feature = "node_proc")]
                 {
-                    self.bundle_opt = bundle_to_consider;
+                    self.bundle = bundle_to_consider;
                 }
                 return true;
             }
@@ -303,7 +303,7 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
                 self.at_time = arrival_time;
                 #[cfg(feature = "node_proc")]
                 {
-                    self.bundle_opt = bundle_to_consider;
+                    self.bundle = bundle_to_consider;
                 }
                 return true;
             }

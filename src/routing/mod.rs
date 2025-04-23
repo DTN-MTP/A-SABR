@@ -204,7 +204,7 @@ fn rec_dry_run_multicast<NM: NodeManager, CM: ContactManager>(
     let mut route_borrowed = route.borrow_mut();
 
     #[cfg(feature = "node_proc")]
-    let bundle_to_consider = route_borrowed.bundle_opt.clone();
+    let bundle_to_consider = route_borrowed.bundle.clone();
     #[cfg(not(feature = "node_proc"))]
     let bundle_to_consider = bundle;
 
@@ -262,7 +262,7 @@ fn rec_update_multicast<NM: NodeManager, CM: ContactManager>(
     let mut route_borrowed = route.borrow_mut();
 
     #[cfg(feature = "node_proc")]
-    let bundle_to_consider = route_borrowed.bundle_opt.clone();
+    let bundle_to_consider = route_borrowed.bundle.clone();
     #[cfg(not(feature = "node_proc"))]
     let bundle_to_consider = bundle;
 
@@ -392,7 +392,7 @@ macro_rules! create_dry_run_unicast_path_variant {
                     let mut curr_route_borrowed = curr_route.borrow_mut();
 
                     #[cfg(feature = "node_proc")]
-                    let bundle_to_consider = curr_route_borrowed.bundle_opt.clone();
+                    let bundle_to_consider = curr_route_borrowed.bundle.clone();
                     #[cfg(not(feature = "node_proc"))]
                     let bundle_to_consider = bundle;
 
@@ -481,7 +481,7 @@ fn update_unicast<NM: NodeManager, CM: ContactManager>(
             let mut curr_route_borrowed = curr_route.borrow_mut();
 
             #[cfg(feature = "node_proc")]
-            let bundle_to_consider = curr_route_borrowed.bundle_opt.clone();
+            let bundle_to_consider = curr_route_borrowed.bundle.clone();
             #[cfg(not(feature = "node_proc"))]
             let bundle_to_consider = bundle;
 
