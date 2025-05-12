@@ -1,5 +1,5 @@
 use crate::contact::Contact;
-use crate::contact_manager::{ContactManager, TxEndHopData};
+use crate::contact_manager::{ContactManager, ContactManagerTxData};
 use crate::multigraph::Multigraph;
 use crate::node::Node;
 use crate::node_manager::NodeManager;
@@ -155,7 +155,7 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
     rx_node: &Rc<RefCell<Node<NM>>>,
 ) -> Option<RouteStage<NM, CM>> {
     let mut index = 0;
-    let mut final_data = TxEndHopData {
+    let mut final_data = ContactManagerTxData {
         tx_start: 0.0,
         tx_end: 0.0,
         delay: 0.0,
@@ -191,7 +191,7 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
         #[cfg(not(feature = "node_proc"))]
         let sending_time = sndr_route_borrowed.at_time;
 
-        if let Some(hop) = contact_borrowed.manager.dry_run(
+        if let Some(hop) = contact_borrowed.manager.dry_run_tx(
             &contact_borrowed.info,
             sending_time,
             &bundle_to_consider,

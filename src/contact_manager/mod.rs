@@ -15,7 +15,7 @@ pub mod qd;
 pub mod seg;
 
 /// Data structure representing the transmission (tx) start, end, and related timing information.
-pub struct TxEndHopData {
+pub struct ContactManagerTxData {
     /// The start time of the transmission.
     pub tx_start: Date,
     /// The end time of the transmission.
@@ -40,13 +40,13 @@ pub trait ContactManager {
     ///
     /// # Returns
     ///
-    /// Optionally returns the `TxEndHopData` if the dry run is successful.
-    fn dry_run(
+    /// Optionally returns the `ContactManagerTxData` if the dry run is successful.
+    fn dry_run_tx(
         &self,
         contact_data: &ContactInfo,
         at_time: Date,
         bundle: &Bundle,
-    ) -> Option<TxEndHopData>;
+    ) -> Option<ContactManagerTxData>;
 
     /// Schedule the transmission of a bundle based on the contact data and available free intervals.
     ///
@@ -60,13 +60,13 @@ pub trait ContactManager {
     ///
     /// # Returns
     ///
-    /// Optionally returns `TxEndHopData` if the bundle can be transmitted.
-    fn schedule(
+    /// Optionally returns `ContactManagerTxData` if the bundle can be transmitted.
+    fn schedule_tx(
         &mut self,
         contact_data: &ContactInfo,
         at_time: Date,
         bundle: &Bundle,
-    ) -> Option<TxEndHopData>;
+    ) -> Option<ContactManagerTxData>;
 
     /// For first depleted compatibility. Required with "first_depleted" compilation feature.
     ///
@@ -91,23 +91,23 @@ pub trait ContactManager {
 /// Implementation of `ContactManager` for boxed types that implement `ContactManager`.
 impl<CM: ContactManager> ContactManager for Box<CM> {
     /// Delegates the dry run method to the boxed object.
-    fn dry_run(
+    fn dry_run_tx(
         &self,
         contact_data: &ContactInfo,
         at_time: Date,
         bundle: &Bundle,
-    ) -> Option<TxEndHopData> {
-        (**self).dry_run(contact_data, at_time, bundle)
+    ) -> Option<ContactManagerTxData> {
+        (**self).dry_run_tx(contact_data, at_time, bundle)
     }
 
     /// Delegates the schedule method to the boxed object.
-    fn schedule(
+    fn schedule_tx(
         &mut self,
         contact_data: &ContactInfo,
         at_time: Date,
         bundle: &Bundle,
-    ) -> Option<TxEndHopData> {
-        (**self).schedule(contact_data, at_time, bundle)
+    ) -> Option<ContactManagerTxData> {
+        (**self).schedule_tx(contact_data, at_time, bundle)
     }
     /// Delegates the get_original_volume method to the boxed object.
     #[cfg(feature = "first_depleted")]
@@ -124,22 +124,22 @@ impl<CM: ContactManager> ContactManager for Box<CM> {
 /// Implementation of `ContactManager` for boxed dynamic types (`Box<dyn ContactManager>`).
 impl ContactManager for Box<dyn ContactManager> {
     /// Delegates the dry run method to the boxed object.
-    fn dry_run(
+    fn dry_run_tx(
         &self,
         contact_data: &ContactInfo,
         at_time: Date,
         bundle: &Bundle,
-    ) -> Option<TxEndHopData> {
-        (**self).dry_run(contact_data, at_time, bundle)
+    ) -> Option<ContactManagerTxData> {
+        (**self).dry_run_tx(contact_data, at_time, bundle)
     }
     /// Delegates the schedule method to the boxed object.
-    fn schedule(
+    fn schedule_tx(
         &mut self,
         contact_data: &ContactInfo,
         at_time: Date,
         bundle: &Bundle,
-    ) -> Option<TxEndHopData> {
-        (**self).schedule(contact_data, at_time, bundle)
+    ) -> Option<ContactManagerTxData> {
+        (**self).schedule_tx(contact_data, at_time, bundle)
     }
 
     #[cfg(feature = "first_depleted")]
@@ -300,13 +300,13 @@ macro_rules! generate_basic_volume_manager {
             ///
             /// # Returns
             ///
-            /// Optionally returns `TxEndHopData` with transmission start and end times, or `None` if the bundle can't be transmitted.
-            fn dry_run(
+            /// Optionally returns `ContactManagerTxData` with transmission start and end times, or `None` if the bundle can't be transmitted.
+            fn dry_run_tx(
                 &self,
                 contact_data: &crate::contact::ContactInfo,
                 at_time: crate::types::Date,
                 bundle: &crate::bundle::Bundle,
-            ) -> Option<crate::contact_manager::TxEndHopData> {
+            ) -> Option<crate::contact_manager::ContactManagerTxData> {
                 if bundle.size > self.original_volume - self.queue_size {
                     return None;
                 }
@@ -325,7 +325,7 @@ macro_rules! generate_basic_volume_manager {
                 if tx_end > contact_data.end {
                     return None;
                 }
-                Some(crate::contact_manager::TxEndHopData {
+                Some(crate::contact_manager::ContactManagerTxData {
                     tx_start,
                     tx_end,
                     delay: self.delay,
@@ -347,14 +347,14 @@ macro_rules! generate_basic_volume_manager {
             ///
             /// # Returns
             ///
-            /// Optionally returns `TxEndHopData` with transmission start and end times, or `None` if the bundle can't be transmitted.
-            fn schedule(
+            /// Optionally returns `ContactManagerTxData` with transmission start and end times, or `None` if the bundle can't be transmitted.
+            fn schedule_tx(
                 &mut self,
                 contact_data: &crate::contact_manager::ContactInfo,
                 at_time: crate::types::Date,
                 bundle: &crate::bundle::Bundle,
-            ) -> Option<crate::contact_manager::TxEndHopData> {
-                if let Some(data) = self.dry_run(contact_data, at_time, bundle) {
+            ) -> Option<crate::contact_manager::ContactManagerTxData> {
+                if let Some(data) = self.dry_run_tx(contact_data, at_time, bundle) {
                     // Conditionally update queue size based on $auto_update
                     if $auto_update {
                         self.queue_size += bundle.size;

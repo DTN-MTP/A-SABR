@@ -183,7 +183,7 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
             if let Some(res) =
                 contact_borrowed
                     .manager
-                    .schedule(&info, sending_time, &bundle_to_consider)
+                    .schedule_tx(&info, sending_time, &bundle_to_consider)
             {
                 #[cfg(feature = "node_tx")]
                 if !tx_node.manager.schedule_tx(
@@ -274,7 +274,7 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
             if let Some(res) =
                 contact_borrowed
                     .manager
-                    .dry_run(&info, sending_time, &bundle_to_consider)
+                    .dry_run_tx(&info, sending_time, &bundle_to_consider)
             {
                 #[cfg(feature = "node_tx")]
                 if !tx_node.manager.dry_run_tx(

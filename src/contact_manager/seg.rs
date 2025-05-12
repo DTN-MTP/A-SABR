@@ -6,7 +6,7 @@ use crate::contact::ContactInfo;
 use crate::parsing::{DispatchParser, Lexer, Parser, ParsingState};
 use crate::types::{DataRate, Date, Duration, Token, Volume};
 
-use super::{ContactManager, TxEndHopData};
+use super::{ContactManager, ContactManagerTxData};
 
 /// A segment represents a time interval with an associated value of type `T`.
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -133,13 +133,13 @@ impl ContactManager for SegmentationManager {
     ///
     /// # Returns
     ///
-    /// Optionally returns `TxEndHopData` with transmission start and end times, or `None` if the bundle can't be transmitted.
-    fn dry_run(
+    /// Optionally returns `ContactManagerTxData` with transmission start and end times, or `None` if the bundle can't be transmitted.
+    fn dry_run_tx(
         &self,
         _contact_data: &ContactInfo,
         at_time: Date,
         bundle: &Bundle,
-    ) -> Option<TxEndHopData> {
+    ) -> Option<ContactManagerTxData> {
         let mut tx_start: Date;
 
         for free_seg in &self.free_intervals {
@@ -149,7 +149,7 @@ impl ContactManager for SegmentationManager {
             tx_start = Date::max(free_seg.start, at_time);
             if let Some(tx_end) = self.get_tx_end(tx_start, bundle.size, free_seg.end) {
                 let delay = Self::get_delay(tx_end, &self.delay_intervals);
-                return Some(TxEndHopData {
+                return Some(ContactManagerTxData {
                     tx_start,
                     tx_end,
                     delay,
@@ -172,13 +172,13 @@ impl ContactManager for SegmentationManager {
     ///
     /// # Returns
     ///
-    /// Optionally returns `TxEndHopData` with transmission start and end times, or `None` if the bundle can't be transmitted.
-    fn schedule(
+    /// Optionally returns `ContactManagerTxData` with transmission start and end times, or `None` if the bundle can't be transmitted.
+    fn schedule_tx(
         &mut self,
         _contact_data: &ContactInfo,
         at_time: Date,
         bundle: &Bundle,
-    ) -> Option<TxEndHopData> {
+    ) -> Option<ContactManagerTxData> {
         let mut tx_start = 0.0;
         let mut index = 0;
         let mut tx_end = 0.0;
@@ -213,7 +213,7 @@ impl ContactManager for SegmentationManager {
             interval.start = tx_end;
         }
 
-        Some(TxEndHopData {
+        Some(ContactManagerTxData {
             tx_start,
             tx_end,
             delay,
