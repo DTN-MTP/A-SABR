@@ -376,45 +376,40 @@ macro_rules! create_dry_run_unicast_path_variant {
             source_route: Rc<RefCell<RouteStage<NM, CM>>>,
             dest_route: Rc<RefCell<RouteStage<NM, CM>>>,
         ) -> Option<Rc<RefCell<RouteStage<NM, CM>>>> {
-            let mut _curr_opt: Option<Rc<RefCell<RouteStage<NM, CM>>>> = None;
             let dest = bundle.destinations[0];
 
             if $try_init {
                 RouteStage::init_route(dest_route);
             }
-            match source_route.borrow().next_for_destination.get(&dest) {
-                Some(first_hop_route) => _curr_opt = Some(first_hop_route.clone()),
-                None => return None,
-            };
 
-            loop {
-                if let Some(curr_route) = _curr_opt.take() {
-                    let mut curr_route_borrowed = curr_route.borrow_mut();
+            let mut curr_opt = source_route
+                .borrow()
+                .next_for_destination
+                .get(&dest)
+                .cloned();
 
-                    #[cfg(feature = "node_proc")]
-                    let bundle_to_consider = curr_route_borrowed.bundle.clone();
-                    #[cfg(not(feature = "node_proc"))]
-                    let bundle_to_consider = bundle;
+            while let Some(curr_route) = curr_opt {
+                let mut curr_route_borrowed = curr_route.borrow_mut();
 
-                    if !curr_route_borrowed.dry_run(at_time, &bundle_to_consider, false) {
-                        return None;
-                    }
-                    at_time = curr_route_borrowed.at_time;
+                #[cfg(feature = "node_proc")]
+                let bundle_to_consider = curr_route_borrowed.bundle.clone();
+                #[cfg(not(feature = "node_proc"))]
+                let bundle_to_consider = bundle;
 
-                    if curr_route_borrowed.to_node == dest {
-                        return Some(curr_route.clone());
-                    }
-
-                    if let Some(next_route_opt) =
-                        curr_route_borrowed.next_for_destination.get(&dest)
-                    {
-                        _curr_opt = Some(Rc::clone(next_route_opt));
-                        continue;
-                    }
-                    break;
+                if !curr_route_borrowed.dry_run(at_time, &bundle_to_consider, false) {
+                    return None;
                 }
+
+                at_time = curr_route_borrowed.at_time;
+
+                if curr_route_borrowed.to_node == dest {
+                    return Some(curr_route.clone());
+                }
+
+                curr_opt = curr_route_borrowed.next_for_destination.get(&dest).cloned();
             }
-            return None;
+
+            None
         }
     };
 }
@@ -470,38 +465,33 @@ fn update_unicast<NM: NodeManager, CM: ContactManager>(
     mut at_time: Date,
     source_route: Rc<RefCell<RouteStage<NM, CM>>>,
 ) {
-    let mut _curr_opt: Option<Rc<RefCell<RouteStage<NM, CM>>>> = None;
+    let mut curr_opt = source_route
+        .borrow()
+        .next_for_destination
+        .get(&dest)
+        .cloned();
 
-    match source_route.borrow().next_for_destination.get(&dest) {
-        Some(first_hop_route) => _curr_opt = Some(first_hop_route.clone()),
-        None => panic!("Faulty dry run, didn't allow a clean update!"),
-    }
-    loop {
-        if let Some(curr_route) = _curr_opt.take() {
-            let mut curr_route_borrowed = curr_route.borrow_mut();
+    while let Some(curr_route) = curr_opt {
+        let mut curr_route_borrowed = curr_route.borrow_mut();
 
-            #[cfg(feature = "node_proc")]
-            let bundle_to_consider = curr_route_borrowed.bundle.clone();
-            #[cfg(not(feature = "node_proc"))]
-            let bundle_to_consider = bundle;
+        #[cfg(feature = "node_proc")]
+        let bundle_to_consider = curr_route_borrowed.bundle.clone();
+        #[cfg(not(feature = "node_proc"))]
+        let bundle_to_consider = bundle;
 
-            if !curr_route_borrowed.schedule(at_time, &bundle_to_consider) {
-                panic!("Faulty dry run, didn't allow a clean update!");
-            }
-
-            at_time = curr_route_borrowed.at_time;
-
-            if curr_route_borrowed.to_node == dest {
-                return;
-            }
-
-            if let Some(next_route_opt) = curr_route_borrowed.next_for_destination.get(&dest) {
-                _curr_opt = Some(Rc::clone(next_route_opt));
-                continue;
-            }
-            break;
+        if !curr_route_borrowed.schedule(at_time, &bundle_to_consider) {
+            panic!("Faulty dry run, didn't allow a clean update!");
         }
+
+        at_time = curr_route_borrowed.at_time;
+
+        if curr_route_borrowed.to_node == dest {
+            return;
+        }
+
+        curr_opt = curr_route_borrowed.next_for_destination.get(&dest).cloned();
     }
+
     panic!("Faulty dry run, didn't allow a clean update!");
 }
 
