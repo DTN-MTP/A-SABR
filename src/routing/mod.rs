@@ -74,6 +74,7 @@ pub struct RoutingOutput<NM: NodeManager, CM: ContactManager> {
 fn build_multicast_output<NM: NodeManager, CM: ContactManager>(
     source_route: Rc<RefCell<RouteStage<NM, CM>>>,
     reached_nodes: &Vec<NodeID>,
+    tree: Rc<RefCell<PathFindingOutput<NM, CM>>>
 ) -> RoutingOutput<NM, CM> {
     let mut first_hops: HashMap<usize, (Rc<RefCell<Contact<NM, CM>>>, Vec<NodeID>)> =
         HashMap::new();
@@ -112,6 +113,7 @@ fn build_multicast_output<NM: NodeManager, CM: ContactManager>(
 fn build_unicast_output<NM: NodeManager, CM: ContactManager>(
     source_route: Rc<RefCell<RouteStage<NM, CM>>>,
     destination: NodeID,
+    dest_route: Rc<RefCell<RouteStage<NM, CM>>>
 ) -> RoutingOutput<NM, CM> {
     let mut first_hops: HashMap<usize, (Rc<RefCell<Contact<NM, CM>>>, Vec<NodeID>)> =
         HashMap::new();
@@ -332,7 +334,7 @@ fn schedule_multicast<NM: NodeManager, CM: ContactManager>(
 
     rec_update_multicast(bundle, curr_time, targets, source_route.clone(), true);
 
-    return build_multicast_output(source_route, targets);
+    return build_multicast_output(source_route, targets, tree);
 }
 
 /// Macro to create customized unicast `dry_run` pathfinding functions with flexible routing behavior.
@@ -464,7 +466,7 @@ fn update_unicast<NM: NodeManager, CM: ContactManager>(
     dest: NodeID,
     mut at_time: Date,
     source_route: Rc<RefCell<RouteStage<NM, CM>>>,
-) {
+) -> Rc<RefCell<RouteStage<NM, CM>>> {
     let mut curr_opt = source_route
         .borrow()
         .next_for_destination
@@ -486,7 +488,7 @@ fn update_unicast<NM: NodeManager, CM: ContactManager>(
         at_time = curr_route_borrowed.at_time;
 
         if curr_route_borrowed.to_node == dest {
-            return;
+            return curr_route.clone();
         }
 
         curr_opt = curr_route_borrowed.next_for_destination.get(&dest).cloned();
@@ -526,8 +528,8 @@ fn schedule_unicast<NM: NodeManager, CM: ContactManager>(
 
     let dest = bundle.destinations[0];
     let source_route = tree.borrow().get_source_route();
-    update_unicast(bundle, dest, curr_time, source_route.clone());
-    return build_unicast_output(source_route, dest);
+    let dest_route= update_unicast(bundle, dest, curr_time, source_route.clone());
+    return build_unicast_output(source_route, dest, dest_route);
 }
 
 /// Schedules a unicast pathfinding operation for a given source route without tree initialization.
@@ -551,6 +553,6 @@ fn schedule_unicast_path<NM: NodeManager, CM: ContactManager>(
     source_route: Rc<RefCell<RouteStage<NM, CM>>>,
 ) -> RoutingOutput<NM, CM> {
     let dest = bundle.destinations[0];
-    update_unicast(bundle, dest, curr_time, source_route.clone());
-    return build_unicast_output(source_route, dest);
+    let dest_route = update_unicast(bundle, dest, curr_time, source_route.clone());
+    return build_unicast_output(source_route, dest, dest_route);
 }
