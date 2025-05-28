@@ -183,7 +183,7 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
         curr_time: Date,
         excluded_nodes: &Vec<NodeID>,
     ) -> Option<RoutingOutput<NM, CM>> {
-        if let (Some(tree), Some(mut reachable_nodes)) = self.route_storage.borrow().select(
+        if let (Some(tree), Some(reachable_nodes)) = self.route_storage.borrow().select(
             bundle,
             curr_time,
             &self.pathfinding.get_multigraph().borrow_mut().nodes,
@@ -194,7 +194,7 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
                     bundle,
                     curr_time,
                     tree,
-                    &mut reachable_nodes,
+                    reachable_nodes,
                     false,
                 ));
             }
@@ -206,14 +206,8 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
         let tree = Rc::new(RefCell::new(new_tree));
         self.route_storage.borrow_mut().store(&bundle, tree.clone());
 
-        let mut targets = Vec::new();
+        let targets = Vec::new();
 
-        return Some(schedule_multicast(
-            bundle,
-            curr_time,
-            tree,
-            &mut targets,
-            true,
-        ));
+        return Some(schedule_multicast(bundle, curr_time, tree, targets, true));
     }
 }
