@@ -99,8 +99,7 @@ impl<NM: NodeManager, CM: ContactManager> TreeStorage<NM, CM> for TreeCache<NM, 
                     }
                 }
                 true => {
-                    let mut reachable_nodes = Vec::new();
-                    dry_run_multicast(bundle, curr_time, tree.clone(), &mut reachable_nodes);
+                    let reachable_nodes = dry_run_multicast(bundle, curr_time, tree.clone());
                     return (Some(tree.clone()), Some(reachable_nodes));
                 }
             }
