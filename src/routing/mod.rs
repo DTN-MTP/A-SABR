@@ -55,7 +55,13 @@ pub trait Router<NM: NodeManager, CM: ContactManager> {
 ///       the first hop.
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct RoutingOutput<NM: NodeManager, CM: ContactManager> {
-    pub first_hops: HashMap<usize, (Rc<RefCell<Contact<NM, CM>>>, Vec<NodeID>)>,
+    pub first_hops: HashMap<
+        usize,
+        (
+            Rc<RefCell<Contact<NM, CM>>>,
+            Vec<Rc<RefCell<RouteStage<NM, CM>>>>,
+        ),
+    >,
 }
 
 /// Builds the routing output from the source route and reached nodes.
@@ -93,7 +99,8 @@ fn build_multicast_output<NM: NodeManager, CM: ContactManager>(
         }
     }
 
-    RoutingOutput { first_hops }
+    //RoutingOutput { first_hops }
+    todo!()
 }
 
 /// Builds the routing output from the source route and reached nodes.
@@ -112,14 +119,20 @@ fn build_multicast_output<NM: NodeManager, CM: ContactManager>(
 fn build_unicast_output<NM: NodeManager, CM: ContactManager>(
     source_route: Rc<RefCell<RouteStage<NM, CM>>>,
     destination: NodeID,
+    destination_route: Rc<RefCell<RouteStage<NM, CM>>>,
 ) -> RoutingOutput<NM, CM> {
-    let mut first_hops: HashMap<usize, (Rc<RefCell<Contact<NM, CM>>>, Vec<NodeID>)> =
-        HashMap::new();
+    let mut first_hops: HashMap<
+        usize,
+        (
+            Rc<RefCell<Contact<NM, CM>>>,
+            Vec<Rc<RefCell<RouteStage<NM, CM>>>>,
+        ),
+    > = HashMap::new();
 
     if let Some(first_hop_route) = source_route.borrow().next_for_destination.get(&destination) {
         if let Some(via) = &first_hop_route.borrow().via {
             let ptr = Rc::as_ptr(&via.contact) as usize;
-            first_hops.insert(ptr, (via.contact.clone(), vec![destination]));
+            first_hops.insert(ptr, (via.contact.clone(), vec![destination_route]));
         }
     }
     RoutingOutput { first_hops }
@@ -464,7 +477,7 @@ fn update_unicast<NM: NodeManager, CM: ContactManager>(
     dest: NodeID,
     mut at_time: Date,
     source_route: Rc<RefCell<RouteStage<NM, CM>>>,
-) {
+) -> Rc<RefCell<RouteStage<NM, CM>>> {
     let mut curr_opt = source_route
         .borrow()
         .next_for_destination
@@ -486,7 +499,7 @@ fn update_unicast<NM: NodeManager, CM: ContactManager>(
         at_time = curr_route_borrowed.at_time;
 
         if curr_route_borrowed.to_node == dest {
-            return;
+            return curr_route.clone();
         }
 
         curr_opt = curr_route_borrowed.next_for_destination.get(&dest).cloned();
@@ -526,8 +539,8 @@ fn schedule_unicast<NM: NodeManager, CM: ContactManager>(
 
     let dest = bundle.destinations[0];
     let source_route = tree.borrow().get_source_route();
-    update_unicast(bundle, dest, curr_time, source_route.clone());
-    return build_unicast_output(source_route, dest);
+    let destination_route = update_unicast(bundle, dest, curr_time, source_route.clone());
+    return build_unicast_output(source_route, dest, destination_route);
 }
 
 /// Schedules a unicast pathfinding operation for a given source route without tree initialization.
@@ -551,6 +564,6 @@ fn schedule_unicast_path<NM: NodeManager, CM: ContactManager>(
     source_route: Rc<RefCell<RouteStage<NM, CM>>>,
 ) -> RoutingOutput<NM, CM> {
     let dest = bundle.destinations[0];
-    update_unicast(bundle, dest, curr_time, source_route.clone());
-    return build_unicast_output(source_route, dest);
+    let dest_route = update_unicast(bundle, dest, curr_time, source_route.clone());
+    return build_unicast_output(source_route, dest, dest_route);
 }
