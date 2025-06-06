@@ -217,6 +217,7 @@ fn update_multicast<NM: NodeManager, CM: ContactManager>(
                 let first_hop_contact = next_route.borrow().get_first_hop_contact();
                 if let Some(first_hop_contact) = first_hop_contact {
                     let ptr = first_hop_contact.as_ptr() as usize;
+                    first_hop_ptr = Some(ptr);
                     if first_hops_map.get(&ptr).is_none() {
                         first_hops_map.insert(ptr, (first_hop_contact, Vec::new()));
                     }
