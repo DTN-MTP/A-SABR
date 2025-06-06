@@ -10,6 +10,7 @@ use a_sabr::{
     parsing::{coerce_cm, ContactDispatcher, Dispatcher},
     route_storage::cache::TreeCache,
     routing::{aliases::SpsnMpt, Router},
+    utils::pretty_print,
 };
 
 fn main() {
@@ -48,7 +49,7 @@ fn main() {
     // We will route a bundle
     let b = Bundle {
         source: 0,
-        destinations: vec![3, 4],
+        destinations: vec![4],
         priority: 0,
         size: 1.0,
         expiration: 10000.0,
@@ -56,5 +57,12 @@ fn main() {
 
     // We schedule the bundle (resource updates were conducted)
     let out = spsn.route(0, &b, 0.0, &Vec::new());
-    // "out" provides the first hop contact / route (complete path) for the bundle
+
+    if let Some(out) = out {
+        for (_, (c, dest_routes)) in &out.first_hops {
+            for route_rc in dest_routes {
+                pretty_print(route_rc.clone());
+            }
+        }
+    }
 }
