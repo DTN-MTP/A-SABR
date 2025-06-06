@@ -310,4 +310,11 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
         }
         return false;
     }
+
+    pub fn get_via_contact(&self) -> Option<Rc<RefCell<Contact<NM, CM>>>> {
+        if let Some(via) = &self.via {
+            return Some(via.contact.clone());
+        }
+        None
+    }
 }
