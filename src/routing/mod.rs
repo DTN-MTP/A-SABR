@@ -64,218 +64,136 @@ pub struct RoutingOutput<NM: NodeManager, CM: ContactManager> {
     >,
 }
 
-/// Builds the routing output from the source route and reached nodes.
-///
-/// This function generates a `RoutingOutput` structure containing the first hops
-/// for each reachable destination.
-///
-/// # Parameters
-///
-/// * `source_route` - A reference to the source route stage.
-/// * `reached_nodes` - A vector of node IDs representing the nodes that were reached.
-///
-/// # Returns
-///
-/// * `RoutingOutput<NM, CM>` - The constructed routing output with first hop information.
-fn build_multicast_output<NM: NodeManager, CM: ContactManager>(
-    source_route: Rc<RefCell<RouteStage<NM, CM>>>,
-    reached_nodes: &Vec<NodeID>,
-) -> RoutingOutput<NM, CM> {
-    let mut first_hops: HashMap<usize, (Rc<RefCell<Contact<NM, CM>>>, Vec<NodeID>)> =
-        HashMap::new();
-
-    for (dest, route) in source_route.borrow().next_for_destination.iter() {
-        if reached_nodes.contains(dest) {
-            if let Some(via) = &route.borrow().via {
-                let ptr = Rc::as_ptr(&via.contact) as usize;
-                if let Some((_, entry)) = first_hops.get_mut(&ptr) {
-                    entry.push(*dest);
-                } else {
-                    first_hops.insert(ptr, (via.contact.clone(), vec![*dest]));
-                }
-            } else {
-                panic!("Malformed route, no via contact/route!");
-            }
-        }
-    }
-
-    //RoutingOutput { first_hops }
-    todo!()
-}
-
-/// Executes a "dry run" multicast pathfinding operation to determine the reachable destinations
-/// among the multicast destinations.
-///
-/// `dry_run_multicast` simulates the multicast routing process for a bundle, given the current
-/// network state and a pathfinding tree structure. It iterates over the destinations in the
-/// bundle, checks their availability in the pathfinding tree, and initiates a recursive dry run
-/// to identify reachable destinations.
-///
-/// # Type Parameters
-/// * `NM`: A type implementing the `NodeManager` trait, which manages node-specific behaviors.
-/// * `CM`: A type implementing the `ContactManager` trait, which manages contacts for routing.
-/// * `D`: A type implementing the `Distance<NM, CM>` trait, defining the metric for route comparison.
-///
-/// # Parameters
-/// * `bundle`: The `Bundle` being routed, containing the list of intended destination nodes.
-/// * `at_time`: The current time at which the routing simulation is performed.
-/// * `tree`: A reference-counted, mutable `PathFindingOutput<NM, CM>`, representing the
-///   multicast routing tree used for pathfinding.
-/// * `reachable_destinations`: A mutable vector to store `NodeID`s of destinations determined
-///   to be reachable in the current run.
-/// * `node_list`: A list of nodes objects.
-///
-/// # Returns
-/// A vector of `NodeID`s representing the destinations that were successfully reached by
-/// the dry run multicast operation.
 pub fn dry_run_multicast<NM: NodeManager, CM: ContactManager>(
     bundle: &Bundle,
     at_time: Date,
     tree: Rc<RefCell<PathFindingOutput<NM, CM>>>,
-    reachable_destinations: &mut Vec<NodeID>,
 ) -> Vec<NodeID> {
     let tree_ref = tree.borrow();
+    let mut dests_in_tree = Vec::new();
+    let mut reached_destinations = Vec::new();
     for dest in &bundle.destinations {
         if let Some(_route_for_dest) = &tree_ref.by_destination[*dest as usize] {
             tree_ref.init_for_destination(*dest);
-            reachable_destinations.push(*dest);
+            dests_in_tree.push(*dest);
         }
     }
 
     let source_route = tree_ref.get_source_route();
-    let mut reached_destinations: Vec<NodeID> = Vec::new();
+    let mut accumulator = vec![(source_route, true, at_time, dests_in_tree)];
+    #[cfg(not(feature = "node_proc"))]
+    let bundle_to_consider = bundle;
 
-    rec_dry_run_multicast(
-        bundle,
-        at_time,
-        reachable_destinations,
-        &mut reached_destinations,
-        source_route,
-        true,
-    );
+    while let Some((current_route, is_source, mut time, downstream_dests)) = accumulator.pop() {
+        let mut route_borrowed = current_route.borrow_mut();
+
+        #[cfg(feature = "node_proc")]
+        let bundle_to_consider = route_borrowed.bundle.clone();
+
+        if !is_source {
+            if !route_borrowed.dry_run(time, &bundle_to_consider, false) {
+                continue;
+            }
+            time = route_borrowed.at_time;
+        }
+
+        let reached_node = route_borrowed.to_node;
+
+        let mut next_routes: HashMap<usize, (Rc<RefCell<RouteStage<NM, CM>>>, Vec<NodeID>)> =
+            HashMap::new();
+        for dest in downstream_dests {
+            if reached_node == dest {
+                reached_destinations.push(dest);
+            } else if let Some(next_route) = route_borrowed.next_for_destination.get(&dest) {
+                let ptr = Rc::as_ptr(next_route) as usize;
+                if let Some((_, entry)) = next_routes.get_mut(&ptr) {
+                    entry.push(dest);
+                } else {
+                    next_routes.insert(ptr, (next_route.clone(), vec![dest]));
+                }
+            }
+        }
+        for (_ptr, (next_route, next_downstream_dests)) in next_routes {
+            accumulator.push((next_route, false, time, next_downstream_dests));
+        }
+    }
 
     return reached_destinations;
 }
 
-/// Recursively performs a dry run to determine reachable nodes.
-///
-/// `reachable_in_tree` is a subset of the destinations of bundle.destination.
-/// `reachable_after_dry_run` is an acc subset of reachable_in_tree and the expected output.
-///
-/// # Parameters
-///
-/// * `bundle` - The current bundle containing routing information.
-/// * `at_time` - The current date/time for the routing operation.
-/// * `reachable_in_tree` - The nodes that are reachable within the tree.
-/// * `reachable_after_dry_run` - A mutable vector to accumulate reachable nodes.
-/// * `route` - The current route stage being evaluated.
-/// * `is_source` - A boolean indicating if the route is the source route.
-/// * `node_list`: A list of nodes objects.
-fn rec_dry_run_multicast<NM: NodeManager, CM: ContactManager>(
+fn update_multicast<NM: NodeManager, CM: ContactManager>(
     bundle: &Bundle,
-    mut at_time: Date,
-    reachable_in_tree: &Vec<NodeID>,
-    reachable_after_dry_run: &mut Vec<NodeID>,
-    route: Rc<RefCell<RouteStage<NM, CM>>>,
-    is_source: bool,
-) {
-    let mut route_borrowed = route.borrow_mut();
-
-    #[cfg(feature = "node_proc")]
-    let bundle_to_consider = route_borrowed.bundle.clone();
+    at_time: Date,
+    reachable_after_dry_run: Vec<NodeID>,
+    source_route: Rc<RefCell<RouteStage<NM, CM>>>,
+) -> RoutingOutput<NM, CM> {
+    let mut first_hops_map: HashMap<
+        usize,
+        (
+            Rc<RefCell<Contact<NM, CM>>>,
+            Vec<Rc<RefCell<RouteStage<NM, CM>>>>,
+        ),
+    > = HashMap::new();
+    let mut accumulator: Vec<(
+        Rc<RefCell<RouteStage<NM, CM>>>,
+        Option<usize>,
+        Date,
+        Vec<u16>,
+    )> = vec![(source_route, None, at_time, reachable_after_dry_run)];
     #[cfg(not(feature = "node_proc"))]
     let bundle_to_consider = bundle;
 
-    if !is_source {
-        if !route_borrowed.dry_run(at_time, &bundle_to_consider, false) {
-            return;
-        }
-        at_time = route_borrowed.at_time;
-    }
+    while let Some((current_route, mut first_hop_ptr, mut time, downstream_dests)) =
+        accumulator.pop()
+    {
+        let mut route_borrowed = current_route.borrow_mut();
 
-    // use the ptr pointed by the rc (as usize) as key, TODO: fix this ugly workaround
-    let mut next_routes: HashMap<usize, (Rc<RefCell<RouteStage<NM, CM>>>, Vec<NodeID>)> =
-        HashMap::new();
-    for dest in reachable_in_tree {
-        if route_borrowed.to_node == *dest {
-            reachable_after_dry_run.push(*dest);
-        } else if let Some(next_route) = route_borrowed.next_for_destination.get(&dest) {
-            let ptr = Rc::as_ptr(next_route) as usize;
-            if let Some((_, entry)) = next_routes.get_mut(&ptr) {
-                entry.push(*dest);
-            } else {
-                next_routes.insert(ptr, (next_route.clone(), vec![*dest]));
+        #[cfg(feature = "node_proc")]
+        let bundle_to_consider = route_borrowed.bundle.clone();
+
+        if !first_hop_ptr.is_none() {
+            if !route_borrowed.schedule(time, &bundle_to_consider) {
+                continue;
+            }
+            time = route_borrowed.at_time;
+        }
+        let reached_node = route_borrowed.to_node;
+
+        let mut next_routes: HashMap<usize, (Rc<RefCell<RouteStage<NM, CM>>>, Vec<NodeID>)> =
+            HashMap::new();
+        for dest in downstream_dests {
+            if reached_node == dest {
+                if let Some(ptr) = first_hop_ptr {
+                    if let Some((_, rts)) = first_hops_map.get_mut(&ptr) {
+                        rts.push(current_route.clone());
+                    }
+                }
+            } else if let Some(next_route) = route_borrowed.next_for_destination.get(&dest) {
+                let ptr = Rc::as_ptr(next_route) as usize;
+                if let Some((_, entry)) = next_routes.get_mut(&ptr) {
+                    entry.push(dest);
+                } else {
+                    next_routes.insert(ptr, (next_route.clone(), vec![dest]));
+                }
             }
         }
-    }
-    for (_, (next_route, destinations)) in next_routes.into_iter() {
-        rec_dry_run_multicast(
-            &bundle_to_consider,
-            at_time,
-            &destinations,
-            reachable_after_dry_run,
-            next_route.clone(),
-            false,
-        );
-    }
-}
-
-/// Recursively updates routes based on scheduled contacts.
-///
-/// # Parameters
-///
-/// * `bundle` - The current bundle containing routing information.
-/// * `at_time` - The current date/time for the routing operation.
-/// * `reachable_after_dry_run` - The nodes that were reachable after the dry run.
-/// * `route` - The current route stage being updated.
-/// * `is_source` - A boolean indicating if the route is the source route.
-/// * `node_list`: A list of nodes objects.
-fn rec_update_multicast<NM: NodeManager, CM: ContactManager>(
-    bundle: &Bundle,
-    mut at_time: Date,
-    reachable_after_dry_run: &Vec<NodeID>,
-    route: Rc<RefCell<RouteStage<NM, CM>>>,
-    is_source: bool,
-) {
-    let mut route_borrowed = route.borrow_mut();
-
-    #[cfg(feature = "node_proc")]
-    let bundle_to_consider = route_borrowed.bundle.clone();
-    #[cfg(not(feature = "node_proc"))]
-    let bundle_to_consider = bundle;
-
-    if !is_source {
-        if !route_borrowed.schedule(at_time, &bundle_to_consider) {
-            return;
-        }
-        at_time = route_borrowed.at_time;
-    }
-
-    // use the ptr pointed by the rc (as usize) as key, TODO: fix this ugly workaround
-    let mut next_routes: HashMap<usize, (Rc<RefCell<RouteStage<NM, CM>>>, Vec<NodeID>)> =
-        HashMap::new();
-    for dest in reachable_after_dry_run {
-        if route_borrowed.to_node == *dest {
-            continue;
-        } else if let Some(next_route) = route_borrowed.next_for_destination.get(dest) {
-            let ptr = Rc::as_ptr(next_route) as usize;
-            if let Some((_, entry)) = next_routes.get_mut(&ptr) {
-                entry.push(*dest);
-            } else {
-                next_routes.insert(ptr, (next_route.clone(), vec![*dest]));
+        for (_ptr, (next_route, next_downstream_dests)) in next_routes {
+            if first_hop_ptr.is_none() {
+                let first_hop_contact = next_route.borrow().get_via_contact();
+                if let Some(first_hop_contact) = first_hop_contact {
+                    let ptr = first_hop_contact.as_ptr() as usize;
+                    first_hop_ptr = Some(ptr);
+                    if first_hops_map.get(&ptr).is_none() {
+                        first_hops_map.insert(ptr, (first_hop_contact, Vec::new()));
+                    }
+                }
             }
+            accumulator.push((next_route, first_hop_ptr, time, next_downstream_dests));
         }
     }
-
-    for (_, (next_route, destinations)) in next_routes.into_iter() {
-        rec_update_multicast(
-            &bundle_to_consider,
-            at_time,
-            &destinations,
-            next_route.clone(),
-            false,
-        );
-    }
+    return RoutingOutput {
+        first_hops: first_hops_map,
+    };
 }
 
 /// Schedules routing operations based on the source node and a multicast bundle.
@@ -299,18 +217,14 @@ fn schedule_multicast<NM: NodeManager, CM: ContactManager>(
     bundle: &Bundle,
     curr_time: Date,
     tree: Rc<RefCell<PathFindingOutput<NM, CM>>>,
-    targets: &mut Vec<NodeID>,
-    dry_run_to_fill_targets: bool,
+    targets_opt: Option<Vec<NodeID>>,
 ) -> RoutingOutput<NM, CM> {
-    if dry_run_to_fill_targets {
-        *targets = dry_run_multicast(bundle, curr_time, tree.clone(), targets);
-    }
-
+    let targets = match targets_opt {
+        Some(targets) => targets,
+        None => dry_run_multicast(bundle, curr_time, tree.clone()),
+    };
     let source_route = tree.borrow().get_source_route();
-
-    rec_update_multicast(bundle, curr_time, targets, source_route.clone(), true);
-
-    return build_multicast_output(source_route, targets);
+    return update_multicast(bundle, curr_time, targets, source_route.clone());
 }
 
 /// Macro to create customized unicast `dry_run` pathfinding functions with flexible routing behavior.
@@ -518,7 +432,6 @@ fn schedule_unicast<NM: NodeManager, CM: ContactManager>(
     if init_tree {
         tree.borrow().init_for_destination(bundle.destinations[0]);
     }
-
     let dest = bundle.destinations[0];
     let source_route = tree.borrow().get_source_route();
     return update_unicast(bundle, dest, curr_time, source_route.clone());
