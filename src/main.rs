@@ -9,7 +9,10 @@ use a_sabr::{
     node_manager::none::NoManagement,
     parsing::{coerce_cm, ContactDispatcher, Dispatcher},
     route_storage::cache::TreeCache,
-    routing::{aliases::SpsnMpt, Router},
+    routing::{
+        aliases::{CgrFirstEndingMpt, SpsnMpt},
+        Router,
+    },
     utils::pretty_print,
 };
 
@@ -50,7 +53,7 @@ fn main() {
     let b = Bundle {
         source: 0,
         destinations: vec![4],
-        priority: 0,
+        priority: 0, // use 0-2, 0 as lowest priority
         size: 1.0,
         expiration: 10000.0,
     };
@@ -63,6 +66,37 @@ fn main() {
             for route_rc in dest_routes {
                 pretty_print(route_rc.clone());
             }
+        }
+    }
+
+    let table = Rc::new(RefCell::new(RoutingTable::new())); //TODO
+
+    let mut cgr =
+        CgrFirstEndingMpt::<NoManagement, Box<dyn a_sabr::contact_manager::ContactManager>>::new(
+            nodes, contacts, table,
+        );
+
+    let out = cgr.route(0, &b, 0.0, &Vec::new());
+    match out {
+        Some(out) => {
+            // for (_, (contact_rc, dest_routes)) in &out.first_hops {
+            //     for route_rc in dest_routes {
+            //         pretty_print(route_rc.clone());
+            //     }
+            for (_, (contact_rc, dest_routes)) in &out.contacts {
+                //TODO
+                let contact = contact_rc.borrow();
+                println!(
+                    "First hop contact: from {} to {}, time [{}, {}]",
+                    contact.info.rx_node,
+                    contact.info.tx_node,
+                    contact.info.start,
+                    contact.info.end
+                );
+            }
+        }
+        None => {
+            println!("  No route found for bundle (priority: {})", b.priority);
         }
     }
 }
