@@ -9,7 +9,7 @@ use crate::{
     },
     node::{Node, NodeInfo},
     node_manager::{none::NoManagement, NodeManager},
-    types::{DataRate, Date, Duration, NodeID},
+    types::{DataRate, Date, Duration, NodeID, Volume},
 };
 
 use std::{collections::HashMap, io};
@@ -26,6 +26,7 @@ pub struct TVGUtilContactData {
     delay: Duration,
     data_rate: DataRate,
     confidence: f32,
+    mav: [Volume; 3],
 }
 
 fn contact_info_from_tvg_data(data: &TVGUtilContactData) -> ContactInfo {
@@ -41,7 +42,7 @@ macro_rules! generate_for_evl_variants {
         impl FromTVGUtilContactData<$nm_name, $cm_name> for $cm_name {
             fn tvg_convert(data: TVGUtilContactData) -> Option<Contact<$nm_name, $cm_name>> {
                 let contact_info = contact_info_from_tvg_data(&data);
-                let manager = $cm_name::new(data.data_rate, data.delay);
+                let manager = $cm_name::new(data.data_rate, data.delay, data.mav);
                 return Contact::try_new(contact_info, manager);
             }
         }
@@ -128,6 +129,11 @@ impl TVGUtilContactPlan {
                     delay,
                     data_rate,
                     confidence,
+                    mav: [
+                        fourth_level_array[0].as_f64().unwrap() as Volume,
+                        fourth_level_array[1].as_f64().unwrap() as Volume,
+                        fourth_level_array[2].as_f64().unwrap() as Volume,
+                    ],
                 };
 
                 let contact = CM::tvg_convert(tvgcontact).unwrap();

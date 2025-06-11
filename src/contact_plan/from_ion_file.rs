@@ -9,7 +9,7 @@ use crate::{
     },
     node::{Node, NodeInfo},
     node_manager::{none::NoManagement, NodeManager},
-    types::{DataRate, Date, Duration, NodeID},
+    types::{DataRate, Date, Duration, NodeID, Volume},
 };
 
 use std::{cmp::Ordering, collections::HashMap};
@@ -26,6 +26,7 @@ pub struct IONContactData {
     data_rate: DataRate,
     delay: Duration,
     confidence: f32,
+    mav: [Volume; 3],
 }
 
 // Implement `Ord` and `PartialOrd` for sorting
@@ -61,6 +62,7 @@ struct IONRangeData {
     tx_node: NodeID,
     rx_node: NodeID,
     delay: Duration,
+    mav: [Volume; 3],
 }
 
 fn contact_info_from_tvg_data(data: &IONContactData) -> ContactInfo {
@@ -76,7 +78,7 @@ macro_rules! generate_for_evl_variants {
         impl FromIONContactData<$nm_name, $cm_name> for $cm_name {
             fn ion_convert(data: &IONContactData) -> Option<Contact<$nm_name, $cm_name>> {
                 let contact_info = contact_info_from_tvg_data(&data);
-                let manager = $cm_name::new(data.data_rate, data.delay);
+                let manager = $cm_name::new(data.data_rate, data.delay, data.mav);
                 return Contact::try_new(contact_info, manager);
             }
         }
@@ -215,6 +217,7 @@ impl IONContactPlan {
                         data_rate,
                         delay: 0.0,
                         confidence,
+                        mav: [0.0, 0.0, 0.0],
                     },
                 );
             }
@@ -224,12 +227,18 @@ impl IONContactPlan {
                 let tx_node = manage_aliases(&mut map_id_map, &words[4], &mut nodes);
                 let rx_node = manage_aliases(&mut map_id_map, &words[5], &mut nodes);
                 let delay: Duration = words[6].parse().unwrap();
+                let mav: [Volume; 3] = [
+                    words[7].parse().unwrap_or(0.0),
+                    words[8].parse().unwrap_or(0.0),
+                    words[9].parse().unwrap_or(0.0),
+                ];
                 ranges.push(IONRangeData {
                     tx_start,
                     tx_end,
                     tx_node,
                     rx_node,
                     delay,
+                    mav,
                 });
             }
             continue;
