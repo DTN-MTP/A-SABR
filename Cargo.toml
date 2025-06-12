@@ -21,6 +21,7 @@ node_proc = []
 contact_suppression = []
 first_depleted = []
 enable_node_management = []
+enable_priority = []
 
 [dev-dependencies]
 criterion = "0.3"
