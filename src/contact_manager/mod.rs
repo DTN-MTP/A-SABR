@@ -493,13 +493,13 @@ macro_rules! generate_basic_volume_manager_with_priority {
             /// The data transmission rate.
             rate: crate::types::DataRate,
             /// The delay between transmissions.
-            delay: crate::types::Duration,
+            pub delay: crate::types::Duration,
             /// The volume scheduled for this contact.
-            queue_size: [crate::types::Volume;3],
+            pub queue_size: [crate::types::Volume;3],
             /// The total volume at initialization.
             original_volume: crate::types::Volume,
             /// The current maximum available volume in 3 different priorities for this contact.
-            mav: [crate::types::Volume; 3],
+            pub mav: [crate::types::Volume; 3],
         }
 
         impl $manager_name {
@@ -524,6 +524,7 @@ macro_rules! generate_basic_volume_manager_with_priority {
             }
 
             /// Get Maximum Available Volume or queue size for a given priority.
+            #[inline(always)]
             pub fn get_vol(
                 &self,
                 vols: &[crate::types::Volume; 3],
@@ -533,6 +534,7 @@ macro_rules! generate_basic_volume_manager_with_priority {
             }
 
             /// Update Maximum Available Volume after scheduling a bundle.
+            #[inline(always)]
             fn update_mav(&mut self, vol: crate::types::Volume, priority: crate::types::Priority) {
                 let p = priority as usize;
                 if p < self.mav.len() {
