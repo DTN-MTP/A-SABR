@@ -356,6 +356,11 @@ fn update_unicast<NM: NodeManager, CM: ContactManager>(
     mut at_time: Date,
     source_route: Rc<RefCell<RouteStage<NM, CM>>>,
 ) -> RoutingOutput<NM, CM> {
+
+    if source_route.borrow().to_node == dest {
+        panic!("Bundle's destination is equal to source");
+    }
+
     let mut curr_opt = source_route
         .borrow()
         .next_for_destination
