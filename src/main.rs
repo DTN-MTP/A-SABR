@@ -3,7 +3,9 @@ use std::{cell::RefCell, env, rc::Rc};
 use a_sabr::{
     bundle::Bundle,
     contact_manager::{
-        eto::ETOManager, evl::EVLManager, qd::QDManager, seg::SegmentationManager, ContactManager,
+        legacy::{eto::ETOManager, evl::EVLManager, qd::QDManager},
+        seg::SegmentationManager,
+        ContactManager,
     },
     contact_plan::{asabr_file_lexer::FileLexer, from_asabr_lexer::ASABRContactPlan},
     node_manager::none::NoManagement,

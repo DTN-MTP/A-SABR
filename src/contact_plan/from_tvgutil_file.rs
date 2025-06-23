@@ -1,9 +1,7 @@
 use crate::{
     contact::{Contact, ContactInfo},
     contact_manager::{
-        eto::ETOManager,
-        evl::EVLManager,
-        qd::QDManager,
+        legacy::{eto::ETOManager, evl::EVLManager, qd::QDManager},
         seg::{Segment, SegmentationManager},
         ContactManager,
     },
