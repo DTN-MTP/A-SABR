@@ -12,7 +12,7 @@ serde_json = "1.0"
 
 
 [features]
-default = []
+default = ["enable_priority"]
 debug = []
 contact_work_area = []
 node_rx = []
@@ -41,3 +41,7 @@ path = "examples/satellite_constellation/satellite_constellation.rs"
 [[example]]
 name = "bundle_processing"
 path = "examples/bundle_processing/bundle_processing.rs"
+
+[[example]]
+name = "volume_management"
+path = "examples/volume_management/volume_management.rs"
