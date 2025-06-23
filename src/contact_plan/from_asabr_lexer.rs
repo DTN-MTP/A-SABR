@@ -14,39 +14,9 @@ use std::{cmp::max, collections::HashSet};
 /// `ContactPlan` is responsible for managing and validating the parsing of contacts and nodes
 /// in a network configuration. It tracks known node IDs and names to ensure uniqueness,
 /// and verifies that the node IDs match between contacts and nodes.
-pub struct ASABRContactPlan {
-    /// A set that tracks unique node IDs encountered during parsing.
-    known_node_ids: HashSet<NodeID>,
-    /// A set that tracks unique node names encountered during parsing.
-    known_node_names: HashSet<NodeName>,
-    /// The highest node ID found in the contact definitions.
-    max_node_id_in_contacts: usize,
-    /// The highest node ID found in the node definitions.
-    max_node_in_in_nodes: usize,
-}
-
-impl Default for ASABRContactPlan {
-    /// Returns a new `ContactPlan` initialized with empty node ID and name sets, and zeroed-out maximum node IDs.
-    fn default() -> Self {
-        Self::new()
-    }
-}
+pub struct ASABRContactPlan {}
 
 impl ASABRContactPlan {
-    /// Creates a new `ContactPlan` with no known node IDs, no known node names, and zeroed-out max node IDs.
-    ///
-    /// # Returns
-    ///
-    /// * A new `ContactPlan` instance with default values.
-    pub fn new() -> Self {
-        ASABRContactPlan {
-            known_node_ids: HashSet::new(),
-            known_node_names: HashSet::new(),
-            max_node_id_in_contacts: 0,
-            max_node_in_in_nodes: 0,
-        }
-    }
-
     /// Adds a contact to the contact list, ensuring that the maximum node ID in the contacts is updated.
     ///
     /// # Parameters
@@ -58,12 +28,12 @@ impl ASABRContactPlan {
     ///
     /// * `CM` - A generic type that implements the `ContactManager` trait, used to manage the contact.
     fn add_contact<NM: NodeManager, CM: ContactManager>(
-        &mut self,
         contact: Contact<NM, CM>,
         contacts: &mut Vec<Contact<NM, CM>>,
+        max_node_id_in_contacts: &mut usize,
     ) {
         let value = max(contact.get_tx_node(), contact.get_rx_node());
-        self.max_node_id_in_contacts = max(self.max_node_id_in_contacts, value.into());
+        *max_node_id_in_contacts = max(*max_node_id_in_contacts, value.into());
         contacts.push(contact);
     }
 
@@ -84,23 +54,25 @@ impl ASABRContactPlan {
     ///
     /// * `NM` - A generic type that implements the `NodeManager` trait, used to manage the node.
     fn add_node<NM: NodeManager>(
-        &mut self,
         node: Node<NM>,
         nodes: &mut Vec<Node<NM>>,
+        max_node_in_in_nodes: &mut usize,
+        known_node_ids: &mut HashSet<NodeID>,
+        known_node_names: &mut HashSet<NodeName>,
     ) -> Result<(), String> {
         let node_id = node.get_node_id();
         let node_name = node.get_node_name();
 
-        if self.known_node_ids.contains(&node_id) {
+        if known_node_ids.contains(&node_id) {
             return Err(format!("Two nodes have the same id ({})", node_id));
         }
-        if self.known_node_names.contains(&node_name) {
+        if known_node_names.contains(&node_name) {
             return Err(format!("Two nodes have the same id ({})", node_name));
         }
         let value = max(node.get_node_id(), node.get_node_id());
-        self.max_node_in_in_nodes = max(self.max_node_in_in_nodes, value.into());
-        self.known_node_ids.insert(node_id);
-        self.known_node_names.insert(node_name);
+        *max_node_in_in_nodes = max(*max_node_in_in_nodes, value.into());
+        known_node_ids.insert(node_id);
+        known_node_names.insert(node_name);
         nodes.push(node);
         Ok(())
     }
@@ -133,13 +105,17 @@ impl ASABRContactPlan {
         NM: NodeManager + DispatchParser<NM> + Parser<NM>,
         CM: ContactManager + DispatchParser<CM> + Parser<CM>,
     >(
-        &mut self,
         lexer: &mut dyn Lexer,
         node_marker_map: Option<&Dispatcher<fn(&mut dyn Lexer) -> ParsingState<NM>>>,
         contact_marker_map: Option<&Dispatcher<fn(&mut dyn Lexer) -> ParsingState<CM>>>,
     ) -> Result<(Vec<Node<NM>>, Vec<Contact<NM, CM>>), String> {
         let mut contacts: Vec<Contact<NM, CM>> = Vec::new();
         let mut nodes: Vec<Node<NM>> = Vec::new();
+
+        let mut known_node_ids: HashSet<NodeID> = HashSet::new();
+        let mut known_node_names: HashSet<NodeName> = HashSet::new();
+        let mut max_node_id_in_contacts: usize = 0;
+        let mut max_node_in_in_nodes: usize = 0;
 
         loop {
             let res = lexer.consume_next_token();
@@ -164,7 +140,11 @@ impl ASABRContactPlan {
                             }
                             ParsingState::Finished((info, manager)) => {
                                 if let Some(contact) = Contact::try_new(info, manager) {
-                                    self.add_contact(contact, &mut contacts);
+                                    Self::add_contact(
+                                        contact,
+                                        &mut contacts,
+                                        &mut max_node_id_in_contacts,
+                                    );
                                 } else {
                                     return Err(format!(
                                         "Malformed contact ({})",
@@ -185,7 +165,13 @@ impl ASABRContactPlan {
                             }
                             ParsingState::Finished((info, manager)) => {
                                 if let Some(node) = Node::try_new(info, manager) {
-                                    match self.add_node(node, &mut nodes) {
+                                    match Self::add_node(
+                                        node,
+                                        &mut nodes,
+                                        &mut max_node_in_in_nodes,
+                                        &mut known_node_ids,
+                                        &mut known_node_names,
+                                    ) {
                                         Ok(_) => {}
                                         Err(msg) => {
                                             return Err(msg);
@@ -209,13 +195,13 @@ impl ASABRContactPlan {
                 },
             }
         }
-        if self.max_node_id_in_contacts != self.max_node_in_in_nodes {
+        if max_node_id_in_contacts != max_node_in_in_nodes {
             return Err(
                 "The max node numbers for the contact and node definitions do not match"
                     .to_string(),
             );
         }
-        if nodes.len() - 1 != self.max_node_id_in_contacts {
+        if nodes.len() - 1 != max_node_id_in_contacts {
             return Err("Some node declarations are missing".to_string());
         }
         Ok((nodes, contacts))

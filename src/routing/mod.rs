@@ -279,14 +279,13 @@ macro_rules! create_dry_run_unicast_path_variant {
                 .next_for_destination
                 .get(&dest)
                 .cloned();
-
+            #[cfg(not(feature = "node_proc"))]
+            let bundle_to_consider = bundle;
             while let Some(curr_route) = curr_opt {
                 let mut curr_route_borrowed = curr_route.borrow_mut();
 
                 #[cfg(feature = "node_proc")]
                 let bundle_to_consider = curr_route_borrowed.bundle.clone();
-                #[cfg(not(feature = "node_proc"))]
-                let bundle_to_consider = bundle;
 
                 if !curr_route_borrowed.dry_run(at_time, &bundle_to_consider, false) {
                     return None;
@@ -364,7 +363,8 @@ fn update_unicast<NM: NodeManager, CM: ContactManager>(
         .cloned();
 
     let mut first_hop: Option<Rc<RefCell<Contact<NM, CM>>>> = None;
-
+    #[cfg(not(feature = "node_proc"))]
+    let bundle_to_consider = bundle;
     while let Some(curr_route) = curr_opt {
         let mut curr_route_borrowed = curr_route.borrow_mut();
 
@@ -374,8 +374,6 @@ fn update_unicast<NM: NodeManager, CM: ContactManager>(
 
         #[cfg(feature = "node_proc")]
         let bundle_to_consider = curr_route_borrowed.bundle.clone();
-        #[cfg(not(feature = "node_proc"))]
-        let bundle_to_consider = bundle;
 
         if !curr_route_borrowed.schedule(at_time, &bundle_to_consider) {
             panic!("Faulty dry run, didn't allow a clean update!");

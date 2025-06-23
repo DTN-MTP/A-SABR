@@ -23,7 +23,6 @@ fn main() {
 
     // We create a lexer to retrieve tokens from a file
     let mut mylexer = FileLexer::new(&args[1]).unwrap();
-    let mut cp = ASABRContactPlan::new();
 
     // All nodes will have the same management approach (NoManagement) but the contacts may be of various types
     // We provide a map with markers that will allow the parser to create the correct contacts types thanks to
@@ -36,9 +35,12 @@ fn main() {
     contact_dispatch.add("seg", coerce_cm::<SegmentationManager>);
 
     // We parse the contact plan (A-SABR format thanks to ASABRContactPlan) and the lexer
-    let (nodes, contacts) = cp
-        .parse::<NoManagement, Box<dyn ContactManager>>(&mut mylexer, None, Some(&contact_dispatch))
-        .unwrap();
+    let (nodes, contacts) = ASABRContactPlan::parse::<NoManagement, Box<dyn ContactManager>>(
+        &mut mylexer,
+        None,
+        Some(&contact_dispatch),
+    )
+    .unwrap();
 
     // We create a storage for the Paths
     let table = Rc::new(RefCell::new(TreeCache::new(true, false, 10)));

@@ -20,10 +20,9 @@ pub fn init_pathfinding<
     contact_marker_map: Option<&Dispatcher<'_, fn(&mut dyn Lexer) -> ParsingState<CM>>>,
 ) -> P {
     let mut mylexer = FileLexer::new(cp_path).unwrap();
-    let mut cp = ASABRContactPlan::new();
-    let nodes_n_contacts = cp
-        .parse::<NM, CM>(&mut mylexer, node_marker_map, contact_marker_map)
-        .unwrap();
+    let nodes_n_contacts =
+        ASABRContactPlan::parse::<NM, CM>(&mut mylexer, node_marker_map, contact_marker_map)
+            .unwrap();
 
     return P::new(Rc::new(RefCell::new(Multigraph::new(
         nodes_n_contacts.0,
