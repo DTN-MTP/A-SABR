@@ -2,10 +2,11 @@ pub mod eto;
 pub mod evl;
 pub mod qd;
 
+// Budget approach by Longrui Ma
 #[macro_export]
 macro_rules! generate_struct_management {
     // if the priority count is set to 1, no priority, queue_size is not an array
-    ($manager_name:ident, 1) => {
+    ($manager_name:ident, 1, false) => {
         /// A simple manager for handling volcontact_data.startume and/or transmission delays (macro generated).
         #[cfg_attr(feature = "debug", derive(Debug))]
         pub struct $manager_name {
@@ -42,23 +43,35 @@ macro_rules! generate_struct_management {
                     self.queue_size
             }
            #[inline(always)]
-            fn enqueue(&mut self, bundle: &crate::bundle::Bundle)  {
+            pub fn enqueue(&mut self, bundle: &crate::bundle::Bundle)  {
                  self.queue_size += bundle.size;
             }
             #[inline(always)]
-            fn dequeue(&mut self, bundle: &crate::bundle::Bundle)  {
+            pub fn dequeue(&mut self, bundle: &crate::bundle::Bundle)  {
                 self.queue_size -= bundle.size;
+            }
+            #[inline(always)]
+            fn get_budget(&self, bundle: &crate::bundle::Bundle) -> crate::types::Volume  {
+               return self.original_volume;
+            }
+            #[inline(always)]
+            fn build_parsing_output(rate: crate::types::DataRate, delay: crate::types::Duration, lexer: &mut dyn crate::parsing::Lexer) -> crate::parsing::ParsingState<Self>{
+                return crate::parsing::ParsingState::Finished($manager_name::new(rate, delay));
             }
         }
     };
 
-    // Safe guard $prio_count, a value of 0 would still compile..
-    ($manager_name:ident, 0) => {
-         compile_error!("To disable priority, set $prio_count to 1");
-    };
+    // // Safe guard $prio_count, a value of 0 would still compile..
+    // ($manager_name:ident, 0, $with_budget:ident) => {
+    //      compile_error!("To disable priority, set $prio_count to 1");
+    // };
+    // // Safe guard $with_budget with no prioities
+    // ($manager_name:ident, 1, true) => {
+    //      compile_error!("No priority variant cannot have budgets");
+    // };
 
-     // if the priority count is different than one, queue_size is an array
-    ($manager_name:ident, $prio_count:tt) => {
+    // if the priority count is different than one, queue_size is an array
+    ($manager_name:ident, $prio_count:tt, false) => {
 
         #[cfg_attr(feature = "debug", derive(Debug))]
         pub struct $manager_name {
@@ -97,28 +110,115 @@ macro_rules! generate_struct_management {
                     self.queue_size[bundle.priority as usize]
             }
             #[inline(always)]
-            fn enqueue(&mut self, bundle: &crate::bundle::Bundle)  {
+            pub fn enqueue(&mut self, bundle: &crate::bundle::Bundle)  {
                 for prio in 0..bundle.priority as usize + 1 {
                     self.queue_size[prio] += bundle.size;
                 }
             }
             #[inline(always)]
-            fn dequeue(&mut self, bundle: &crate::bundle::Bundle)  {
+            pub fn dequeue(&mut self, bundle: &crate::bundle::Bundle)  {
                 for prio in 0..bundle.priority as usize + 1 {
                     self.queue_size[prio] -= bundle.size;
                 }
             }
+            #[inline(always)]
+            fn get_budget(&self, _bundle: &crate::bundle::Bundle) -> crate::types::Volume  {
+               return self.original_volume;
+            }
+            #[inline(always)]
+            fn build_parsing_output(rate: crate::types::DataRate, delay: crate::types::Duration, lexer: &mut dyn crate::parsing::Lexer) -> crate::parsing::ParsingState<Self>{
+                return crate::parsing::ParsingState::Finished($manager_name::new(rate, delay));
+            }
         }
     };
+    // if the priority count is different than one, queue_size is an array
+    ($manager_name:ident, $prio_count:tt, true) => {
 
+        #[cfg_attr(feature = "debug", derive(Debug))]
+        pub struct $manager_name {
+            /// The data transmission rate.
+            rate: crate::types::DataRate,
+            /// The delay between transmissions.
+            delay: crate::types::Duration,
+            /// The volume scheduled for this contact.
+            queue_size: [crate::types::Volume; $prio_count],
+
+            budgets: [crate::types::Volume; $prio_count],
+            /// The total volume at initialization.
+            original_volume: crate::types::Volume,
+        }
+
+        impl $manager_name {
+            #[doc = concat!( "Creates a new `", stringify!($manager_name),"`  with specified average rate and delay.")]
+            ///
+            /// # Arguments
+            ///
+            /// * `rate` - The average data rate for this contact.
+            /// * `delay` - The link delay for this contact.
+            ///
+            /// # Returns
+            ///
+             #[doc = concat!( " A new instance of  `", stringify!($manager_name),"`.")]
+            pub fn new(rate: crate::types::DataRate, delay: crate::types::Duration, budgets: [crate::types::Volume; $prio_count] ) -> Self {
+                Self {
+                    rate,
+                    delay,
+                    queue_size: [0.0; $prio_count],
+                    budgets: budgets,
+                    original_volume: 0.0,
+                }
+            }
+
+            #[inline(always)]
+            fn get_queue_size(&self, bundle: &crate::bundle::Bundle) -> crate::types::Volume {
+                    self.queue_size[bundle.priority as usize]
+            }
+            #[inline(always)]
+            pub fn enqueue(&mut self, bundle: &crate::bundle::Bundle)  {
+                for prio in 0..bundle.priority as usize + 1 {
+                    self.queue_size[prio] += bundle.size;
+                }
+            }
+            #[inline(always)]
+            pub fn dequeue(&mut self, bundle: &crate::bundle::Bundle)  {
+                for prio in 0..bundle.priority as usize + 1 {
+                    self.queue_size[prio] -= bundle.size;
+                }
+            }
+            #[inline(always)]
+            fn get_budget(&self, bundle: &crate::bundle::Bundle) -> crate::types::Volume  {
+               return self.budgets[bundle.priority as usize];
+            }
+            #[inline(always)]
+            fn build_parsing_output(rate: crate::types::DataRate, delay: crate::types::Duration, lexer: &mut dyn crate::parsing::Lexer) -> crate::parsing::ParsingState<Self>{
+                let mut budgets = [0.0; 3];
+                for i in 0..$prio_count {
+
+                    let budget_state = <crate::types::Volume as crate::types::Token<crate::types::Volume>>::parse(lexer);
+                    match budget_state {
+                        crate::parsing::ParsingState::Finished(value) => budgets[i] = value,
+                        crate::parsing::ParsingState::Error(msg) => return crate::parsing::ParsingState::Error(msg),
+                        crate::parsing::ParsingState::EOF => {
+                            return crate::parsing::ParsingState::Error(format!(
+                                "Parsing failed ({})",
+                                lexer.get_current_position()
+                            ))
+                        }
+                    }
+                }
+
+                return crate::parsing::ParsingState::Finished($manager_name::new(rate, delay, budgets));
+            }
+        }
+    };
 }
 
 #[macro_export]
 macro_rules! generate_prio_volume_manager {
 
-    ($manager_name:ident, $add_delay:tt, $auto_update:tt, $prio_count:tt)  => {
+    ($manager_name:ident, $add_delay:tt, $auto_update:tt, $prio_count:tt, $with_budget:tt)  => {
 
-        crate::generate_struct_management!($manager_name, $prio_count);
+        crate::generate_struct_management!($manager_name, $prio_count, $with_budget);
 
         impl crate::contact_manager::ContactManager for $manager_name {
             /// Simulates the transmission of a bundle based on the contact data and available free intervals.
@@ -144,7 +244,7 @@ macro_rules! generate_prio_volume_manager {
                 // This function call should be expanded at compile time
                 let queue_size = self.get_queue_size(&bundle);
 
-                if bundle.size > self.original_volume - queue_size {
+                if bundle.size > self.get_budget(&bundle) - queue_size {
                     println!("{}", queue_size);
                     return None;
                 }
@@ -279,8 +379,7 @@ macro_rules! generate_prio_volume_manager {
                         ))
                     }
                 }
-
-                crate::parsing::ParsingState::Finished($manager_name::new(rate, delay))
+                return Self::build_parsing_output(rate, delay, lexer);
             }
         }
     }
