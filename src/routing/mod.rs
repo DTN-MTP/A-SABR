@@ -64,6 +64,25 @@ pub struct RoutingOutput<NM: NodeManager, CM: ContactManager> {
     >,
 }
 
+impl<NM: NodeManager, CM: ContactManager> RoutingOutput<NM, CM> {
+    pub fn lazy_get_for_unicast(
+        &self,
+        dest: NodeID,
+    ) -> Option<(
+        Rc<RefCell<Contact<NM, CM>>>,
+        Rc<RefCell<RouteStage<NM, CM>>>,
+    )> {
+        for (_c_ptr, (contact, dest_routes)) in &self.first_hops {
+            for route_rc in dest_routes {
+                if route_rc.borrow().to_node == dest {
+                    return Some((contact.clone(), route_rc.clone()));
+                }
+            }
+        }
+        None
+    }
+}
+
 pub fn dry_run_multicast<NM: NodeManager, CM: ContactManager>(
     bundle: &Bundle,
     at_time: Date,
@@ -356,7 +375,6 @@ fn update_unicast<NM: NodeManager, CM: ContactManager>(
     mut at_time: Date,
     source_route: Rc<RefCell<RouteStage<NM, CM>>>,
 ) -> RoutingOutput<NM, CM> {
-
     if source_route.borrow().to_node == dest {
         panic!("Bundle's destination is equal to source");
     }

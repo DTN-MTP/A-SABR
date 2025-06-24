@@ -20,7 +20,7 @@ node_tx = []
 node_proc = []
 contact_suppression = []
 first_depleted = []
-enable_node_management = []
+manual_queueing = []
 
 [dev-dependencies]
 criterion = "0.3"
@@ -40,3 +40,7 @@ path = "examples/satellite_constellation/satellite_constellation.rs"
 [[example]]
 name = "bundle_processing"
 path = "examples/bundle_processing/bundle_processing.rs"
+
+[[example]]
+name = "eto_management"
+path = "examples/eto_management/eto_management.rs"

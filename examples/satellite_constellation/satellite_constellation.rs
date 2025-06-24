@@ -1,5 +1,5 @@
 use a_sabr::bundle::Bundle;
-use a_sabr::contact_manager::evl::EVLManager;
+use a_sabr::contact_manager::legacy::evl::EVLManager;
 use a_sabr::distance::sabr::SABR;
 use a_sabr::node_manager::none::NoManagement;
 use a_sabr::node_manager::NodeManager;

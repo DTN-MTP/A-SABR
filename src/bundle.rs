@@ -42,7 +42,7 @@ impl Bundle {
         }
 
         // a higher priority volume can claim lower priority volume congested paths
-        if check_by_priority && self.priority < other.priority {
+        if check_by_priority && self.priority > other.priority {
             return true;
         }
         false

@@ -1,6 +1,6 @@
 use a_sabr::{
     bundle::Bundle,
-    contact_manager::evl::EVLManager,
+    contact_manager::legacy::evl::EVLManager,
     distance::sabr::SABR,
     node_manager::none::NoManagement,
     pathfinding::{mpt::MptPath, node_graph::NodeGraphPath, Pathfinding},
