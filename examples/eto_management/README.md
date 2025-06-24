@@ -23,7 +23,7 @@ In this example, we build a generic router thanks to the `build_generic_router` 
 
 The network encompasses three nodes: 0, 1, 2, 3, and 4. The contacts C1, and C3 are managed with `EVLManager`, C2 is managed with `QDManager`, and C0 is managed with `ETOManager` (node 0 is the local).
 
-Three bundles of size 20 will be scheduled at t=15, the first two bundles have node 3 for destination, and the third must reach node 4. The bundle will be scheduled and enqueued one at the time.
+Three bundles of size 20 will be scheduled at t = 15. The first two bundles have node 3 for destination, and the third must reach node 4. The bundles will be scheduled and enqueued one at a time.
 
 ### Behavior
 
