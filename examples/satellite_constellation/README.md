@@ -1,6 +1,5 @@
 ## Satellite Constellation
 
-
 ### Run the example
 
 This example requires the `node_tx` feature:

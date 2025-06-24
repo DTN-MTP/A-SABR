@@ -43,11 +43,11 @@ macro_rules! generate_struct_management {
                     self.queue_size
             }
            #[inline(always)]
-            pub fn enqueue(&mut self, bundle: &crate::bundle::Bundle)  {
+            fn enqueue(&mut self, bundle: &crate::bundle::Bundle)  {
                  self.queue_size += bundle.size;
             }
             #[inline(always)]
-            pub fn dequeue(&mut self, bundle: &crate::bundle::Bundle)  {
+            fn dequeue(&mut self, bundle: &crate::bundle::Bundle)  {
                 self.queue_size -= bundle.size;
             }
             #[inline(always)]
@@ -110,13 +110,13 @@ macro_rules! generate_struct_management {
                     self.queue_size[bundle.priority as usize]
             }
             #[inline(always)]
-            pub fn enqueue(&mut self, bundle: &crate::bundle::Bundle)  {
+            fn enqueue(&mut self, bundle: &crate::bundle::Bundle)  {
                 for prio in 0..bundle.priority as usize + 1 {
                     self.queue_size[prio] += bundle.size;
                 }
             }
             #[inline(always)]
-            pub fn dequeue(&mut self, bundle: &crate::bundle::Bundle)  {
+            fn dequeue(&mut self, bundle: &crate::bundle::Bundle)  {
                 for prio in 0..bundle.priority as usize + 1 {
                     self.queue_size[prio] -= bundle.size;
                 }
@@ -174,13 +174,13 @@ macro_rules! generate_struct_management {
                     self.queue_size[bundle.priority as usize]
             }
             #[inline(always)]
-            pub fn enqueue(&mut self, bundle: &crate::bundle::Bundle)  {
+            fn enqueue(&mut self, bundle: &crate::bundle::Bundle)  {
                 for prio in 0..bundle.priority as usize + 1 {
                     self.queue_size[prio] += bundle.size;
                 }
             }
             #[inline(always)]
-            pub fn dequeue(&mut self, bundle: &crate::bundle::Bundle)  {
+            fn dequeue(&mut self, bundle: &crate::bundle::Bundle)  {
                 for prio in 0..bundle.priority as usize + 1 {
                     self.queue_size[prio] -= bundle.size;
                 }
@@ -214,6 +214,23 @@ macro_rules! generate_struct_management {
 }
 
 #[macro_export]
+macro_rules! generate_manual_enqueue {
+    (false) => {
+        fn manual_enqueue(&mut self, bundle: &crate::bundle::Bundle) -> bool {
+            self.enqueue(bundle);
+            true
+        }
+        fn manual_dequeue(&mut self, bundle: &crate::bundle::Bundle) -> bool {
+            self.dequeue(bundle);
+            true
+        }
+    };
+    (true) => {
+        // Keep default impl if auto update
+    };
+}
+
+#[macro_export]
 macro_rules! generate_prio_volume_manager {
 
     ($manager_name:ident, $add_delay:tt, $auto_update:tt, $prio_count:tt, $with_budget:tt)  => {
@@ -221,6 +238,9 @@ macro_rules! generate_prio_volume_manager {
         crate::generate_struct_management!($manager_name, $prio_count, $with_budget);
 
         impl crate::contact_manager::ContactManager for $manager_name {
+            #[cfg(feature = "manual_queueing")]
+            crate::generate_manual_enqueue!($auto_update);
+
             /// Simulates the transmission of a bundle based on the contact data and available free intervals.
             ///
             #[doc = concat!( "The transmission time start time will be offset by the queue size: ", stringify!($add_delay),"`.")]

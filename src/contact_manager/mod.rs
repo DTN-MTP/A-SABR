@@ -1,13 +1,12 @@
-use std::any::Any;
-
+#[cfg(feature = "first_depleted")]
+use crate::types::Volume;
 use crate::{
     bundle::Bundle,
     contact::ContactInfo,
+    contact_manager::legacy::eto::ETOManager,
     types::{Date, Duration},
 };
-
-#[cfg(feature = "first_depleted")]
-use crate::types::Volume;
+use std::any::Any;
 
 pub mod legacy;
 pub mod seg;
@@ -74,6 +73,16 @@ pub trait ContactManager {
     #[cfg(feature = "first_depleted")]
     fn get_original_volume(&self) -> Volume;
 
+    #[cfg(feature = "manual_queueing")]
+    fn manual_enqueue(&mut self, _bundle: &Bundle) -> bool {
+        false
+    }
+
+    #[cfg(feature = "manual_queueing")]
+    fn manual_dequeue(&mut self, _bundle: &Bundle) -> bool {
+        false
+    }
+
     /// Finalize the initialize of the contact and notify if the initailization is consistent.
     ///
     /// # Arguments
@@ -113,6 +122,16 @@ impl<CM: ContactManager> ContactManager for Box<CM> {
         (**self).get_original_volume()
     }
 
+    #[cfg(feature = "manual_queueing")]
+    fn manual_enqueue(&mut self, _bundle: &Bundle) -> bool {
+        (**self).manual_enqueue(_bundle)
+    }
+
+    #[cfg(feature = "manual_queueing")]
+    fn manual_dequeue(&mut self, _bundle: &Bundle) -> bool {
+        (**self).manual_dequeue(_bundle)
+    }
+
     /// Delegates the try_init method to the boxed object.
     fn try_init(&mut self, contact_data: &ContactInfo) -> bool {
         (**self).try_init(contact_data)
@@ -140,63 +159,22 @@ impl ContactManager for Box<dyn ContactManager> {
         (**self).schedule_tx(contact_data, at_time, bundle)
     }
 
+    /// Delegates the try_init method to the boxed object.
+    fn try_init(&mut self, contact_data: &ContactInfo) -> bool {
+        (**self).try_init(contact_data)
+    }
+
     #[cfg(feature = "first_depleted")]
     /// Delegates the get_original_volume method to the boxed object.
     fn get_original_volume(&self) -> Volume {
         (**self).get_original_volume()
     }
-
-    /// Delegates the try_init method to the boxed object.
-    fn try_init(&mut self, contact_data: &ContactInfo) -> bool {
-        (**self).try_init(contact_data)
+    #[cfg(feature = "manual_queueing")]
+    fn manual_enqueue(&mut self, _bundle: &Bundle) -> bool {
+        (**self).manual_enqueue(_bundle)
     }
-}
-
-/// A trait that extends ContactManager with runtime type conversion capabilities.
-/// This trait provides methods to convert a type-erased ContactManager into a type-erased Any,
-/// which enables safe runtime downcasting to concrete types.
-///
-/// Use case: the manager must be modified with extern means (e.g. informations on transmissions queues)
-/// and this needs to downcast the manager to a concrete type to call custom methods of the manager.
-trait AsAny: ContactManager {
-    /// Converts this type to a type-erased `Any` reference.
-    ///
-    /// This method allows for runtime type checking and downcasting through the
-    /// standard `Any` trait. The returned reference can be used with
-    /// `downcast_ref` to safely convert back to a concrete type.
-    ///
-    /// # Returns
-    ///
-    /// A borrowed reference to `dyn Any` that can be used for downcasting.
-    fn as_any(&self) -> &dyn Any;
-
-    /// Converts this type to a type-erased mutable `Any` reference.
-    ///
-    /// Similar to `as_any`, but provides mutable access. This enables
-    /// downcasting to a mutable reference of the concrete type.
-    ///
-    /// # Returns
-    ///
-    /// A mutable reference to `dyn Any` that can be used for downcasting.
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-}
-
-/// Blanket implementation of `AsAny` for any type that implements both
-/// `ContactManager` and `Any`.
-///
-/// This implementation allows any concrete type implementing `ContactManager`
-/// to be converted to a type-erased `Any` reference, enabling runtime
-/// type checking and downcasting capabilities.
-///
-/// # Type Parameters
-///
-/// * `CM`: The concrete type implementing both `ContactManager` and `Any`
-impl<CM: ContactManager + Any> AsAny for CM {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
+    #[cfg(feature = "manual_queueing")]
+    fn manual_dequeue(&mut self, _bundle: &Bundle) -> bool {
+        (**self).manual_dequeue(_bundle)
     }
 }

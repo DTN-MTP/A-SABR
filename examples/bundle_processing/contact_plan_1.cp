@@ -8,7 +8,7 @@ node 3 destination
 contact 0 1 0 100 1 0
 # C1
 contact 1 2 100 180 1 0
-# C1
+# C2
 contact 2 3 0 300 1 0
 
 
