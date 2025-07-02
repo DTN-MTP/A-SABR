@@ -15,8 +15,12 @@ use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
 use super::{dry_run_unicast_path, schedule_unicast_path, Router, RoutingOutput};
 
-pub struct Cgr<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: RouteStorage<NM, CM>>
-{
+pub struct VolCgr<
+    NM: NodeManager,
+    CM: ContactManager,
+    P: Pathfinding<NM, CM>,
+    S: RouteStorage<NM, CM>,
+> {
     route_storage: Rc<RefCell<S>>,
     pathfinding: P,
 
@@ -28,7 +32,7 @@ pub struct Cgr<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: R
 }
 
 impl<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: RouteStorage<NM, CM>>
-    Router<NM, CM> for Cgr<NM, CM, P, S>
+    Router<NM, CM> for VolCgr<NM, CM, P, S>
 {
     fn route(
         &mut self,
@@ -46,7 +50,7 @@ impl<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: RouteStorag
 }
 
 impl<S: RouteStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>>
-    Cgr<NM, CM, P, S>
+    VolCgr<NM, CM, P, S>
 {
     pub fn new(
         nodes: Vec<Node<NM>>,
@@ -71,11 +75,6 @@ impl<S: RouteStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfindin
     ) -> Option<RoutingOutput<NM, CM>> {
         let dest = bundle.destinations[0];
 
-        let mut bundle_to_consider = bundle.clone();
-        // if we are not volume aware, we drop the constraints
-        bundle_to_consider.priority = 1;
-        bundle_to_consider.size = 0.0;
-
         let route_option = self.route_storage.borrow_mut().select(
             bundle,
             curr_time,
@@ -91,28 +90,23 @@ impl<S: RouteStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfindin
             ));
         }
 
-        loop {
-            let new_tree =
-                self.pathfinding
-                    .get_next(curr_time, source, &bundle_to_consider, excluded_nodes);
-            let tree = Rc::new(RefCell::new(new_tree));
+        let new_tree = self
+            .pathfinding
+            .get_next(curr_time, source, &bundle, excluded_nodes);
+        let tree = Rc::new(RefCell::new(new_tree));
 
-            if let Some(route) = Route::from_tree(tree, dest) {
-                RouteStage::init_route(route.destination_stage.clone());
-                self.route_storage
-                    .borrow_mut()
-                    .store(&bundle, route.clone());
-                let dry_run =
-                    dry_run_unicast_path(bundle, curr_time, route.source_stage.clone(), true);
-                if let Some(_) = dry_run {
-                    return Some(schedule_unicast_path(
-                        bundle,
-                        curr_time,
-                        route.source_stage.clone(),
-                    ));
-                }
-            } else {
-                break;
+        if let Some(route) = Route::from_tree(tree, dest) {
+            RouteStage::init_route(route.destination_stage.clone());
+            self.route_storage
+                .borrow_mut()
+                .store(&bundle, route.clone());
+            let dry_run = dry_run_unicast_path(bundle, curr_time, route.source_stage.clone(), true);
+            if let Some(_) = dry_run {
+                return Some(schedule_unicast_path(
+                    bundle,
+                    curr_time,
+                    route.source_stage.clone(),
+                ));
             }
         }
         None

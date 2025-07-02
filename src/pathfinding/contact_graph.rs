@@ -256,3 +256,4 @@ macro_rules! define_contact_graph {
 
 define_contact_graph!(ContactGraphTreeExcl, true, true);
 define_contact_graph!(ContactGraphPath, false, false);
+define_contact_graph!(ContactGraphPathExcl, false, true);

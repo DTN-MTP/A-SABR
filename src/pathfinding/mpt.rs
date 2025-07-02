@@ -367,3 +367,4 @@ macro_rules! define_mpt {
 
 define_mpt!(MptTreeExcl, true, true);
 define_mpt!(MptPath, false, false);
+define_mpt!(MptPathExcl, false, true);

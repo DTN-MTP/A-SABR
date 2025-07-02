@@ -5,16 +5,18 @@ use crate::{
     node::Node,
     node_manager::NodeManager,
     pathfinding::{
-        mpt::{MptPath, MptTreeExcl},
-        node_graph::{NodeGraphPath, NodeGraphTreeExcl},
+        mpt::{MptPath, MptPathExcl, MptTreeExcl},
+        node_graph::{NodeGraphPath, NodeGraphPathExcl, NodeGraphTreeExcl},
     },
     route_storage::{cache::TreeCache, table::RoutingTable},
-    routing::cgr::VolCgr,
+    routing::volcgr::VolCgr,
 };
 use std::{cell::RefCell, rc::Rc};
 
 #[cfg(feature = "contact_work_area")]
-use crate::pathfinding::contact_graph::{ContactGraphPath, ContactGraphTreeExcl};
+use crate::pathfinding::contact_graph::{
+    ContactGraphPath, ContactGraphPathExcl, ContactGraphTreeExcl,
+};
 #[cfg(all(feature = "contact_suppression", feature = "first_depleted"))]
 use crate::pathfinding::limiting_contact::first_depleted::FirstDepleted;
 #[cfg(feature = "contact_suppression")]
@@ -30,14 +32,14 @@ pub type SpsnNodeGraph<NM, CM> = Spsn<NM, CM, NodeGraphTreeExcl<NM, CM, SABR>, T
 pub type SpsnContactGraph<NM, CM> =
     Spsn<NM, CM, ContactGraphTreeExcl<NM, CM, SABR>, TreeCache<NM, CM>>;
 
-pub type VolCgrMpt<NM, CM> = VolCgr<NM, CM, MptTreeExcl<NM, CM, SABR>, RoutingTable<NM, CM, SABR>>;
+pub type VolCgrMpt<NM, CM> = VolCgr<NM, CM, MptPathExcl<NM, CM, SABR>, RoutingTable<NM, CM, SABR>>;
 
 pub type VolCgrNodeGraph<NM, CM> =
-    VolCgr<NM, CM, NodeGraphTreeExcl<NM, CM, SABR>, RoutingTable<NM, CM, SABR>>;
+    VolCgr<NM, CM, NodeGraphPathExcl<NM, CM, SABR>, RoutingTable<NM, CM, SABR>>;
 
 #[cfg(feature = "contact_work_area")]
 pub type VolCgrContactGraph<NM, CM> =
-    VolCgr<NM, CM, ContactGraphTreeExcl<NM, CM, SABR>, RoutingTable<NM, CM, SABR>>;
+    VolCgr<NM, CM, ContactGraphPathExcl<NM, CM, SABR>, RoutingTable<NM, CM, SABR>>;
 
 #[cfg(feature = "contact_suppression")]
 pub type CgrFirstEndingMpt<NM, CM> =
@@ -75,14 +77,14 @@ pub type SpsnHopNodeGraph<NM, CM> = Spsn<NM, CM, NodeGraphTreeExcl<NM, CM, Hop>,
 pub type SpsnHopContactGraph<NM, CM> =
     Spsn<NM, CM, ContactGraphTreeExcl<NM, CM, Hop>, TreeCache<NM, CM>>;
 
-pub type VolCgrHopMpt<NM, CM> = VolCgr<NM, CM, MptTreeExcl<NM, CM, Hop>, RoutingTable<NM, CM, Hop>>;
+pub type VolCgrHopMpt<NM, CM> = VolCgr<NM, CM, MptPathExcl<NM, CM, Hop>, RoutingTable<NM, CM, Hop>>;
 
 pub type VolCgrHopNodeGraph<NM, CM> =
-    VolCgr<NM, CM, NodeGraphTreeExcl<NM, CM, Hop>, RoutingTable<NM, CM, Hop>>;
+    VolCgr<NM, CM, NodeGraphPathExcl<NM, CM, Hop>, RoutingTable<NM, CM, Hop>>;
 
 #[cfg(feature = "contact_work_area")]
 pub type VolCgrHopContactGraph<NM, CM> =
-    VolCgr<NM, CM, ContactGraphTreeExcl<NM, CM, Hop>, RoutingTable<NM, CM, Hop>>;
+    VolCgr<NM, CM, ContactGraphPathExcl<NM, CM, Hop>, RoutingTable<NM, CM, Hop>>;
 
 #[cfg(feature = "contact_suppression")]
 pub type CgrHopFirstEndingMpt<NM, CM> =

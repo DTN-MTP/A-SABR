@@ -178,3 +178,4 @@ macro_rules! define_node_graph {
 
 define_node_graph!(NodeGraphTreeExcl, true, true);
 define_node_graph!(NodeGraphPath, false, false);
+define_node_graph!(NodeGraphPathExcl, false, true);

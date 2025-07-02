@@ -13,6 +13,7 @@ use crate::{
 pub mod aliases;
 pub mod cgr;
 pub mod spsn;
+pub mod volcgr;
 
 /// A trait to allow generic initialization of routers.
 pub trait Router<NM: NodeManager, CM: ContactManager> {
