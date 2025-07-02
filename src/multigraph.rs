@@ -176,7 +176,7 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
     /// # Parameters
     ///
     /// * `exclusions: &Vec<NodeID>` - A sorted list of node IDs to exclude.
-    pub fn apply_exclusions_sorted(&mut self, exclusions: &Vec<NodeID>) {
+    pub fn prepare_for_exclusions_sorted(&mut self, exclusions: &Vec<NodeID>) {
         let mut exclusion_idx = 0;
         let exclusion_len = exclusions.len();
 

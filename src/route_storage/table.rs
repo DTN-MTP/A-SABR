@@ -1,8 +1,13 @@
 use std::{cell::RefCell, cmp::Ordering, marker::PhantomData, rc::Rc};
 
 use crate::{
-    bundle::Bundle, contact_manager::ContactManager, distance::Distance, node_manager::NodeManager,
-    routing::dry_run_unicast_path_with_exclusions, types::NodeID,
+    bundle::Bundle,
+    contact_manager::ContactManager,
+    distance::Distance,
+    multigraph::{self, Multigraph},
+    node_manager::NodeManager,
+    routing::dry_run_unicast_path,
+    types::NodeID,
 };
 
 use super::{Route, RouteStorage};
@@ -91,8 +96,8 @@ impl<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> RouteStorage<NM, 
         &mut self,
         bundle: &Bundle,
         curr_time: crate::types::Date,
-        node_list: &Vec<Rc<RefCell<crate::node::Node<NM>>>>,
-        _excluded_nodes_sorted: &Vec<NodeID>,
+        multigraph: Rc<RefCell<Multigraph<NM, CM>>>,
+        excluded_nodes_sorted: &Vec<NodeID>,
     ) -> Option<Route<NM, CM>> {
         let dest = bundle.destinations[0];
 
@@ -107,12 +112,14 @@ impl<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> RouteStorage<NM, 
             if curr_time > route.destination_stage.borrow().expiration {
                 false
             } else {
-                if let Some(new_candidate) = dry_run_unicast_path_with_exclusions(
-                    bundle,
-                    curr_time,
-                    route.source_stage.clone(),
-                    route.destination_stage.clone(),
-                ) {
+                // apply exclusions
+                multigraph
+                    .borrow_mut()
+                    .prepare_for_exclusions_sorted(excluded_nodes_sorted);
+                // dry run with exclusions
+                if let Some(new_candidate) =
+                    dry_run_unicast_path(bundle, curr_time, route.source_stage.clone(), true)
+                {
                     match best_route_option {
                         Some(ref best_route) => {
                             if D::cmp(

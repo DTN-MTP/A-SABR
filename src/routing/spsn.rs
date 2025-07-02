@@ -122,12 +122,10 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
 
         let dest = bundle.destinations[0];
 
-        let (tree_option, _reachable_nodes) = self.route_storage.borrow().select(
-            bundle,
-            curr_time,
-            &self.pathfinding.get_multigraph().borrow_mut().nodes,
-            excluded_nodes,
-        );
+        let (tree_option, _reachable_nodes) =
+            self.route_storage
+                .borrow()
+                .select(bundle, curr_time, excluded_nodes);
 
         if let Some(tree) = tree_option {
             return Some(schedule_unicast(bundle, curr_time, tree, false));
@@ -183,12 +181,11 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
         curr_time: Date,
         excluded_nodes: &Vec<NodeID>,
     ) -> Option<RoutingOutput<NM, CM>> {
-        if let (Some(tree), Some(mut reachable_nodes)) = self.route_storage.borrow().select(
-            bundle,
-            curr_time,
-            &self.pathfinding.get_multigraph().borrow_mut().nodes,
-            excluded_nodes,
-        ) {
+        if let (Some(tree), Some(mut reachable_nodes)) =
+            self.route_storage
+                .borrow()
+                .select(bundle, curr_time, excluded_nodes)
+        {
             if bundle.destinations.len() == reachable_nodes.len() {
                 return Some(schedule_multicast(
                     bundle,

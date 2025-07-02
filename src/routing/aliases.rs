@@ -5,15 +5,16 @@ use crate::{
     node::Node,
     node_manager::NodeManager,
     pathfinding::{
-        mpt::{MptPath, MptTree},
-        node_graph::{NodeGraphPath, NodeGraphTree},
+        mpt::{MptPath, MptTreeExcl},
+        node_graph::{NodeGraphPath, NodeGraphTreeExcl},
     },
     route_storage::{cache::TreeCache, table::RoutingTable},
+    routing::cgr::VolCgr,
 };
 use std::{cell::RefCell, rc::Rc};
 
 #[cfg(feature = "contact_work_area")]
-use crate::pathfinding::contact_graph::{ContactGraphPath, ContactGraphTree};
+use crate::pathfinding::contact_graph::{ContactGraphPath, ContactGraphTreeExcl};
 #[cfg(all(feature = "contact_suppression", feature = "first_depleted"))]
 use crate::pathfinding::limiting_contact::first_depleted::FirstDepleted;
 #[cfg(feature = "contact_suppression")]
@@ -21,12 +22,22 @@ use crate::pathfinding::limiting_contact::first_ending::FirstEnding;
 
 use super::{cgr::Cgr, spsn::Spsn, Router};
 
-pub type SpsnMpt<NM, CM> = Spsn<NM, CM, MptTree<NM, CM, SABR>, TreeCache<NM, CM>>;
+pub type SpsnMpt<NM, CM> = Spsn<NM, CM, MptTreeExcl<NM, CM, SABR>, TreeCache<NM, CM>>;
 
-pub type SpsnNodeGraph<NM, CM> = Spsn<NM, CM, NodeGraphTree<NM, CM, SABR>, TreeCache<NM, CM>>;
+pub type SpsnNodeGraph<NM, CM> = Spsn<NM, CM, NodeGraphTreeExcl<NM, CM, SABR>, TreeCache<NM, CM>>;
 
 #[cfg(feature = "contact_work_area")]
-pub type SpsnContactGraph<NM, CM> = Spsn<NM, CM, ContactGraphTree<NM, CM, SABR>, TreeCache<NM, CM>>;
+pub type SpsnContactGraph<NM, CM> =
+    Spsn<NM, CM, ContactGraphTreeExcl<NM, CM, SABR>, TreeCache<NM, CM>>;
+
+pub type VolCgrMpt<NM, CM> = VolCgr<NM, CM, MptTreeExcl<NM, CM, SABR>, RoutingTable<NM, CM, SABR>>;
+
+pub type VolCgrNodeGraph<NM, CM> =
+    VolCgr<NM, CM, NodeGraphTreeExcl<NM, CM, SABR>, RoutingTable<NM, CM, SABR>>;
+
+#[cfg(feature = "contact_work_area")]
+pub type VolCgrContactGraph<NM, CM> =
+    VolCgr<NM, CM, ContactGraphTreeExcl<NM, CM, SABR>, RoutingTable<NM, CM, SABR>>;
 
 #[cfg(feature = "contact_suppression")]
 pub type CgrFirstEndingMpt<NM, CM> =
@@ -56,13 +67,22 @@ pub type CgrFirstEndingContactGraph<NM, CM> =
 pub type CgrFirstDepletedContactGraph<NM, CM> =
     Cgr<NM, CM, FirstDepleted<NM, CM, ContactGraphPath<NM, CM, SABR>>, RoutingTable<NM, CM, SABR>>;
 
-pub type SpsnHopMpt<NM, CM> = Spsn<NM, CM, MptTree<NM, CM, Hop>, TreeCache<NM, CM>>;
+pub type SpsnHopMpt<NM, CM> = Spsn<NM, CM, MptTreeExcl<NM, CM, Hop>, TreeCache<NM, CM>>;
 
-pub type SpsnHopNodeGraph<NM, CM> = Spsn<NM, CM, NodeGraphTree<NM, CM, Hop>, TreeCache<NM, CM>>;
+pub type SpsnHopNodeGraph<NM, CM> = Spsn<NM, CM, NodeGraphTreeExcl<NM, CM, Hop>, TreeCache<NM, CM>>;
 
 #[cfg(feature = "contact_work_area")]
 pub type SpsnHopContactGraph<NM, CM> =
-    Spsn<NM, CM, ContactGraphTree<NM, CM, Hop>, TreeCache<NM, CM>>;
+    Spsn<NM, CM, ContactGraphTreeExcl<NM, CM, Hop>, TreeCache<NM, CM>>;
+
+pub type VolCgrHopMpt<NM, CM> = VolCgr<NM, CM, MptTreeExcl<NM, CM, Hop>, RoutingTable<NM, CM, Hop>>;
+
+pub type VolCgrHopNodeGraph<NM, CM> =
+    VolCgr<NM, CM, NodeGraphTreeExcl<NM, CM, Hop>, RoutingTable<NM, CM, Hop>>;
+
+#[cfg(feature = "contact_work_area")]
+pub type VolCgrHopContactGraph<NM, CM> =
+    VolCgr<NM, CM, ContactGraphTreeExcl<NM, CM, Hop>, RoutingTable<NM, CM, Hop>>;
 
 #[cfg(feature = "contact_suppression")]
 pub type CgrHopFirstEndingMpt<NM, CM> =
@@ -178,6 +198,22 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
             check_priority,
             max_entries
         );
+        register_cgr_router!(
+            VolCgrNodeGraph,
+            "VolCgrNodeGraph",
+            router_type,
+            nodes,
+            contacts
+        );
+        register_cgr_router!(
+            VolCgrHopNodeGraph,
+            "VolCgrHopNodeGraph",
+            router_type,
+            nodes,
+            contacts
+        );
+        register_cgr_router!(VolCgrMpt, "VolCgrMpt", router_type, nodes, contacts);
+        register_cgr_router!(VolCgrHopMpt, "VolCgrHopMpt", router_type, nodes, contacts);
 
         #[cfg(feature = "contact_work_area")]
         {
@@ -200,6 +236,20 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
                 check_size,
                 check_priority,
                 max_entries
+            );
+            register_cgr_router!(
+                VolCgrContactGraph,
+                "VolCgrContactGraph",
+                router_type,
+                nodes,
+                contacts
+            );
+            register_cgr_router!(
+                VolCgrHopContactGraph,
+                "VolCgrHopContactGraph",
+                router_type,
+                nodes,
+                contacts
             );
         }
     }

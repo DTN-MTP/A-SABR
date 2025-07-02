@@ -77,7 +77,7 @@ macro_rules! define_node_graph {
                 let mut graph = self.graph.borrow_mut();
 
                 if $with_exclusions {
-                    graph.apply_exclusions_sorted(excluded_nodes_sorted);
+                    graph.prepare_for_exclusions_sorted(excluded_nodes_sorted);
                 }
                 let source_route: Rc<RefCell<RouteStage<NM, CM>>> =
                     Rc::new(RefCell::new(RouteStage::new(
@@ -176,5 +176,5 @@ macro_rules! define_node_graph {
     };
 }
 
-define_node_graph!(NodeGraphTree, true, true);
+define_node_graph!(NodeGraphTreeExcl, true, true);
 define_node_graph!(NodeGraphPath, false, false);

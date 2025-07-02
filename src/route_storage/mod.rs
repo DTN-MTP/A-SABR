@@ -6,6 +6,7 @@ pub mod table;
 use crate::{
     bundle::Bundle,
     contact_manager::ContactManager,
+    multigraph::{self, Multigraph},
     node::Node,
     node_manager::NodeManager,
     pathfinding::PathFindingOutput,
@@ -36,7 +37,6 @@ pub trait TreeStorage<NM: NodeManager, CM: ContactManager> {
         &self,
         bundle: &Bundle,
         curr_time: Date,
-        node_list: &Vec<Rc<RefCell<Node<NM>>>>,
         excluded_nodes_sorted: &Vec<NodeID>,
     ) -> (
         Option<Rc<RefCell<PathFindingOutput<NM, CM>>>>,
@@ -106,7 +106,7 @@ pub trait RouteStorage<NM: NodeManager, CM: ContactManager> {
         &mut self,
         bundle: &Bundle,
         curr_time: Date,
-        node_list: &Vec<Rc<RefCell<Node<NM>>>>,
+        multigraph: Rc<RefCell<Multigraph<NM, CM>>>,
         excluded_nodes_sorted: &Vec<NodeID>,
     ) -> Option<Route<NM, CM>>;
 

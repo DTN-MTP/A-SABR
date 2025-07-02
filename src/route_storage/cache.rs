@@ -74,7 +74,6 @@ impl<NM: NodeManager, CM: ContactManager> TreeStorage<NM, CM> for TreeCache<NM, 
         &self,
         bundle: &Bundle,
         curr_time: Date,
-        node_list: &Vec<Rc<RefCell<Node<NM>>>>,
         excluded_nodes_sorted: &Vec<NodeID>,
     ) -> (
         Option<Rc<RefCell<PathFindingOutput<NM, CM>>>>,
@@ -94,7 +93,8 @@ impl<NM: NodeManager, CM: ContactManager> TreeStorage<NM, CM> for TreeCache<NM, 
             }
             match multicast {
                 false => {
-                    if let Some(_res) = dry_run_unicast_tree(bundle, curr_time, tree.clone()) {
+                    if let Some(_res) = dry_run_unicast_tree(bundle, curr_time, tree.clone(), false)
+                    {
                         return (Some(tree.clone()), None);
                     }
                 }

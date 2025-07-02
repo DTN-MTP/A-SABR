@@ -97,7 +97,7 @@ macro_rules! define_contact_graph {
             ) -> PathFindingOutput<NM, CM> {
                 let mut graph = self.graph.borrow_mut();
                 if $with_exclusions {
-                    graph.apply_exclusions_sorted(excluded_nodes_sorted);
+                    graph.prepare_for_exclusions_sorted(excluded_nodes_sorted);
                 }
                 let source_route: Rc<RefCell<RouteStage<NM, CM>>> =
                     Rc::new(RefCell::new(RouteStage::new(
@@ -254,5 +254,5 @@ macro_rules! define_contact_graph {
     };
 }
 
-define_contact_graph!(ContactGraphTree, true, true);
+define_contact_graph!(ContactGraphTreeExcl, true, true);
 define_contact_graph!(ContactGraphPath, false, false);
