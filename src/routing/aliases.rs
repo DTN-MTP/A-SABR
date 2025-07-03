@@ -15,12 +15,10 @@ use std::{cell::RefCell, rc::Rc};
 
 #[cfg(feature = "contact_suppression")]
 use super::cgr::Cgr;
-#[cfg(feature = "contact_work_area")]
-use crate::pathfinding::contact_graph::{
-    ContactGraphPathExcl, ContactGraphTreeExcl,
-};
 #[cfg(all(feature = "contact_work_area", feature = "contact_suppression"))]
 use crate::pathfinding::contact_graph::ContactGraphPath;
+#[cfg(feature = "contact_work_area")]
+use crate::pathfinding::contact_graph::{ContactGraphPathExcl, ContactGraphTreeExcl};
 
 #[cfg(feature = "first_depleted")]
 use crate::pathfinding::limiting_contact::first_depleted::FirstDepleted;

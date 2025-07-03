@@ -41,6 +41,10 @@ impl<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: RouteStorag
         curr_time: Date,
         excluded_nodes: &Vec<NodeID>,
     ) -> Option<RoutingOutput<NM, CM>> {
+        if bundle.expiration < curr_time {
+            return None;
+        }
+
         if bundle.destinations.len() == 1 {
             return self.route_unicast(source, bundle, curr_time, excluded_nodes);
         }
