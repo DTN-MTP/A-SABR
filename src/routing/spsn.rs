@@ -181,7 +181,7 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
         curr_time: Date,
         excluded_nodes: &Vec<NodeID>,
     ) -> Option<RoutingOutput<NM, CM>> {
-        if let (Some(tree), Some(mut reachable_nodes)) =
+        if let (Some(tree), Some(reachable_nodes)) =
             self.route_storage
                 .borrow()
                 .select(bundle, curr_time, excluded_nodes)

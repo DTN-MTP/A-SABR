@@ -1,5 +1,6 @@
+#[cfg(any(feature = "node_proc", feature = "node_tx", feature = "node_rx"))]
 use crate::{bundle::Bundle, types::Date};
-use std::any::Any;
+
 pub mod none;
 
 /// A trait for managing and scheduling operations on nodes in a network.
@@ -178,54 +179,5 @@ impl NodeManager for Box<dyn NodeManager> {
     #[cfg(feature = "node_rx")]
     fn schedule_rx(&mut self, start: Date, end: Date, bundle: &Bundle) -> bool {
         (**self).dry_run_rx(start, end, bundle)
-    }
-}
-
-/// A trait that extends NodeManager with runtime type conversion capabilities.
-/// This trait provides methods to convert a type-erased NodeManager into a type-erased Any,
-/// which enables safe runtime downcasting to concrete types.
-///
-/// Use case: your manager must be modified with extern means (e.g. informations on transmissions queues)
-/// and you need to downcast to a concrete type to call custom methods of your manager
-trait AsAny: NodeManager {
-    /// Converts this type to a type-erased `Any` reference.
-    ///
-    /// This method allows for runtime type checking and downcasting through the
-    /// standard `Any` trait. The returned reference can be used with
-    /// `downcast_ref` to safely convert back to a concrete type.
-    ///
-    /// # Returns
-    ///
-    /// A borrowed reference to `dyn Any` that can be used for downcasting.
-    fn as_any(&self) -> &dyn Any;
-
-    /// Converts this type to a type-erased mutable `Any` reference.
-    ///
-    /// Similar to `as_any`, but provides mutable access. This enables
-    /// downcasting to a mutable reference of the concrete type.
-    ///
-    /// # Returns
-    ///
-    /// A mutable reference to `dyn Any` that can be used for downcasting.
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-}
-
-/// Blanket implementation of `AsAny` for any type that implements both
-/// `NodeManager` and `Any`.
-///
-/// This implementation allows any concrete type implementing `NodeManager`
-/// to be converted to a type-erased `Any` reference, enabling runtime
-/// type checking and downcasting capabilities.
-///
-/// # Type Parameters
-///
-/// * `T`: The concrete type implementing both `NodeManager` and `Any`
-impl<T: NodeManager + Any> AsAny for T {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
     }
 }

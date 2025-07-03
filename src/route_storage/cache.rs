@@ -3,7 +3,6 @@ use std::{cell::RefCell, collections::VecDeque, marker::PhantomData, rc::Rc};
 use crate::{
     bundle::Bundle,
     contact_manager::ContactManager,
-    node::Node,
     node_manager::NodeManager,
     pathfinding::PathFindingOutput,
     routing::{dry_run_multicast, dry_run_unicast_tree},

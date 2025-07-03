@@ -149,7 +149,7 @@ pub trait Pathfinding<NM: NodeManager, CM: ContactManager> {
 fn try_make_hop<NM: NodeManager, CM: ContactManager>(
     first_contact_index: usize,
     sndr_route: &Rc<RefCell<RouteStage<NM, CM>>>,
-    bundle: &Bundle,
+    _bundle: &Bundle,
     contacts: &Vec<Rc<RefCell<Contact<NM, CM>>>>,
     tx_node: &Rc<RefCell<Node<NM>>>,
     rx_node: &Rc<RefCell<Node<NM>>>,
@@ -167,7 +167,7 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
     #[cfg(feature = "node_proc")]
     let mut bundle_to_consider = sndr_route.borrow().bundle.clone();
     #[cfg(not(feature = "node_proc"))]
-    let bundle_to_consider = bundle;
+    let bundle_to_consider = _bundle;
 
     let sndr_route_borrowed = sndr_route.borrow();
 
@@ -211,7 +211,7 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
                 if !rx_node.borrow().manager.dry_run_rx(
                     hop.tx_start + hop.delay,
                     hop.tx_end + hop.delay,
-                    bundle,
+                    _bundle,
                 ) {
                     continue;
                 }

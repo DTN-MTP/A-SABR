@@ -23,7 +23,7 @@ pub struct IONContactData {
     rx_node: NodeID,
     data_rate: DataRate,
     delay: Duration,
-    confidence: f32,
+    _confidence: f32,
 }
 
 // Implement `Ord` and `PartialOrd` for sorting
@@ -212,7 +212,7 @@ impl IONContactPlan {
                         rx_node,
                         data_rate,
                         delay: 0.0,
-                        confidence,
+                        _confidence: confidence,
                     },
                 );
             }

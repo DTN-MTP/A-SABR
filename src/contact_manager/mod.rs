@@ -3,10 +3,8 @@ use crate::types::Volume;
 use crate::{
     bundle::Bundle,
     contact::ContactInfo,
-    contact_manager::legacy::eto::ETOManager,
     types::{Date, Duration},
 };
-use std::any::Any;
 
 pub mod legacy;
 pub mod seg;

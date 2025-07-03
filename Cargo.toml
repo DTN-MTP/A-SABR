@@ -19,7 +19,7 @@ node_rx = []
 node_tx = []
 node_proc = []
 contact_suppression = []
-first_depleted = []
+first_depleted = ["contact_suppression"]
 manual_queueing = []
 
 [dev-dependencies]

@@ -6,8 +6,7 @@ pub mod table;
 use crate::{
     bundle::Bundle,
     contact_manager::ContactManager,
-    multigraph::{self, Multigraph},
-    node::Node,
+    multigraph::Multigraph,
     node_manager::NodeManager,
     pathfinding::PathFindingOutput,
     route_stage::RouteStage,
@@ -18,7 +17,7 @@ use crate::{
 ///
 /// This trait defines methods for loading and storing pathfinding output
 /// related to routes in a routing system. Implementers of this trait must
-/// provide their own logic for handling route data.
+/// provide their own logic for handling route data.    node::Node
 pub trait TreeStorage<NM: NodeManager, CM: ContactManager> {
     /// Loads the pathfinding output for a specific bundle, considering excluded nodes.
     ///

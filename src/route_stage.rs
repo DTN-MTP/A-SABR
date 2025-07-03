@@ -168,6 +168,7 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
             #[cfg(not(feature = "node_proc"))]
             let bundle_to_consider = bundle;
 
+            #[allow(unused_mut)]
             #[cfg(any(feature = "node_tx", feature = "node_proc"))]
             let mut tx_node = via.tx_node.borrow_mut();
             #[cfg(feature = "node_rx")]
