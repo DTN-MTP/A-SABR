@@ -63,7 +63,7 @@ fn main() {
     let out = spsn.route(0, &b, 0.0, &Vec::new());
 
     if let Some(out) = out {
-        for (_, (c, dest_routes)) in &out.first_hops {
+        for (_contact_ptr, (_contact, dest_routes)) in &out.first_hops {
             for route_rc in dest_routes {
                 pretty_print(route_rc.clone());
             }

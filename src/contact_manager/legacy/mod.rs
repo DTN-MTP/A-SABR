@@ -46,16 +46,17 @@ macro_rules! generate_struct_management {
             fn enqueue(&mut self, bundle: &crate::bundle::Bundle)  {
                  self.queue_size += bundle.size;
             }
+            #[allow(dead_code)]
             #[inline(always)]
             fn dequeue(&mut self, bundle: &crate::bundle::Bundle)  {
                 self.queue_size -= bundle.size;
             }
             #[inline(always)]
-            fn get_budget(&self, bundle: &crate::bundle::Bundle) -> crate::types::Volume  {
+            fn get_budget(&self, _bundle: &crate::bundle::Bundle) -> crate::types::Volume  {
                return self.original_volume;
             }
             #[inline(always)]
-            fn build_parsing_output(rate: crate::types::DataRate, delay: crate::types::Duration, lexer: &mut dyn crate::parsing::Lexer) -> crate::parsing::ParsingState<Self>{
+            fn build_parsing_output(rate: crate::types::DataRate, delay: crate::types::Duration, _lexer: &mut dyn crate::parsing::Lexer) -> crate::parsing::ParsingState<Self>{
                 return crate::parsing::ParsingState::Finished($manager_name::new(rate, delay));
             }
         }
@@ -115,6 +116,7 @@ macro_rules! generate_struct_management {
                     self.queue_size[prio] += bundle.size;
                 }
             }
+            #[allow(dead_code)]
             #[inline(always)]
             fn dequeue(&mut self, bundle: &crate::bundle::Bundle)  {
                 for prio in 0..bundle.priority as usize + 1 {
@@ -126,7 +128,7 @@ macro_rules! generate_struct_management {
                return self.original_volume;
             }
             #[inline(always)]
-            fn build_parsing_output(rate: crate::types::DataRate, delay: crate::types::Duration, lexer: &mut dyn crate::parsing::Lexer) -> crate::parsing::ParsingState<Self>{
+            fn build_parsing_output(rate: crate::types::DataRate, delay: crate::types::Duration, _lexer: &mut dyn crate::parsing::Lexer) -> crate::parsing::ParsingState<Self>{
                 return crate::parsing::ParsingState::Finished($manager_name::new(rate, delay));
             }
         }
@@ -179,6 +181,7 @@ macro_rules! generate_struct_management {
                     self.queue_size[prio] += bundle.size;
                 }
             }
+            #[allow(dead_code)]
             #[inline(always)]
             fn dequeue(&mut self, bundle: &crate::bundle::Bundle)  {
                 for prio in 0..bundle.priority as usize + 1 {

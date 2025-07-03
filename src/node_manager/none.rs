@@ -1,8 +1,7 @@
-use crate::{
-    bundle::Bundle,
-    parsing::{DispatchParser, Lexer, Parser, ParsingState},
-    types::Date,
-};
+use crate::parsing::{DispatchParser, Lexer, Parser, ParsingState};
+
+#[cfg(any(feature = "node_proc", feature = "node_tx", feature = "node_rx"))]
+use crate::{bundle::Bundle, types::Date};
 
 use super::NodeManager;
 

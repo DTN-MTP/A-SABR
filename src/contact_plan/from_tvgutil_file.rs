@@ -23,7 +23,7 @@ pub struct TVGUtilContactData {
     rx_node: NodeID,
     delay: Duration,
     data_rate: DataRate,
-    confidence: f32,
+    _confidence: f32,
 }
 
 fn contact_info_from_tvg_data(data: &TVGUtilContactData) -> ContactInfo {
@@ -125,7 +125,7 @@ impl TVGUtilContactPlan {
                     rx_node: *rx_node,
                     delay,
                     data_rate,
-                    confidence,
+                    _confidence: confidence,
                 };
 
                 let contact = CM::tvg_convert(tvgcontact).unwrap();

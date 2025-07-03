@@ -142,7 +142,7 @@ pub fn dry_run_multicast<NM: NodeManager, CM: ContactManager>(
 }
 
 fn update_multicast<NM: NodeManager, CM: ContactManager>(
-    bundle: &Bundle,
+    _bundle: &Bundle,
     at_time: Date,
     reachable_after_dry_run: Vec<NodeID>,
     source_route: Rc<RefCell<RouteStage<NM, CM>>>,
@@ -161,7 +161,7 @@ fn update_multicast<NM: NodeManager, CM: ContactManager>(
         Vec<u16>,
     )> = vec![(source_route, None, at_time, reachable_after_dry_run)];
     #[cfg(not(feature = "node_proc"))]
-    let bundle_to_consider = bundle;
+    let bundle_to_consider = _bundle;
 
     while let Some((current_route, mut first_hop_ptr, mut time, downstream_dests)) =
         accumulator.pop()
@@ -334,7 +334,7 @@ pub fn dry_run_unicast_tree<NM: NodeManager, CM: ContactManager>(
 /// * `at_time` - The current date/time for the routing operation.
 /// * `source_route` - The source route.
 fn update_unicast<NM: NodeManager, CM: ContactManager>(
-    bundle: &Bundle,
+    _bundle: &Bundle,
     dest: NodeID,
     mut at_time: Date,
     source_route: Rc<RefCell<RouteStage<NM, CM>>>,
@@ -351,7 +351,7 @@ fn update_unicast<NM: NodeManager, CM: ContactManager>(
 
     let mut first_hop: Option<Rc<RefCell<Contact<NM, CM>>>> = None;
     #[cfg(not(feature = "node_proc"))]
-    let bundle_to_consider = bundle;
+    let bundle_to_consider = _bundle;
     while let Some(curr_route) = curr_opt {
         let mut curr_route_borrowed = curr_route.borrow_mut();
 

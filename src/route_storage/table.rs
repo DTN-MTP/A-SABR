@@ -1,13 +1,8 @@
 use std::{cell::RefCell, cmp::Ordering, marker::PhantomData, rc::Rc};
 
 use crate::{
-    bundle::Bundle,
-    contact_manager::ContactManager,
-    distance::Distance,
-    multigraph::{self, Multigraph},
-    node_manager::NodeManager,
-    routing::dry_run_unicast_path,
-    types::NodeID,
+    bundle::Bundle, contact_manager::ContactManager, distance::Distance, multigraph::Multigraph,
+    node_manager::NodeManager, routing::dry_run_unicast_path, types::NodeID,
 };
 
 use super::{Route, RouteStorage};

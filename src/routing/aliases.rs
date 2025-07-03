@@ -5,24 +5,33 @@ use crate::{
     node::Node,
     node_manager::NodeManager,
     pathfinding::{
-        mpt::{MptPath, MptPathExcl, MptTreeExcl},
-        node_graph::{NodeGraphPath, NodeGraphPathExcl, NodeGraphTreeExcl},
+        mpt::{MptPathExcl, MptTreeExcl},
+        node_graph::{NodeGraphPathExcl, NodeGraphTreeExcl},
     },
     route_storage::{cache::TreeCache, table::RoutingTable},
     routing::volcgr::VolCgr,
 };
 use std::{cell::RefCell, rc::Rc};
 
+#[cfg(feature = "contact_suppression")]
+use super::cgr::Cgr;
 #[cfg(feature = "contact_work_area")]
 use crate::pathfinding::contact_graph::{
-    ContactGraphPath, ContactGraphPathExcl, ContactGraphTreeExcl,
+    ContactGraphPathExcl, ContactGraphTreeExcl,
 };
-#[cfg(all(feature = "contact_suppression", feature = "first_depleted"))]
+#[cfg(all(feature = "contact_work_area", feature = "contact_suppression"))]
+use crate::pathfinding::contact_graph::ContactGraphPath;
+
+#[cfg(feature = "first_depleted")]
 use crate::pathfinding::limiting_contact::first_depleted::FirstDepleted;
 #[cfg(feature = "contact_suppression")]
 use crate::pathfinding::limiting_contact::first_ending::FirstEnding;
+#[cfg(feature = "contact_suppression")]
+use crate::pathfinding::mpt::MptPath;
+#[cfg(feature = "contact_suppression")]
+use crate::pathfinding::node_graph::NodeGraphPath;
 
-use super::{cgr::Cgr, spsn::Spsn, Router};
+use super::{spsn::Spsn, Router};
 
 pub type SpsnMpt<NM, CM> = Spsn<NM, CM, MptTreeExcl<NM, CM, SABR>, TreeCache<NM, CM>>;
 
@@ -45,7 +54,7 @@ pub type VolCgrContactGraph<NM, CM> =
 pub type CgrFirstEndingMpt<NM, CM> =
     Cgr<NM, CM, FirstEnding<NM, CM, MptPath<NM, CM, SABR>>, RoutingTable<NM, CM, SABR>>;
 
-#[cfg(all(feature = "contact_suppression", feature = "first_depleted"))]
+#[cfg(feature = "first_depleted")]
 pub type CgrFirstDepletedMpt<NM, CM> =
     Cgr<NM, CM, FirstDepleted<NM, CM, MptPath<NM, CM, SABR>>, RoutingTable<NM, CM, SABR>>;
 
@@ -53,7 +62,7 @@ pub type CgrFirstDepletedMpt<NM, CM> =
 pub type CgrFirstEndingNodeGraph<NM, CM> =
     Cgr<NM, CM, FirstEnding<NM, CM, NodeGraphPath<NM, CM, SABR>>, RoutingTable<NM, CM, SABR>>;
 
-#[cfg(all(feature = "contact_suppression", feature = "first_depleted"))]
+#[cfg(feature = "first_depleted")]
 pub type CgrFirstDepletedNodeGraph<NM, CM> =
     Cgr<NM, CM, FirstDepleted<NM, CM, NodeGraphPath<NM, CM, SABR>>, RoutingTable<NM, CM, SABR>>;
 
@@ -90,7 +99,7 @@ pub type VolCgrHopContactGraph<NM, CM> =
 pub type CgrHopFirstEndingMpt<NM, CM> =
     Cgr<NM, CM, FirstEnding<NM, CM, MptPath<NM, CM, Hop>>, RoutingTable<NM, CM, Hop>>;
 
-#[cfg(all(feature = "contact_suppression", feature = "first_depleted"))]
+#[cfg(feature = "first_depleted")]
 pub type CgrHopFirstDepletedMpt<NM, CM> =
     Cgr<NM, CM, FirstDepleted<NM, CM, MptPath<NM, CM, Hop>>, RoutingTable<NM, CM, Hop>>;
 
@@ -98,7 +107,7 @@ pub type CgrHopFirstDepletedMpt<NM, CM> =
 pub type CgrHopFirstEndingNodeGraph<NM, CM> =
     Cgr<NM, CM, FirstEnding<NM, CM, NodeGraphPath<NM, CM, Hop>>, RoutingTable<NM, CM, Hop>>;
 
-#[cfg(all(feature = "contact_suppression", feature = "first_depleted"))]
+#[cfg(feature = "first_depleted")]
 pub type CgrHopFirstDepletedNodeGraph<NM, CM> =
     Cgr<NM, CM, FirstDepleted<NM, CM, NodeGraphPath<NM, CM, Hop>>, RoutingTable<NM, CM, Hop>>;
 
