@@ -91,6 +91,8 @@ And 2 alternative path strategies (for the Cgr mainframe):
 
 This project includes several example programs demonstrating key features:
 
+- **Contact Plans**: See [`examples/contact_plans/`](examples/contact_plans/) for contact plan formats and parsing.
+
 - **Dijkstra Accuracy**: See [`examples/dijkstra_accuracy/`](examples/dijkstra_accuracy/) for the implementation of Dijkstra's algorithm accuracy tests.
 
 - **Bundle Processing**: Check out [`examples/bundle_processing/`](examples/bundle_processing/) for bundle processing logic and related test cases.
