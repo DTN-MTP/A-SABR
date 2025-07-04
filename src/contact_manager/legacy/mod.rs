@@ -2,24 +2,34 @@ pub mod eto;
 pub mod evl;
 pub mod qd;
 
-// Budget approach by Longrui Ma
+/// Generates a legacy volume management structure and a part of its implementation based on the provided parameters. This
+/// macro is called by the generate_prio_volume_manager macro.
+///
+/// This macro is designed to generate boilerplate code for legacy volume management systems with
+/// specific configurations of priority levels and queue size types.
+///  Budget approach by Longrui Ma
+///
+// # Arguments
+///
+/// - `$manager_name`: The identifier to be used as the name of the generated structure (e.g., `ETOManager`).
+/// - `$priority_count`: A priority count is set to 1, means no priority levels are supported.
+/// - `$budgeted`: Boolean flag to indicate that each priority volume limit is budgeted.
 #[macro_export]
 macro_rules! generate_struct_management {
-    // if the priority count is set to 1, no priority, queue_size is not an array
     ($manager_name:ident, 1, false) => {
-        /// A simple manager for handling volcontact_data.startume and/or transmission delays (macro generated).
+        /// Macro-generated.
         #[cfg_attr(feature = "debug", derive(Debug))]
         pub struct $manager_name {
             /// The data transmission rate.
             rate: crate::types::DataRate,
-            /// The delay between transmissions.
+            /// The transmission delay.
             delay: crate::types::Duration,
-            /// The volume scheduled for this contact.
+            /// The volume scheduled for this contact, or the queue size.
             queue_size: crate::types::Volume,
             /// The total volume at initialization.
             original_volume: crate::types::Volume,
         }
-         impl $manager_name {
+        impl $manager_name {
             #[doc = concat!( "Creates a new `", stringify!($manager_name),"`  with specified average rate and delay.")]
             ///
             /// # Arguments
@@ -29,7 +39,7 @@ macro_rules! generate_struct_management {
             ///
             /// # Returns
             ///
-             #[doc = concat!( " A new instance of  `", stringify!($manager_name),"`.")]
+            #[doc = concat!( " A new instance of  `", stringify!($manager_name),"`.")]
             pub fn new(rate: crate::types::DataRate, delay: crate::types::Duration) -> Self {
                 Self {
                     rate,
@@ -61,26 +71,15 @@ macro_rules! generate_struct_management {
             }
         }
     };
-
-    // // Safe guard $prio_count, a value of 0 would still compile..
-    // ($manager_name:ident, 0, $with_budget:ident) => {
-    //      compile_error!("To disable priority, set $prio_count to 1");
-    // };
-    // // Safe guard $with_budget with no prioities
-    // ($manager_name:ident, 1, true) => {
-    //      compile_error!("No priority variant cannot have budgets");
-    // };
-
-    // if the priority count is different than one, queue_size is an array
     ($manager_name:ident, $prio_count:tt, false) => {
 
         #[cfg_attr(feature = "debug", derive(Debug))]
         pub struct $manager_name {
             /// The data transmission rate.
             rate: crate::types::DataRate,
-            /// The delay between transmissions.
+            /// The transmission delay.
             delay: crate::types::Duration,
-            /// The volume scheduled for this contact.
+            /// The volume scheduled for this contact for each priority.
             queue_size: [crate::types::Volume; $prio_count],
             /// The total volume at initialization.
             original_volume: crate::types::Volume,
@@ -140,11 +139,11 @@ macro_rules! generate_struct_management {
         pub struct $manager_name {
             /// The data transmission rate.
             rate: crate::types::DataRate,
-            /// The delay between transmissions.
+            /// The transmission delay.
             delay: crate::types::Duration,
-            /// The volume scheduled for this contact.
+            /// The volume scheduled for this contact for each priority.
             queue_size: [crate::types::Volume; $prio_count],
-
+            /// The budget for each priority.
             budgets: [crate::types::Volume; $prio_count],
             /// The total volume at initialization.
             original_volume: crate::types::Volume,
@@ -157,6 +156,7 @@ macro_rules! generate_struct_management {
             ///
             /// * `rate` - The average data rate for this contact.
             /// * `delay` - The link delay for this contact.
+            /// * `budgets` - The budget for each priority.
             ///
             /// # Returns
             ///
@@ -216,6 +216,9 @@ macro_rules! generate_struct_management {
     };
 }
 
+/// When the feature "manual_queueing" is enabled, allows to provide public methods
+/// for enqueueing/dequeueing to maintain a transmission queue. This macro is called
+/// by the generate_prio_volume_manager macro.
 #[macro_export]
 macro_rules! generate_manual_enqueue {
     (false) => {
@@ -233,6 +236,21 @@ macro_rules! generate_manual_enqueue {
     };
 }
 
+
+/// Generates a legacy volume management structure and implementation based on the provided parameters.
+///
+/// Budget approach by Longrui Ma
+///
+// # Arguments
+///
+/// - `$manager_name`: The identifier to be used as the name of the generated structure (e.g., `ETOManager`).
+/// - `$add_delay`:A flag (`true` or `false`) that determines whether delay logic should be added depending
+///   volume already booked.
+/// - `$auto_update`: A flag (`true` or `false`) that specifies if the volume must be updated by the manager
+///   or manually (like for ETO), this impact the $auto_update behavior, if set to fase, the booked volume is
+///   considered as real time queue occupancy.
+/// - `$prio_count`: The number of priority levels. A value of `1` means no priority logic is applied.
+/// - `$with_budget`: A flag (`true` or `false`) to conditionnally add budgets (for priorities only).
 #[macro_export]
 macro_rules! generate_prio_volume_manager {
 
