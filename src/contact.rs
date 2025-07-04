@@ -112,6 +112,7 @@ impl<NM: NodeManager, CM: ContactManager> Contact<NM, CM> {
     /// # Returns
     ///
     /// * `NodeID` - The ID of the transmitting node.
+    #[inline(always)]
     pub fn get_tx_node(&self) -> NodeID {
         self.info.tx_node
     }
@@ -121,6 +122,7 @@ impl<NM: NodeManager, CM: ContactManager> Contact<NM, CM> {
     /// # Returns
     ///
     /// * `NodeID` - The ID of the receiving node.
+    #[inline(always)]
     pub fn get_rx_node(&self) -> NodeID {
         self.info.rx_node
     }

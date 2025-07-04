@@ -285,7 +285,6 @@ macro_rules! generate_prio_volume_manager {
                 let queue_size = self.get_queue_size(&bundle);
 
                 if bundle.size > self.get_budget(&bundle) - queue_size {
-                    println!("{}", queue_size);
                     return None;
                 }
 
