@@ -236,7 +236,6 @@ macro_rules! generate_manual_enqueue {
     };
 }
 
-
 /// Generates a legacy volume management structure and implementation based on the provided parameters.
 ///
 /// Budget approach by Longrui Ma

@@ -71,11 +71,29 @@ pub trait ContactManager {
     #[cfg(feature = "first_depleted")]
     fn get_original_volume(&self) -> Volume;
 
+    /// For ETO compatibility. Required with "manual_queueing" compilation feature.
+    ///
+    /// # Arguments
+    ///
+    /// * `bundle` - The bundle to be enqueued (it just checks its volume).
+    ///
+    /// # Returns
+    ///
+    /// true if manual enqueue is allowed, false otherwise
     #[cfg(feature = "manual_queueing")]
     fn manual_enqueue(&mut self, _bundle: &Bundle) -> bool {
         false
     }
 
+    /// For ETO compatibility. Required with "manual_queueing" compilation feature.
+    ///
+    /// # Arguments
+    ///
+    /// * `bundle` - The bundle to be dequeued (it just checks its volume).
+    ///
+    /// # Returns
+    ///
+    /// true if manual dequeue is allowed, false otherwise
     #[cfg(feature = "manual_queueing")]
     fn manual_dequeue(&mut self, _bundle: &Bundle) -> bool {
         false
@@ -119,12 +137,12 @@ impl<CM: ContactManager> ContactManager for Box<CM> {
     fn get_original_volume(&self) -> Volume {
         (**self).get_original_volume()
     }
-
+    /// Delegates the manual_enqueue method to the boxed object.
     #[cfg(feature = "manual_queueing")]
     fn manual_enqueue(&mut self, _bundle: &Bundle) -> bool {
         (**self).manual_enqueue(_bundle)
     }
-
+    /// Delegates the manual_dequeue method to the boxed object.
     #[cfg(feature = "manual_queueing")]
     fn manual_dequeue(&mut self, _bundle: &Bundle) -> bool {
         (**self).manual_dequeue(_bundle)
@@ -167,10 +185,12 @@ impl ContactManager for Box<dyn ContactManager> {
     fn get_original_volume(&self) -> Volume {
         (**self).get_original_volume()
     }
+    /// Delegates the manual_enqueue method to the boxed object.
     #[cfg(feature = "manual_queueing")]
     fn manual_enqueue(&mut self, _bundle: &Bundle) -> bool {
         (**self).manual_enqueue(_bundle)
     }
+    /// Delegates the manual_dequeue method to the boxed object.
     #[cfg(feature = "manual_queueing")]
     fn manual_dequeue(&mut self, _bundle: &Bundle) -> bool {
         (**self).manual_dequeue(_bundle)
