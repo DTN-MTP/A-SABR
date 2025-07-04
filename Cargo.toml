@@ -44,3 +44,8 @@ path = "examples/bundle_processing/bundle_processing.rs"
 [[example]]
 name = "eto_management"
 path = "examples/eto_management/eto_management.rs"
+
+
+[[example]]
+name = "contact_plans"
+path = "examples/contact_plans/contact_plans.rs"

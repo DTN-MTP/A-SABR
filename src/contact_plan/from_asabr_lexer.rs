@@ -201,6 +201,9 @@ impl ASABRContactPlan {
                     .to_string(),
             );
         }
+        if nodes.is_empty() {
+            return Err("Nodes must be declared".to_string());
+        }
         if nodes.len() - 1 != max_node_id_in_contacts {
             return Err("Some node declarations are missing".to_string());
         }

@@ -1,7 +1,11 @@
 use crate::{
     contact::{Contact, ContactInfo},
     contact_manager::{
-        legacy::{eto::ETOManager, evl::EVLManager, qd::QDManager},
+        legacy::{
+            eto::{ETOManager, PETOManager},
+            evl::{EVLManager, PEVLManager},
+            qd::{PQDManager, QDManager},
+        },
         seg::{Segment, SegmentationManager},
         ContactManager,
     },
@@ -49,6 +53,9 @@ macro_rules! generate_for_evl_variants {
 generate_for_evl_variants!(NoManagement, EVLManager);
 generate_for_evl_variants!(NoManagement, ETOManager);
 generate_for_evl_variants!(NoManagement, QDManager);
+generate_for_evl_variants!(NoManagement, PEVLManager);
+generate_for_evl_variants!(NoManagement, PETOManager);
+generate_for_evl_variants!(NoManagement, PQDManager);
 
 impl FromTVGUtilContactData<NoManagement, SegmentationManager> for SegmentationManager {
     fn tvg_convert(data: TVGUtilContactData) -> Option<Contact<NoManagement, SegmentationManager>> {
