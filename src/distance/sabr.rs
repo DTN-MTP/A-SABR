@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 
 use crate::{
-    contact_manager::ContactManager, node_manager::NodeManager, pathfinding::mpt::MptOrd,
+    contact_manager::ContactManager, node_manager::NodeManager, pathfinding::hybrid_parenting::HybridParentingOrd,
     route_stage::RouteStage,
 };
 
@@ -78,7 +78,7 @@ impl<NM: NodeManager, CM: ContactManager> Distance<NM, CM> for SABR {
     }
 }
 
-impl<NM: NodeManager, CM: ContactManager> MptOrd<NM, CM> for SABR {
+impl<NM: NodeManager, CM: ContactManager> HybridParentingOrd<NM, CM> for SABR {
     // For SABR, the secondary metric to consider is the hop count.
     fn can_retain(prop: &RouteStage<NM, CM>, known: &RouteStage<NM, CM>) -> bool {
         return prop.hop_count < known.hop_count;

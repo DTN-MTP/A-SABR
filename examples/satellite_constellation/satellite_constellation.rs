@@ -6,7 +6,7 @@ use a_sabr::node_manager::NodeManager;
 use a_sabr::parsing::coerce_nm;
 use a_sabr::parsing::NodeDispatcher;
 use a_sabr::parsing::{DispatchParser, Dispatcher, Lexer, Parser, ParsingState};
-use a_sabr::pathfinding::mpt::MptPath;
+use a_sabr::pathfinding::hybrid_parenting::HybridParentingPath;
 use a_sabr::pathfinding::Pathfinding;
 use a_sabr::types::Date;
 use a_sabr::utils::{init_pathfinding, pretty_print};
@@ -72,7 +72,7 @@ fn edge_case_example<NM: NodeManager + Parser<NM> + DispatchParser<NM>>(
         expiration: 1000.0,
     };
 
-    let mut mpt_graph = init_pathfinding::<NM, EVLManager, MptPath<NM, EVLManager, SABR>>(
+    let mut mpt_graph = init_pathfinding::<NM, EVLManager, HybridParentingPath<NM, EVLManager, SABR>>(
         &cp_path,
         node_marker_map,
         None,
@@ -88,7 +88,7 @@ fn edge_case_example<NM: NodeManager + Parser<NM> + DispatchParser<NM>>(
 
     match res.by_destination[2].clone() {
         Some(route) => pretty_print(route),
-        None => println!("No route found to node 2."),
+        _ => println!("No route found to node 2."),
     }
 }
 

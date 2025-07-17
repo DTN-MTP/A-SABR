@@ -24,36 +24,47 @@ pub fn benchmark(c: &mut Criterion) {
         max_entries: 10,
     };
 
-    let mut router_types = vec!["SpsnMpt", "SpsnNodeGraph", "SpsnHopMpt", "SpsnHopNodeGraph"];
+    let mut router_types = vec![
+        "SpsnHybridParenting",
+        "SpsnNodeParenting",
+        "SpsnHybridParentingHop",
+        "SpsnNodeParentingHop",
+    ];
 
     #[cfg(feature = "contact_work_area")]
-    router_types.extend(["SpsnContactGraph", "SpsnHopContactGraph"]);
+    router_types.extend(["SpsnContactParenting", "SpsnContactParentingHop"]);
 
     #[cfg(feature = "contact_suppression")]
-    router_types.extend(["CgrFirstEndingMpt", "CgrHopFirstEndingNodeGraph"]);
+    router_types.extend(["CgrFirstEndingHybridParenting", "CgrFirstEndingNodeParentingHop"]);
 
-    #[cfg(all(feature = "contact_suppression", feature = "first_depleted"))]
+    #[cfg(feature = "first_depleted")]
     router_types.extend([
-        "CgrFirstDepletedMpt",
-        "CgrFirstDepletedNodeGraph",
-        "CgrHopFirstDepletedMpt",
-        "CgrHopFirstDepletedNodeGraph",
+        "CgrFirstDepletedHybridParenting",
+        "CgrFirstDepletedNodeParenting",
+        "CgrFirstDepletedHybridParentingHop",
+        "CgrFirstDepletedNodeParentingHop",
     ]);
 
     #[cfg(all(feature = "contact_work_area", feature = "contact_suppression"))]
     router_types.extend([
-        "CgrFirstEndingContactGraph",
-        "CgrHopFirstEndingContactGraph",
+        "CgrFirstEndingContactParenting",
+        "CgrFirstEndingContactParentingHop",
     ]);
-    #[cfg(all(
-        feature = "contact_work_area",
-        feature = "contact_suppression",
-        feature = "first_depleted"
-    ))]
+    #[cfg(all(feature = "contact_work_area", feature = "first_depleted"))]
     router_types.extend([
-        "CgrFirstDepletedContactGraph",
-        "CgrHopFirstDepletedContactGraph",
+        "CgrFirstDepletedContactParenting",
+        "CgrFirstDepletedContactParentingHop",
     ]);
+
+    router_types.extend([
+        "VolCgrHybridParenting",
+        "VolCgrNodeParenting",
+        "VolCgrHybridParentingHop",
+        "VolCgrNodeParentingHop",
+    ]);
+
+    #[cfg(feature = "contact_work_area")]
+    router_types.extend(["VolCgrContactParenting", "VolCgrContactParentingHop"]);
 
     let mut group = c.benchmark_group("Routers");
 

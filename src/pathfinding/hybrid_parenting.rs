@@ -16,12 +16,12 @@ use crate::{
     types::{Date, NodeID},
 };
 
-/// A trait that allows Mpt to handle nage the lexicographic costs.
+/// A trait that allows HybridParenting to handle nage the lexicographic costs.
 ///
 /// # Type Parameters
 /// - `CM`: A type that implements the `ContactManager` trait, representing the contact management
 ///         system used to manage and compare routes.
-pub trait MptOrd<NM, CM>
+pub trait HybridParentingOrd<NM, CM>
 where
     NM: NodeManager,
     CM: ContactManager,
@@ -53,7 +53,7 @@ where
 
 /// A structure representing a work area for multi-path tracking (MPT) pathfinding.
 ///
-/// `MptWorkArea` maintains information about the current routing state, including
+/// `HybridParentingWorkArea` maintains information about the current routing state, including
 /// the initial bundle, the source route stage, excluded nodes, and routes grouped by destination.
 /// This structure is used in pathfinding operations to manage and organize route stages for
 /// efficient routing in a multi-destination network.
@@ -62,7 +62,7 @@ where
 ///
 /// # Type Parameters
 /// - `CM`: A type implementing the `ContactManager` trait, which handles contacts for routing.
-struct MptWorkArea<NM: NodeManager, CM: ContactManager> {
+struct HybridParentingWorkArea<NM: NodeManager, CM: ContactManager> {
     /// The bundle associated with this work area.
     pub bundle: Bundle,
     /// The source route stage, representing the starting point for routing.
@@ -75,8 +75,8 @@ struct MptWorkArea<NM: NodeManager, CM: ContactManager> {
     pub by_destination: Vec<Vec<Rc<RefCell<RouteStage<NM, CM>>>>>,
 }
 
-impl<NM: NodeManager, CM: ContactManager> MptWorkArea<NM, CM> {
-    /// Creates a new `MptWorkArea` instance, initializing it with the given bundle,
+impl<NM: NodeManager, CM: ContactManager> HybridParentingWorkArea<NM, CM> {
+    /// Creates a new `HybridParentingWorkArea` instance, initializing it with the given bundle,
     /// source route, excluded nodes, and a specified number of destination nodes.
     ///
     /// # Parameters
@@ -86,7 +86,7 @@ impl<NM: NodeManager, CM: ContactManager> MptWorkArea<NM, CM> {
     /// - `node_count`: The number of destination nodes, which determines the size of `by_destination`.
     ///
     /// # Returns
-    /// A new instance of `MptWorkArea` initialized with the provided parameters.
+    /// A new instance of `HybridParentingWorkArea` initialized with the provided parameters.
     pub fn new(
         bundle: &Bundle,
         source: Rc<RefCell<RouteStage<NM, CM>>>,
@@ -102,7 +102,7 @@ impl<NM: NodeManager, CM: ContactManager> MptWorkArea<NM, CM> {
         }
     }
 
-    /// Converts this `MptWorkArea` into a `PathFindingOutput`, organizing routes for each destination.
+    /// Converts this `HybridParentingWorkArea` into a `PathFindingOutput`, organizing routes for each destination.
     ///
     /// This function creates a `PathFindingOutput` by selecting the preferred route (if any) for each
     /// destination in `by_destination`. For each destination, if a route exists, it is added to the output;
@@ -148,9 +148,9 @@ use super::{try_make_hop, PathFindingOutput, Pathfinding};
 ///
 /// * `Option<Rc<RefCell<RouteStage<NM, CM>>>>` - Returns an `Option` containing a reference to the
 ///   newly inserted route if the insertion was successful; otherwise, returns `None`.
-fn try_insert<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + MptOrd<NM, CM>>(
+fn try_insert<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParentingOrd<NM, CM>>(
     proposition: RouteStage<NM, CM>,
-    tree: &mut MptWorkArea<NM, CM>,
+    tree: &mut HybridParentingWorkArea<NM, CM>,
 ) -> Option<Rc<RefCell<RouteStage<NM, CM>>>> {
     let routes_for_rx_node = &mut tree.by_destination[proposition.to_node as usize];
     // if D::can_retain sets insert to true, but the next element does not trigger insert_index =idx, insert at the end
@@ -227,7 +227,7 @@ macro_rules! define_mpt {
         /// * `NM` - A type that implements the `NodeManager` trait.
         /// * `CM` - A type that implements the `ContactManager` trait.
         /// * `D` - A type that implements the `Distance<NM, CM>` trait.
-        pub struct $name<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + MptOrd<NM, CM>>
+        pub struct $name<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParentingOrd<NM, CM>>
         {
             /// The node multigraph for contact access.
             graph: Rc<RefCell<Multigraph<NM, CM>>>,
@@ -235,10 +235,10 @@ macro_rules! define_mpt {
             _phantom_distance: PhantomData<D>,
         }
 
-        impl<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + MptOrd<NM, CM>>
+        impl<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParentingOrd<NM, CM>>
             Pathfinding<NM, CM> for $name<NM, CM, D>
         {
-            /// Constructs a new `Mpt` instance with the provided nodes and contacts.
+            /// Constructs a new `HybridParenting` instance with the provided nodes and contacts.
             ///
             /// # Parameters
             ///
@@ -288,7 +288,7 @@ macro_rules! define_mpt {
                         #[cfg(feature = "node_proc")]
                         bundle.clone(),
                     )));
-                let mut tree: MptWorkArea<NM, CM> = MptWorkArea::new(
+                let mut tree: HybridParentingWorkArea<NM, CM> = HybridParentingWorkArea::new(
                     bundle,
                     source_route.clone(),
                     excluded_nodes_sorted,
@@ -365,6 +365,6 @@ macro_rules! define_mpt {
     };
 }
 
-define_mpt!(MptTreeExcl, true, true);
-define_mpt!(MptPath, false, false);
-define_mpt!(MptPathExcl, false, true);
+define_mpt!(HybridParentingTreeExcl, true, true);
+define_mpt!(HybridParentingPath, false, false);
+define_mpt!(HybridParentingPathExcl, false, true);

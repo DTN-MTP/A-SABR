@@ -36,7 +36,7 @@ macro_rules! define_node_graph {
         impl<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> Pathfinding<NM, CM>
             for $name<NM, CM, D>
         {
-            /// Constructs a new `NodeGraph` instance with the provided nodes and contacts.
+            /// Constructs a new `NodeParenting` instance with the provided nodes and contacts.
             ///
             /// # Parameters
             ///
@@ -176,6 +176,6 @@ macro_rules! define_node_graph {
     };
 }
 
-define_node_graph!(NodeGraphTreeExcl, true, true);
-define_node_graph!(NodeGraphPath, false, false);
-define_node_graph!(NodeGraphPathExcl, false, true);
+define_node_graph!(NodeParentingTreeExcl, true, true);
+define_node_graph!(NodeParentingPath, false, false);
+define_node_graph!(NodeParentingPathExcl, false, true);

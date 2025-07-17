@@ -46,30 +46,30 @@ The exchangeable building blocks are :
 
 | **Algorithm Name**               | **Distance** | **Alternative Pathfinding** | **Dijkstra Variant** |
 |----------------------------------|--------------|------------------------------|------------------------|
-| SpsnMpt                          | Sabr         | N/A                | Mpt                    |
-| SpsnNodeGraph                    | Sabr         | N/A                | NodeGraph              |
-| SpsnContactGraph                 | Sabr         | N/A                | ContactGraph           |
-| CgrFirstEndingMpt               | Sabr         | FirstEnding                  | Mpt                    |
-| CgrFirstDepletedMpt             | Sabr         | FirstDepleted                | Mpt                    |
-| CgrFirstEndingNodeGraph         | Sabr         | FirstEnding                  | NodeGraph              |
-| CgrFirstDepletedNodeGraph       | Sabr         | FirstDepleted                | NodeGraph              |
-| CgrFirstEndingContactGraph      | Sabr         | FirstEnding                  | ContactGraph           |
-| CgrFirstDepletedContactGraph    | Sabr         | FirstDepleted                | ContactGraph           |
-| SpsnHopMpt                       | Hop          | N/A                | Mpt                    |
-| SpsnHopNodeGraph                | Hop          | N/A                | NodeGraph              |
-| SpsnHopContactGraph             | Hop          | N/A                | ContactGraph           |
-| CgrHopFirstEndingMpt            | Hop          | FirstEnding                  | Mpt                    |
-| CgrHopFirstDepletedMpt          | Hop          | FirstDepleted                | Mpt                    |
-| CgrHopFirstEndingNodeGraph      | Hop          | FirstEnding                  | NodeGraph              |
-| CgrHopFirstDepletedNodeGraph    | Hop          | FirstDepleted                | NodeGraph              |
-| CgrHopFirstEndingContactGraph   | Hop          | FirstEnding                  | ContactGraph           |
-| CgrHopFirstDepletedContactGraph | Hop          | FirstDepleted                | ContactGraph           |
-| VolCgrMpt                        | Sabr         | N/A                | Mpt                    |
-| VolCgrNodeGraph                 | Sabr         | N/A                | NodeGraph              |
-| VolCgrContactGraph              | Sabr         | N/A                | ContactGraph           |
-| VolCgrHopMpt                    | Hop          | N/A                | Mpt                    |
-| VolCgrHopNodeGraph              | Hop          | N/A                | NodeGraph              |
-| VolCgrHopContactGraph           | Hop          | N/A                | ContactGraph           |
+| SpsnHybridParenting                          | Sabr         | N/A                | HybridParenting                    |
+| SpsnNodeParenting                    | Sabr         | N/A                | NodeParenting              |
+| SpsnContactParenting                 | Sabr         | N/A                | ContactParenting           |
+| CgrFirstEndingHybridParenting               | Sabr         | FirstEnding                  | HybridParenting                    |
+| CgrFirstDepletedHybridParenting             | Sabr         | FirstDepleted                | HybridParenting                    |
+| CgrFirstEndingNodeParenting         | Sabr         | FirstEnding                  | NodeParenting              |
+| CgrFirstDepletedNodeParenting       | Sabr         | FirstDepleted                | NodeParenting              |
+| CgrFirstEndingContactParenting      | Sabr         | FirstEnding                  | ContactParenting           |
+| CgrFirstDepletedContactParenting    | Sabr         | FirstDepleted                | ContactParenting           |
+| SpsnHybridParentingHop                       | Hop          | N/A                | HybridParenting                    |
+| SpsnNodeParentingHop                | Hop          | N/A                | NodeParenting              |
+| SpsnContactParentingHop             | Hop          | N/A                | ContactParenting           |
+| CgrFirstEndingHybridParentingHop            | Hop          | FirstEnding                  | HybridParenting                    |
+| CgrFirstDepletedHybridParentingHop          | Hop          | FirstDepleted                | HybridParenting                    |
+| CgrFirstEndingNodeParentingHop      | Hop          | FirstEnding                  | NodeParenting              |
+| CgrFirstDepletedNodeParentingHop    | Hop          | FirstDepleted                | NodeParenting              |
+| CgrFirstEndingContactParentingHop   | Hop          | FirstEnding                  | ContactParenting           |
+| CgrFirstDepletedContactParentingHop | Hop          | FirstDepleted                | ContactParenting           |
+| VolCgrHybridParenting                        | Sabr         | N/A                | HybridParenting                    |
+| VolCgrNodeParenting                 | Sabr         | N/A                | NodeParenting              |
+| VolCgrContactParenting              | Sabr         | N/A                | ContactParenting           |
+| VolCgrHybridParentingHop                    | Hop          | N/A                | HybridParenting                    |
+| VolCgrNodeParentingHop              | Hop          | N/A                | NodeParenting              |
+| VolCgrContactParentingHop           | Hop          | N/A                | ContactParenting           |
 
 The Spsn based algorithms create shortest-path trees rather than single destination paths and consider the bundle metrics (priority and size) during tree computation to ensure at most one tree computation per bundle. A tree can be reused as long as the bundles to schedule show less constraining metrics (e.g. lower priority and smaller size) in comparison to the bundle metrics that were used to construct the present tree.
 
@@ -78,9 +78,9 @@ The Cgr based algorithms create single destination routes and do not consider th
 The VolCgr based algorithms replace the alternative pathfinding approach with volume (and priority) aware search.
 
 The algorithms are based on 3 pathfinding techniques (each of them declined in single-destination and shortest-path tree variants) :
-- NodeGraph : Dijkstra with node to node tracking.
-- Mpt : Dijkstra with contact to contact tracking, tracking of multiple paths to individual node instead of direct overriding, and node based filtering.
-- ContactGraph : Dijkstra with contact to contact tracking, as in CGR.
+- NodeParenting (or NodeGraph): Dijkstra with node to node tracking. Implementation mapping to the theoretical framework where nodes are vertices.
+- ContactParenting (or ContactGraph): Dijkstra with contact to contact tracking, as in CGR. Implementation mapping to the theoretical framework where contacts are vertices.
+- HybridParenting : Dijkstra with contact to contact tracking, tracking of multiple paths to individual node instead of direct overriding, and node based filtering.
 
 And 2 alternative path strategies (for the Cgr mainframe):
 
@@ -163,5 +163,5 @@ delay <start> <end> <delay>
 - Queue-delay : C. Caini, G. M. De Cola, and L. Persampieri, “Schedule-aware bundle routing: Analysis and enhancements,” International Journal of Satellite Communications and Networking, vol. 39, no. 3, pp. 237–249, 2021.
 - Contact segmentation : De Jonckere, O., Fraire, J. A. A., & Burleigh, S. (2024). Distributed Volume Management in Space DTNs: Scoping Schedule-Aware Bundle Routing.
 - FirstEnding & FirstDepleted : A. Fraire, P. G. Madoery, A. Charif, and J. M. Finochietto, “On route table computation strategies in delay-tolerant satellite networks,” Ad Hoc Networks, vol. 80, pp. 31–40, 2018
-- Mpt (multipath-tracking) : O. De Jonckère, J. A. Fraire, and S. Burleigh, “Enhanced pathfinding and scalability with shortest-path tree routing for space networks,” in ICC 2023-IEEE International Conference on Communications. IEEE, 2023, pp. 4082–4088.
+- HybridParenting (Formerly multipath-tracking) : O. De Jonckère, J. A. Fraire, and S. Burleigh, “Enhanced pathfinding and scalability with shortest-path tree routing for space networks,” in ICC 2023-IEEE International Conference on Communications. IEEE, 2023, pp. 4082–4088.
 - Contact Graph Routing : J. A. Fraire, O. De Jonckère, and S. C. Burleigh, “Routing in the space internet: A contact graph routing tutorial,” Journal of Network and Computer Applications, vol. 174, p. 102884, 2021.

@@ -3,13 +3,13 @@ use a_sabr::{
     contact_manager::legacy::evl::EVLManager,
     distance::sabr::SABR,
     node_manager::none::NoManagement,
-    pathfinding::{mpt::MptPath, node_graph::NodeGraphPath, Pathfinding},
+    pathfinding::{hybrid_parenting::HybridParentingPath, node_parenting::NodeParentingPath, Pathfinding},
     types::NodeID,
     utils::{init_pathfinding, pretty_print},
 };
 
 #[cfg(feature = "contact_work_area")]
-use a_sabr::pathfinding::contact_graph::ContactGraphPath;
+use a_sabr::pathfinding::contact_parenting::ContactParentingPath;
 
 fn edge_case_example(cp_path: &str, dest: NodeID) {
     let bundle = Bundle {
@@ -23,17 +23,17 @@ fn edge_case_example(cp_path: &str, dest: NodeID) {
     let mut node_graph = init_pathfinding::<
         NoManagement,
         EVLManager,
-        NodeGraphPath<NoManagement, EVLManager, SABR>,
+        NodeParentingPath<NoManagement, EVLManager, SABR>,
     >(&cp_path, None, None);
 
     #[cfg(feature = "contact_work_area")]
     let mut contact_graph = init_pathfinding::<
         NoManagement,
         EVLManager,
-        ContactGraphPath<NoManagement, EVLManager, SABR>,
+        ContactParentingPath<NoManagement, EVLManager, SABR>,
     >(&cp_path, None, None);
     let mut mpt_graph =
-        init_pathfinding::<NoManagement, EVLManager, MptPath<NoManagement, EVLManager, SABR>>(
+        init_pathfinding::<NoManagement, EVLManager, HybridParentingPath<NoManagement, EVLManager, SABR>>(
             &cp_path, None, None,
         );
 
@@ -44,18 +44,18 @@ fn edge_case_example(cp_path: &str, dest: NodeID) {
     );
     println!("");
     let res = node_graph.get_next(0.0, 0, &bundle, &vec![]);
-    print!("With NodeGraphPath pathfinding. ");
+    print!("With NodeParentingPath pathfinding. ");
     pretty_print(res.by_destination[dest as usize].clone().unwrap());
 
     #[cfg(feature = "contact_work_area")]
     {
         let res = contact_graph.get_next(0.0, 0, &bundle, &vec![]);
-        print!("With ContactGraphPath pathfinding. ");
+        print!("With ContactParentingPath pathfinding. ");
         pretty_print(res.by_destination[dest as usize].clone().unwrap());
     }
 
     let res = mpt_graph.get_next(0.0, 0, &bundle, &vec![]);
-    print!("With MptPath pathfinding. ");
+    print!("With HybridParentingPath pathfinding. ");
     pretty_print(res.by_destination[dest as usize].clone().unwrap());
 }
 
@@ -71,35 +71,35 @@ fn main() {
     // === OUTPUT ===
     // Running with contact plan location=examples/dijkstra_accuracy/contact_plan_1.cp, and destination node=3
 
-    // With NodeGraphPath pathfinding. Route to node 3 at t=30 with 3 hop(s):
+    // With NodeParentingPath pathfinding. Route to node 3 at t=30 with 3 hop(s):
     //         - Reach node 0 at t=0 with 0 hop(s)
     //         - Reach node 1 at t=0 with 1 hop(s)
     //         - Reach node 2 at t=10 with 2 hop(s)
     //         - Reach node 3 at t=30 with 3 hop(s)
-    // With ContactGraphPath pathfinding. Route to node 3 at t=30 with 2 hop(s):
+    // With ContactParentingPath pathfinding. Route to node 3 at t=30 with 2 hop(s):
     //         - Reach node 0 at t=0 with 0 hop(s)
     //         - Reach node 2 at t=25 with 1 hop(s)
     //         - Reach node 3 at t=30 with 2 hop(s)
-    // With MptPath pathfinding. Route to node 3 at t=30 with 2 hop(s):
+    // With HybridParentingPath pathfinding. Route to node 3 at t=30 with 2 hop(s):
     //         - Reach node 0 at t=0 with 0 hop(s)
     //         - Reach node 2 at t=25 with 1 hop(s)
     //         - Reach node 3 at t=30 with 2 hop(s)
 
     // Running with contact plan location=examples/dijkstra_accuracy/contact_plan_2.cp, and destination node=4
 
-    // With NodeGraphPath pathfinding. Route to node 4 at t=50 with 4 hop(s):
+    // With NodeParentingPath pathfinding. Route to node 4 at t=50 with 4 hop(s):
     //         - Reach node 0 at t=0 with 0 hop(s)
     //         - Reach node 1 at t=0 with 1 hop(s)
     //         - Reach node 2 at t=10 with 2 hop(s)
     //         - Reach node 3 at t=20 with 3 hop(s)
     //         - Reach node 4 at t=50 with 4 hop(s)
-    // With ContactGraphPath pathfinding. Route to node 4 at t=50 with 4 hop(s):
+    // With ContactParentingPath pathfinding. Route to node 4 at t=50 with 4 hop(s):
     //         - Reach node 0 at t=0 with 0 hop(s)
     //         - Reach node 1 at t=0 with 1 hop(s)
     //         - Reach node 2 at t=10 with 2 hop(s)
     //         - Reach node 3 at t=20 with 3 hop(s)
     //         - Reach node 4 at t=50 with 4 hop(s)
-    // With MptPath pathfinding. Route to node 4 at t=50 with 3 hop(s):
+    // With HybridParentingPath pathfinding. Route to node 4 at t=50 with 3 hop(s):
     //         - Reach node 0 at t=0 with 0 hop(s)
     //         - Reach node 2 at t=25 with 1 hop(s)
     //         - Reach node 3 at t=25 with 2 hop(s)

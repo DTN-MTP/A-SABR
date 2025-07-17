@@ -10,11 +10,11 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 #[cfg(feature = "contact_work_area")]
-pub mod contact_graph;
+pub mod contact_parenting;
 #[cfg(feature = "contact_suppression")]
 pub mod limiting_contact;
-pub mod mpt;
-pub mod node_graph;
+pub mod hybrid_parenting;
+pub mod node_parenting;
 
 /// Data structure that holds the results of a pathfinding operation.
 ///

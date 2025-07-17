@@ -11,7 +11,7 @@ use a_sabr::{
     node_manager::none::NoManagement,
     parsing::{coerce_cm, ContactDispatcher, Dispatcher},
     route_storage::cache::TreeCache,
-    routing::{aliases::SpsnMpt, Router},
+    routing::{aliases::SpsnHybridParenting, Router},
     utils::pretty_print,
 };
 
@@ -48,7 +48,7 @@ fn main() {
     let table = Rc::new(RefCell::new(TreeCache::new(true, false, 10)));
     // We initialize the routing algorithm with the storage and the contacts/nodes created thanks to the parser
     let mut spsn =
-        SpsnMpt::<NoManagement, Box<dyn ContactManager>>::new(nodes, contacts, table, false);
+        SpsnHybridParenting::<NoManagement, Box<dyn ContactManager>>::new(nodes, contacts, table, false);
 
     // We will route a bundle
     let b = Bundle {

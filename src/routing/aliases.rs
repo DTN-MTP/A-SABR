@@ -5,8 +5,8 @@ use crate::{
     node::Node,
     node_manager::NodeManager,
     pathfinding::{
-        mpt::{MptPathExcl, MptTreeExcl},
-        node_graph::{NodeGraphPathExcl, NodeGraphTreeExcl},
+        hybrid_parenting::{HybridParentingPathExcl, HybridParentingTreeExcl},
+        node_parenting::{NodeParentingPathExcl, NodeParentingTreeExcl},
     },
     route_storage::{cache::TreeCache, table::RoutingTable},
     routing::volcgr::VolCgr,
@@ -16,110 +16,116 @@ use std::{cell::RefCell, rc::Rc};
 #[cfg(feature = "contact_suppression")]
 use super::cgr::Cgr;
 #[cfg(all(feature = "contact_work_area", feature = "contact_suppression"))]
-use crate::pathfinding::contact_graph::ContactGraphPath;
+use crate::pathfinding::contact_parenting::ContactParentingPath;
 #[cfg(feature = "contact_work_area")]
-use crate::pathfinding::contact_graph::{ContactGraphPathExcl, ContactGraphTreeExcl};
+use crate::pathfinding::contact_parenting::{ContactParentingPathExcl, ContactParentingTreeExcl};
 
 #[cfg(feature = "first_depleted")]
 use crate::pathfinding::limiting_contact::first_depleted::FirstDepleted;
 #[cfg(feature = "contact_suppression")]
 use crate::pathfinding::limiting_contact::first_ending::FirstEnding;
 #[cfg(feature = "contact_suppression")]
-use crate::pathfinding::mpt::MptPath;
+use crate::pathfinding::hybrid_parenting::HybridParentingPath;
 #[cfg(feature = "contact_suppression")]
-use crate::pathfinding::node_graph::NodeGraphPath;
+use crate::pathfinding::node_parenting::NodeParentingPath;
 
 use super::{spsn::Spsn, Router};
 
-pub type SpsnMpt<NM, CM> = Spsn<NM, CM, MptTreeExcl<NM, CM, SABR>, TreeCache<NM, CM>>;
+pub type SpsnHybridParenting<NM, CM> = Spsn<NM, CM, HybridParentingTreeExcl<NM, CM, SABR>, TreeCache<NM, CM>>;
 
-pub type SpsnNodeGraph<NM, CM> = Spsn<NM, CM, NodeGraphTreeExcl<NM, CM, SABR>, TreeCache<NM, CM>>;
-
-#[cfg(feature = "contact_work_area")]
-pub type SpsnContactGraph<NM, CM> =
-    Spsn<NM, CM, ContactGraphTreeExcl<NM, CM, SABR>, TreeCache<NM, CM>>;
-
-pub type VolCgrMpt<NM, CM> = VolCgr<NM, CM, MptPathExcl<NM, CM, SABR>, RoutingTable<NM, CM, SABR>>;
-
-pub type VolCgrNodeGraph<NM, CM> =
-    VolCgr<NM, CM, NodeGraphPathExcl<NM, CM, SABR>, RoutingTable<NM, CM, SABR>>;
+pub type SpsnNodeParenting<NM, CM> =
+    Spsn<NM, CM, NodeParentingTreeExcl<NM, CM, SABR>, TreeCache<NM, CM>>;
 
 #[cfg(feature = "contact_work_area")]
-pub type VolCgrContactGraph<NM, CM> =
-    VolCgr<NM, CM, ContactGraphPathExcl<NM, CM, SABR>, RoutingTable<NM, CM, SABR>>;
+pub type SpsnContactParenting<NM, CM> =
+    Spsn<NM, CM, ContactParentingTreeExcl<NM, CM, SABR>, TreeCache<NM, CM>>;
+
+pub type VolCgrHybridParenting<NM, CM> = VolCgr<NM, CM, HybridParentingPathExcl<NM, CM, SABR>, RoutingTable<NM, CM, SABR>>;
+
+pub type VolCgrNodeParenting<NM, CM> =
+    VolCgr<NM, CM, NodeParentingPathExcl<NM, CM, SABR>, RoutingTable<NM, CM, SABR>>;
+
+#[cfg(feature = "contact_work_area")]
+pub type VolCgrContactParenting<NM, CM> =
+    VolCgr<NM, CM, ContactParentingPathExcl<NM, CM, SABR>, RoutingTable<NM, CM, SABR>>;
 
 #[cfg(feature = "contact_suppression")]
-pub type CgrFirstEndingMpt<NM, CM> =
-    Cgr<NM, CM, FirstEnding<NM, CM, MptPath<NM, CM, SABR>>, RoutingTable<NM, CM, SABR>>;
+pub type CgrFirstEndingHybridParenting<NM, CM> =
+    Cgr<NM, CM, FirstEnding<NM, CM, HybridParentingPath<NM, CM, SABR>>, RoutingTable<NM, CM, SABR>>;
 
 #[cfg(feature = "first_depleted")]
-pub type CgrFirstDepletedMpt<NM, CM> =
-    Cgr<NM, CM, FirstDepleted<NM, CM, MptPath<NM, CM, SABR>>, RoutingTable<NM, CM, SABR>>;
+pub type CgrFirstDepletedHybridParenting<NM, CM> =
+    Cgr<NM, CM, FirstDepleted<NM, CM, HybridParentingPath<NM, CM, SABR>>, RoutingTable<NM, CM, SABR>>;
 
 #[cfg(feature = "contact_suppression")]
-pub type CgrFirstEndingNodeGraph<NM, CM> =
-    Cgr<NM, CM, FirstEnding<NM, CM, NodeGraphPath<NM, CM, SABR>>, RoutingTable<NM, CM, SABR>>;
+pub type CgrFirstEndingNodeParenting<NM, CM> =
+    Cgr<NM, CM, FirstEnding<NM, CM, NodeParentingPath<NM, CM, SABR>>, RoutingTable<NM, CM, SABR>>;
 
 #[cfg(feature = "first_depleted")]
-pub type CgrFirstDepletedNodeGraph<NM, CM> =
-    Cgr<NM, CM, FirstDepleted<NM, CM, NodeGraphPath<NM, CM, SABR>>, RoutingTable<NM, CM, SABR>>;
+pub type CgrFirstDepletedNodeParenting<NM, CM> =
+    Cgr<NM, CM, FirstDepleted<NM, CM, NodeParentingPath<NM, CM, SABR>>, RoutingTable<NM, CM, SABR>>;
 
 #[cfg(all(feature = "contact_work_area", feature = "contact_suppression"))]
-pub type CgrFirstEndingContactGraph<NM, CM> =
-    Cgr<NM, CM, FirstEnding<NM, CM, ContactGraphPath<NM, CM, SABR>>, RoutingTable<NM, CM, SABR>>;
+pub type CgrFirstEndingContactParenting<NM, CM> = Cgr<
+    NM,
+    CM,
+    FirstEnding<NM, CM, ContactParentingPath<NM, CM, SABR>>,
+    RoutingTable<NM, CM, SABR>,
+>;
 
-#[cfg(all(
-    feature = "contact_work_area",
-    feature = "contact_suppression",
-    feature = "first_depleted"
-))]
-pub type CgrFirstDepletedContactGraph<NM, CM> =
-    Cgr<NM, CM, FirstDepleted<NM, CM, ContactGraphPath<NM, CM, SABR>>, RoutingTable<NM, CM, SABR>>;
+#[cfg(all(feature = "contact_work_area", feature = "first_depleted"))]
+pub type CgrFirstDepletedContactParenting<NM, CM> = Cgr<
+    NM,
+    CM,
+    FirstDepleted<NM, CM, ContactParentingPath<NM, CM, SABR>>,
+    RoutingTable<NM, CM, SABR>,
+>;
 
-pub type SpsnHopMpt<NM, CM> = Spsn<NM, CM, MptTreeExcl<NM, CM, Hop>, TreeCache<NM, CM>>;
+pub type SpsnHybridParentingHop<NM, CM> = Spsn<NM, CM, HybridParentingTreeExcl<NM, CM, Hop>, TreeCache<NM, CM>>;
 
-pub type SpsnHopNodeGraph<NM, CM> = Spsn<NM, CM, NodeGraphTreeExcl<NM, CM, Hop>, TreeCache<NM, CM>>;
-
-#[cfg(feature = "contact_work_area")]
-pub type SpsnHopContactGraph<NM, CM> =
-    Spsn<NM, CM, ContactGraphTreeExcl<NM, CM, Hop>, TreeCache<NM, CM>>;
-
-pub type VolCgrHopMpt<NM, CM> = VolCgr<NM, CM, MptPathExcl<NM, CM, Hop>, RoutingTable<NM, CM, Hop>>;
-
-pub type VolCgrHopNodeGraph<NM, CM> =
-    VolCgr<NM, CM, NodeGraphPathExcl<NM, CM, Hop>, RoutingTable<NM, CM, Hop>>;
+pub type SpsnNodeParentingHop<NM, CM> =
+    Spsn<NM, CM, NodeParentingTreeExcl<NM, CM, Hop>, TreeCache<NM, CM>>;
 
 #[cfg(feature = "contact_work_area")]
-pub type VolCgrHopContactGraph<NM, CM> =
-    VolCgr<NM, CM, ContactGraphPathExcl<NM, CM, Hop>, RoutingTable<NM, CM, Hop>>;
+pub type SpsnContactParentingHop<NM, CM> =
+    Spsn<NM, CM, ContactParentingTreeExcl<NM, CM, Hop>, TreeCache<NM, CM>>;
+
+pub type VolCgrHybridParentingHop<NM, CM> = VolCgr<NM, CM, HybridParentingPathExcl<NM, CM, Hop>, RoutingTable<NM, CM, Hop>>;
+
+pub type VolCgrNodeParentingHop<NM, CM> =
+    VolCgr<NM, CM, NodeParentingPathExcl<NM, CM, Hop>, RoutingTable<NM, CM, Hop>>;
+
+#[cfg(feature = "contact_work_area")]
+pub type VolCgrContactParentingHop<NM, CM> =
+    VolCgr<NM, CM, ContactParentingPathExcl<NM, CM, Hop>, RoutingTable<NM, CM, Hop>>;
 
 #[cfg(feature = "contact_suppression")]
-pub type CgrHopFirstEndingMpt<NM, CM> =
-    Cgr<NM, CM, FirstEnding<NM, CM, MptPath<NM, CM, Hop>>, RoutingTable<NM, CM, Hop>>;
+pub type CgrFirstEndingHybridParentingHop<NM, CM> =
+    Cgr<NM, CM, FirstEnding<NM, CM, HybridParentingPath<NM, CM, Hop>>, RoutingTable<NM, CM, Hop>>;
 
 #[cfg(feature = "first_depleted")]
-pub type CgrHopFirstDepletedMpt<NM, CM> =
-    Cgr<NM, CM, FirstDepleted<NM, CM, MptPath<NM, CM, Hop>>, RoutingTable<NM, CM, Hop>>;
+pub type CgrFirstDepletedHybridParentingHop<NM, CM> =
+    Cgr<NM, CM, FirstDepleted<NM, CM, HybridParentingPath<NM, CM, Hop>>, RoutingTable<NM, CM, Hop>>;
 
 #[cfg(feature = "contact_suppression")]
-pub type CgrHopFirstEndingNodeGraph<NM, CM> =
-    Cgr<NM, CM, FirstEnding<NM, CM, NodeGraphPath<NM, CM, Hop>>, RoutingTable<NM, CM, Hop>>;
+pub type CgrFirstEndingNodeParentingHop<NM, CM> =
+    Cgr<NM, CM, FirstEnding<NM, CM, NodeParentingPath<NM, CM, Hop>>, RoutingTable<NM, CM, Hop>>;
 
 #[cfg(feature = "first_depleted")]
-pub type CgrHopFirstDepletedNodeGraph<NM, CM> =
-    Cgr<NM, CM, FirstDepleted<NM, CM, NodeGraphPath<NM, CM, Hop>>, RoutingTable<NM, CM, Hop>>;
+pub type CgrFirstDepletedNodeParentingHop<NM, CM> =
+    Cgr<NM, CM, FirstDepleted<NM, CM, NodeParentingPath<NM, CM, Hop>>, RoutingTable<NM, CM, Hop>>;
 
 #[cfg(all(feature = "contact_work_area", feature = "contact_suppression"))]
-pub type CgrHopFirstEndingContactGraph<NM, CM> =
-    Cgr<NM, CM, FirstEnding<NM, CM, ContactGraphPath<NM, CM, Hop>>, RoutingTable<NM, CM, Hop>>;
+pub type CgrFirstEndingContactParentingHop<NM, CM> =
+    Cgr<NM, CM, FirstEnding<NM, CM, ContactParentingPath<NM, CM, Hop>>, RoutingTable<NM, CM, Hop>>;
 
-#[cfg(all(
-    feature = "contact_work_area",
-    feature = "contact_suppression",
-    feature = "first_depleted"
-))]
-pub type CgrHopFirstDepletedContactGraph<NM, CM> =
-    Cgr<NM, CM, FirstDepleted<NM, CM, ContactGraphPath<NM, CM, Hop>>, RoutingTable<NM, CM, Hop>>;
+#[cfg(all(feature = "contact_work_area", feature = "first_depleted"))]
+pub type CgrFirstDepletedContactParentingHop<NM, CM> = Cgr<
+    NM,
+    CM,
+    FirstDepleted<NM, CM, ContactParentingPath<NM, CM, Hop>>,
+    RoutingTable<NM, CM, Hop>,
+>;
 
 macro_rules! register_cgr_router {
     ($router:ident, $router_name:literal, $test_name_variable:ident, $nodes:ident, $contacts:ident) => {
@@ -168,8 +174,8 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
         let max_entries = options.max_entries;
 
         register_spsn_router!(
-            SpsnNodeGraph,
-            "SpsnNodeGraph",
+            SpsnNodeParenting,
+            "SpsnNodeParenting",
             router_type,
             nodes,
             contacts,
@@ -178,8 +184,8 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
             max_entries
         );
         register_spsn_router!(
-            SpsnHopNodeGraph,
-            "SpsnHopNodeGraph",
+            SpsnNodeParentingHop,
+            "SpsnNodeParentingHop",
             router_type,
             nodes,
             contacts,
@@ -188,8 +194,8 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
             max_entries
         );
         register_spsn_router!(
-            SpsnMpt,
-            "SpsnMpt",
+            SpsnHybridParenting,
+            "SpsnHybridParenting",
             router_type,
             nodes,
             contacts,
@@ -198,8 +204,8 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
             max_entries
         );
         register_spsn_router!(
-            SpsnHopMpt,
-            "SpsnHopMpt",
+            SpsnHybridParentingHop,
+            "SpsnHybridParentingHop",
             router_type,
             nodes,
             contacts,
@@ -208,27 +214,27 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
             max_entries
         );
         register_cgr_router!(
-            VolCgrNodeGraph,
-            "VolCgrNodeGraph",
+            VolCgrNodeParenting,
+            "VolCgrNodeParenting",
             router_type,
             nodes,
             contacts
         );
         register_cgr_router!(
-            VolCgrHopNodeGraph,
-            "VolCgrHopNodeGraph",
+            VolCgrNodeParentingHop,
+            "VolCgrNodeParentingHop",
             router_type,
             nodes,
             contacts
         );
-        register_cgr_router!(VolCgrMpt, "VolCgrMpt", router_type, nodes, contacts);
-        register_cgr_router!(VolCgrHopMpt, "VolCgrHopMpt", router_type, nodes, contacts);
+        register_cgr_router!(VolCgrHybridParenting, "VolCgrHybridParenting", router_type, nodes, contacts);
+        register_cgr_router!(VolCgrHybridParentingHop, "VolCgrHybridParentingHop", router_type, nodes, contacts);
 
         #[cfg(feature = "contact_work_area")]
         {
             register_spsn_router!(
-                SpsnContactGraph,
-                "SpsnContactGraph",
+                SpsnContactParenting,
+                "SpsnContactParenting",
                 router_type,
                 nodes,
                 contacts,
@@ -237,8 +243,8 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
                 max_entries
             );
             register_spsn_router!(
-                SpsnHopContactGraph,
-                "SpsnHopContactGraph",
+                SpsnContactParentingHop,
+                "SpsnContactParentingHop",
                 router_type,
                 nodes,
                 contacts,
@@ -247,15 +253,15 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
                 max_entries
             );
             register_cgr_router!(
-                VolCgrContactGraph,
-                "VolCgrContactGraph",
+                VolCgrContactParenting,
+                "VolCgrContactParenting",
                 router_type,
                 nodes,
                 contacts
             );
             register_cgr_router!(
-                VolCgrHopContactGraph,
-                "VolCgrHopContactGraph",
+                VolCgrContactParentingHop,
+                "VolCgrContactParentingHop",
                 router_type,
                 nodes,
                 contacts
@@ -266,29 +272,29 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
     #[cfg(feature = "contact_suppression")]
     {
         register_cgr_router!(
-            CgrHopFirstEndingMpt,
-            "CgrHopFirstEndingMpt",
+            CgrFirstEndingHybridParentingHop,
+            "CgrFirstEndingHybridParentingHop",
             router_type,
             nodes,
             contacts
         );
         register_cgr_router!(
-            CgrFirstEndingMpt,
-            "CgrFirstEndingMpt",
+            CgrFirstEndingHybridParenting,
+            "CgrFirstEndingHybridParenting",
             router_type,
             nodes,
             contacts
         );
         register_cgr_router!(
-            CgrHopFirstEndingNodeGraph,
-            "CgrHopFirstEndingNodeGraph",
+            CgrFirstEndingNodeParentingHop,
+            "CgrFirstEndingNodeParentingHop",
             router_type,
             nodes,
             contacts
         );
         register_cgr_router!(
-            CgrFirstEndingNodeGraph,
-            "CgrFirstEndingNodeGraph",
+            CgrFirstEndingNodeParenting,
+            "CgrFirstEndingNodeParenting",
             router_type,
             nodes,
             contacts
@@ -297,15 +303,15 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
         #[cfg(feature = "contact_work_area")]
         {
             register_cgr_router!(
-                CgrHopFirstEndingContactGraph,
-                "CgrHopFirstEndingContactGraph",
+                CgrFirstEndingContactParentingHop,
+                "CgrFirstEndingContactParentingHop",
                 router_type,
                 nodes,
                 contacts
             );
             register_cgr_router!(
-                CgrFirstEndingContactGraph,
-                "CgrFirstEndingContactGraph",
+                CgrFirstEndingContactParenting,
+                "CgrFirstEndingContactParenting",
                 router_type,
                 nodes,
                 contacts
@@ -316,29 +322,29 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
     #[cfg(feature = "first_depleted")]
     {
         register_cgr_router!(
-            CgrHopFirstDepletedMpt,
-            "CgrHopFirstDepletedMpt",
+            CgrFirstDepletedHybridParentingHop,
+            "CgrFirstDepletedHybridParentingHop",
             router_type,
             nodes,
             contacts
         );
         register_cgr_router!(
-            CgrFirstDepletedMpt,
-            "CgrFirstDepletedMpt",
+            CgrFirstDepletedHybridParenting,
+            "CgrFirstDepletedHybridParenting",
             router_type,
             nodes,
             contacts
         );
         register_cgr_router!(
-            CgrHopFirstDepletedNodeGraph,
-            "CgrHopFirstDepletedNodeGraph",
+            CgrFirstDepletedNodeParentingHop,
+            "CgrFirstDepletedNodeParentingHop",
             router_type,
             nodes,
             contacts
         );
         register_cgr_router!(
-            CgrFirstDepletedNodeGraph,
-            "CgrFirstDepletedNodeGraph",
+            CgrFirstDepletedNodeParenting,
+            "CgrFirstDepletedNodeParenting",
             router_type,
             nodes,
             contacts
@@ -347,15 +353,15 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
         #[cfg(feature = "contact_work_area")]
         {
             register_cgr_router!(
-                CgrHopFirstDepletedContactGraph,
-                "CgrHopFirstDepletedContactGraph",
+                CgrFirstDepletedContactParentingHop,
+                "CgrFirstDepletedContactParentingHop",
                 router_type,
                 nodes,
                 contacts
             );
             register_cgr_router!(
-                CgrFirstDepletedContactGraph,
-                "CgrFirstDepletedContactGraph",
+                CgrFirstDepletedContactParenting,
+                "CgrFirstDepletedContactParenting",
                 router_type,
                 nodes,
                 contacts
