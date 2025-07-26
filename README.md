@@ -44,32 +44,32 @@ The exchangeable building blocks are :
 
 ## Mainframes and pathfinding
 
-| **Algorithm Name**               | **Distance** | **Alternative Pathfinding** | **Dijkstra Variant** |
+| **Algorithm Name**         | **Short Name**      | **Distance** | **Alternative Pathfinding** | **Dijkstra Variant** |
 |----------------------------------|--------------|------------------------------|------------------------|
-| SpsnHybridParenting                          | Sabr         | N/A                | HybridParenting                    |
-| SpsnNodeParenting                    | Sabr         | N/A                | NodeParenting              |
-| SpsnContactParenting                 | Sabr         | N/A                | ContactParenting           |
-| CgrFirstEndingHybridParenting               | Sabr         | FirstEnding                  | HybridParenting                    |
-| CgrFirstDepletedHybridParenting             | Sabr         | FirstDepleted                | HybridParenting                    |
-| CgrFirstEndingNodeParenting         | Sabr         | FirstEnding                  | NodeParenting              |
-| CgrFirstDepletedNodeParenting       | Sabr         | FirstDepleted                | NodeParenting              |
-| CgrFirstEndingContactParenting      | Sabr         | FirstEnding                  | ContactParenting           |
-| CgrFirstDepletedContactParenting    | Sabr         | FirstDepleted                | ContactParenting           |
-| SpsnHybridParentingHop                       | Hop          | N/A                | HybridParenting                    |
-| SpsnNodeParentingHop                | Hop          | N/A                | NodeParenting              |
-| SpsnContactParentingHop             | Hop          | N/A                | ContactParenting           |
-| CgrFirstEndingHybridParentingHop            | Hop          | FirstEnding                  | HybridParenting                    |
-| CgrFirstDepletedHybridParentingHop          | Hop          | FirstDepleted                | HybridParenting                    |
-| CgrFirstEndingNodeParentingHop      | Hop          | FirstEnding                  | NodeParenting              |
-| CgrFirstDepletedNodeParentingHop    | Hop          | FirstDepleted                | NodeParenting              |
-| CgrFirstEndingContactParentingHop   | Hop          | FirstEnding                  | ContactParenting           |
-| CgrFirstDepletedContactParentingHop | Hop          | FirstDepleted                | ContactParenting           |
-| VolCgrHybridParenting                        | Sabr         | N/A                | HybridParenting                    |
-| VolCgrNodeParenting                 | Sabr         | N/A                | NodeParenting              |
-| VolCgrContactParenting              | Sabr         | N/A                | ContactParenting           |
-| VolCgrHybridParentingHop                    | Hop          | N/A                | HybridParenting                    |
-| VolCgrNodeParentingHop              | Hop          | N/A                | NodeParenting              |
-| VolCgrContactParentingHop           | Hop          | N/A                | ContactParenting           |
+| SpsnHybridParenting | SpsnHp                          | Sabr         | N/A                | HybridParenting                    |
+| SpsnNodeParenting | SpsnNp                    | Sabr         | N/A                | NodeParenting              |
+| SpsnContactParenting | SpsnCp                 | Sabr         | N/A                | ContactParenting           |
+| CgrFirstEndingHybridParenting | CgrFeHp               | Sabr         | FirstEnding                  | HybridParenting                    |
+| CgrFirstDepletedHybridParenting | CgrFdHp             | Sabr         | FirstDepleted                | HybridParenting                    |
+| CgrFirstEndingNodeParenting | CgrFeNp         | Sabr         | FirstEnding                  | NodeParenting              |
+| CgrFirstDepletedNodeParenting | CgrFdNp       | Sabr         | FirstDepleted                | NodeParenting              |
+| CgrFirstEndingContactParenting | CgrFeCp      | Sabr         | FirstEnding                  | ContactParenting           |
+| CgrFirstDepletedContactParenting | CgrFdCp    | Sabr         | FirstDepleted                | ContactParenting           |
+| SpsnHybridParentingHop | SpsnHpHop                       | Hop          | N/A                | HybridParenting                    |
+| SpsnNodeParentingHop | SpsnNpHop                | Hop          | N/A                | NodeParenting              |
+| SpsnContactParentingHop | SpsnCpHop             | Hop          | N/A                | ContactParenting           |
+| CgrFirstEndingHybridParentingHop | CgrFeHpHop            | Hop          | FirstEnding                  | HybridParenting                    |
+| CgrFirstDepletedHybridParentingHop | CgrFdHpHop          | Hop          | FirstDepleted                | HybridParenting                    |
+| CgrFirstEndingNodeParentingHop | CgrFeNpHop      | Hop          | FirstEnding                  | NodeParenting              |
+| CgrFirstDepletedNodeParentingHop | CgrFdNpHop    | Hop          | FirstDepleted                | NodeParenting              |
+| CgrFirstEndingContactParentingHop | CgrFeCpHop   | Hop          | FirstEnding                  | ContactParenting           |
+| CgrFirstDepletedContactParentingHop | CgrFdCpHop | Hop          | FirstDepleted                | ContactParenting           |
+| VolCgrHybridParenting | VolCgrHp                        | Sabr         | N/A                | HybridParenting                    |
+| VolCgrNodeParenting | VolCgrNp                 | Sabr         | N/A                | NodeParenting              |
+| VolCgrContactParenting | VolCgrCp              | Sabr         | N/A                | ContactParenting           |
+| VolCgrHybridParentingHop | VolCgrHpHop                    | Hop          | N/A                | HybridParenting                    |
+| VolCgrNodeParentingHop | VolCgrNpHop              | Hop          | N/A                | NodeParenting              |
+| VolCgrContactParentingHop | VolCgrCpHop           | Hop          | N/A                | ContactParenting           |
 
 The Spsn based algorithms create shortest-path trees rather than single destination paths and consider the bundle metrics (priority and size) during tree computation to ensure at most one tree computation per bundle. A tree can be reused as long as the bundles to schedule show less constraining metrics (e.g. lower priority and smaller size) in comparison to the bundle metrics that were used to construct the present tree.
 
