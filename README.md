@@ -45,7 +45,7 @@ The exchangeable building blocks are :
 ## Mainframes and pathfinding
 
 | **Algorithm Name**         | **Short Name**      | **Distance** | **Alternative Pathfinding** | **Dijkstra Variant** |
-|----------------------------------|--------------|------------------------------|------------------------|
+|--------------------------|--------|--------------|------------------------------|------------------------|
 | SpsnHybridParenting | SpsnHp                          | Sabr         | N/A                | HybridParenting                    |
 | SpsnNodeParenting | SpsnNp                    | Sabr         | N/A                | NodeParenting              |
 | SpsnContactParenting | SpsnCp                 | Sabr         | N/A                | ContactParenting           |
