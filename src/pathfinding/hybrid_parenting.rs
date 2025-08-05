@@ -148,7 +148,11 @@ use super::{try_make_hop, PathFindingOutput, Pathfinding};
 ///
 /// * `Option<Rc<RefCell<RouteStage<NM, CM>>>>` - Returns an `Option` containing a reference to the
 ///   newly inserted route if the insertion was successful; otherwise, returns `None`.
-fn try_insert<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParentingOrd<NM, CM>>(
+fn try_insert<
+    NM: NodeManager,
+    CM: ContactManager,
+    D: Distance<NM, CM> + HybridParentingOrd<NM, CM>,
+>(
     proposition: RouteStage<NM, CM>,
     tree: &mut HybridParentingWorkArea<NM, CM>,
 ) -> Option<Rc<RefCell<RouteStage<NM, CM>>>> {
@@ -227,16 +231,22 @@ macro_rules! define_mpt {
         /// * `NM` - A type that implements the `NodeManager` trait.
         /// * `CM` - A type that implements the `ContactManager` trait.
         /// * `D` - A type that implements the `Distance<NM, CM>` trait.
-        pub struct $name<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParentingOrd<NM, CM>>
-        {
+        pub struct $name<
+            NM: NodeManager,
+            CM: ContactManager,
+            D: Distance<NM, CM> + HybridParentingOrd<NM, CM>,
+        > {
             /// The node multigraph for contact access.
             graph: Rc<RefCell<Multigraph<NM, CM>>>,
             #[doc(hidden)]
             _phantom_distance: PhantomData<D>,
         }
 
-        impl<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParentingOrd<NM, CM>>
-            Pathfinding<NM, CM> for $name<NM, CM, D>
+        impl<
+                NM: NodeManager,
+                CM: ContactManager,
+                D: Distance<NM, CM> + HybridParentingOrd<NM, CM>,
+            > Pathfinding<NM, CM> for $name<NM, CM, D>
         {
             /// Constructs a new `HybridParenting` instance with the provided nodes and contacts.
             ///

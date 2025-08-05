@@ -35,7 +35,10 @@ pub fn benchmark(c: &mut Criterion) {
     router_types.extend(["SpsnContactParenting", "SpsnContactParentingHop"]);
 
     #[cfg(feature = "contact_suppression")]
-    router_types.extend(["CgrFirstEndingHybridParenting", "CgrFirstEndingNodeParentingHop"]);
+    router_types.extend([
+        "CgrFirstEndingHybridParenting",
+        "CgrFirstEndingNodeParentingHop",
+    ]);
 
     #[cfg(feature = "first_depleted")]
     router_types.extend([

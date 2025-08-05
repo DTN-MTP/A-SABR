@@ -1,8 +1,8 @@
 use std::cmp::Ordering;
 
 use crate::{
-    contact_manager::ContactManager, node_manager::NodeManager, pathfinding::hybrid_parenting::HybridParentingOrd,
-    route_stage::RouteStage,
+    contact_manager::ContactManager, node_manager::NodeManager,
+    pathfinding::hybrid_parenting::HybridParentingOrd, route_stage::RouteStage,
 };
 
 use super::Distance;

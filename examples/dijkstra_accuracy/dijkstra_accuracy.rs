@@ -3,7 +3,9 @@ use a_sabr::{
     contact_manager::legacy::evl::EVLManager,
     distance::sabr::SABR,
     node_manager::none::NoManagement,
-    pathfinding::{hybrid_parenting::HybridParentingPath, node_parenting::NodeParentingPath, Pathfinding},
+    pathfinding::{
+        hybrid_parenting::HybridParentingPath, node_parenting::NodeParentingPath, Pathfinding,
+    },
     types::NodeID,
     utils::{init_pathfinding, pretty_print},
 };
@@ -32,10 +34,11 @@ fn edge_case_example(cp_path: &str, dest: NodeID) {
         EVLManager,
         ContactParentingPath<NoManagement, EVLManager, SABR>,
     >(&cp_path, None, None);
-    let mut mpt_graph =
-        init_pathfinding::<NoManagement, EVLManager, HybridParentingPath<NoManagement, EVLManager, SABR>>(
-            &cp_path, None, None,
-        );
+    let mut mpt_graph = init_pathfinding::<
+        NoManagement,
+        EVLManager,
+        HybridParentingPath<NoManagement, EVLManager, SABR>,
+    >(&cp_path, None, None);
 
     println!("");
     println!(
