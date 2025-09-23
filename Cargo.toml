@@ -45,7 +45,22 @@ path = "examples/bundle_processing/bundle_processing.rs"
 name = "eto_management"
 path = "examples/eto_management/eto_management.rs"
 
-
 [[example]]
 name = "contact_plans"
 path = "examples/contact_plans/contact_plans.rs"
+
+[[example]]
+name = "0-parsing"
+path = "exercises/0-parsing/main.rs"
+
+[[example]]
+name = "1-pathfinding"
+path = "exercises/1-pathfinding/main.rs"
+
+[[example]]
+name = "2-routing"
+path = "exercises/2-routing/main.rs"
+
+[[example]]
+name = "3-advanced"
+path = "exercises/3-advanced/main.rs"
