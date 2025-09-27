@@ -227,3 +227,4 @@ fn main() {
 ```
 
 The `Result` type works the same way, but must be also templated by an error type and `Ok()` replaces `Some()` and `Err()` will be used instead of `None`.
+

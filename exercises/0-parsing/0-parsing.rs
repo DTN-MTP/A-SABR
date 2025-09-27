@@ -1,26 +1,51 @@
-
-
+use a_sabr::{
+    contact_manager::legacy::{evl::EVLManager, qd::QDManager},
+    contact_plan::{from_ion_file::IONContactPlan, from_tvgutil_file::TVGUtilContactPlan},
+    node_manager::none::NoManagement,
+};
 
 fn main() {
+    // Exo 1: retrieve and display the contacts from the examples/0-parsing/contact_plan.ion file
 
+    // Use the "NoManagement" type for the NM managers.
+    // Use the "EVLManager" for the contacts managers. (EVL as defined in SABR)
 
+    // Display Nodes and Contacts is the {:?} or {:#?} formats
+    // Example: println!("{:#?}", node);
 
-    // Nodes and contacts can be implemented with different management techniques
-    // This is implemented in A-SABR with a "base" holding a "manager" part
-    // For performance, this is translated by templating (BaseClass<TemplateClass>):
-    // - the Node structure is templated by concrete manager that implements the NodeManager "trait" (interface/abtract class)
-    // - the Contact structure is templated by concrete manager that implements the ContactManager "trait" (interface/abtract class)
+    // cargo run --example 0-parsing  # Expected to fail
+    // cargo run --example 0-parsing --features=debug
+    // cargo run --example 0-parsing --features=debug,contact_work_area
+    // cargo run --example 0-parsing --features=debug,contact_suppression,first_depleted
 
-    // The Rust compiler requires the parser to know the exact types of the Nodes and Contacts being parsed (base + manager)
-    // As a consequence, the parsing functions (ION, TVG, A-SABR) are templated by the Manager Types.
+    // Solution:
+    let (nodes, contacts) = match IONContactPlan::parse::<NoManagement, EVLManager>(
+        "exercises/0-parsing/contact_plan.ion",
+    ) {
+        Ok((nodes, contacts)) => (nodes, contacts),
+        Err(err) => {
+            println!("{}", err);
+            return;
+        }
+    };
 
-    // The parsers are "class methods" (no need for an initialization of a struct) of IONContactPlan, TVGUtilContactPlan, ASABRContactPlan
-    // And they return a tuples of this type : (Vec<Node<SomeManager_1>>, Vec<Contact<SomeManger_2>>), with SomeManager_1 and SomeManager_2
-    // being concrete implementation of NodeManager and ContactManager traits, respectively
+    println!("ION CP:\n{:#?}", (&nodes, &contacts));
 
-    // Step 1: retrieve the nodes and contacts for the ION format
+    // Exo 2: retrieve and display the contacts from the examples/0-parsing/contact_plan.tvgutil file
 
-    //let (nodes, contacts) = IONContactPlan::parse::<NoManagement, SegmentationManager>( )
+    // Use the "NoManagement" type for the NM managers.
+    // Use the "QDManager" for the contacts managers. (queue-delay by Carlo Caini)
 
+    // Solution:
+    let (nodes, contacts) = match TVGUtilContactPlan::parse::<NoManagement, QDManager>(
+        "exercises/0-parsing/contact_plan.tvgutil",
+    ) {
+        Ok((nodes, contacts)) => (nodes, contacts),
+        Err(err) => {
+            println!("{}", err);
+            return;
+        }
+    };
 
+    println!("TVG CP:\n{:#?}", (&nodes, &contacts));
 }
