@@ -17,21 +17,21 @@ cat > .vscode/settings.json << EOF
 }
 EOF
 ```
-
-From this point, we should be able to compile and run the exercises. Compiling and running an example can be done with the following command:
+From this point, you should be able to compile and run the exercises. Cargo is the package manager and build system for Rust. It allows you to manage dependencies, build projects, and run separate examples. The exercises are provided as Cargo examples. You can compile and run a specific exercise using the following command:
 
 ```bash
-cargo run --example <example-name>
+cargo run --example <exercise-name>
 ```
 
-Each example consists of a folder that includes a \<example-name\>.rs that can be modified for the exercise. And example can also present a README.md for context, as well as contact plans files.
-
+Each exercise is contained in a folder that includes a <exercise-name>.rs file, which you can modify to complete the exercise. An exercise folder may also include:
+- README.md to provides context or instructions for the exercise.
+- Additional supporting files, such as data or configuration files.
 
 ## Rust Basics
 
 Rust is a low-level language like C that provides high-level concepts like C++, but with guarantees of memory safety. The macro system is much more capable, and the policy is safety by default. For example struct members will be private by default, all variables will be immutable by default, etc.
 
-The library also relies on polymorphic features that allow compile-time and runtime flexibility. This section will go through some important concepts and how they are implemented in Rust.
+The A-SABR library relies on polymorphic features that allow compile-time and runtime flexibility. This section will go through some important concepts and how they are implemented in Rust.
 
 
 
@@ -89,7 +89,7 @@ fn main() {
 
 ### Dynamic dispatch to leverage interfaces
 
-In the following example, we now want to store a list of concrete types implementing `MyTrait`. Templating aligns the templated type in memory, so as long as the types implementing `MyTrait` may have different sizes, only their addresses can be aligned. The Rust Vector (`Vec`) is a C/C++-like dynamic array that aligns the elements in memory and is therefore a templated type. If we want to store addresses to concrete types implementing my trait, the `dyn` keyword will be required.
+In the following example, we now want to store a list of concrete types implementing `MyTrait`. Templating aligns the templated type in memory, so as long as the types implementing `MyTrait` may have different sizes, only their addresses can be aligned. The Rust Vector (`Vec`) is a C/C++-like dynamic array that aligns the elements in memory and is therefore a templated type. If we want to store addresses (with `&` as in C) to concrete types implementing my trait, the `dyn` keyword will be required.
 
 ```rust
 trait MyTrait {}
@@ -159,6 +159,39 @@ fn main () {
 }
 ```
 
+### Dynamic allocation and Traits
+
+If the types are not in the stack but in the heap, the logic for polymorphism will also involve the `dyn` keyword, and the type `&dyn MyTrait` can be replaced by `Box<dyn MyTrait>`:
+
+```rust
+trait MyTrait {}
+
+struct TypeA {
+    member: u32
+}
+
+impl MyTrait for TypeA {}
+
+// The concrete type "T" MUST implement the trait "MyTrait"
+struct TypeB<T: MyTrait> {
+    member1: f64,
+    member2: T,
+}
+
+impl<T: MyTrait> MyTrait for TypeB<T> {}
+
+fn main() {
+    let my_box_1: Box<TypeA> = Box::new(TypeA { member: 34 });
+    let my_box_2:  Box<TypeB<TypeA>> = Box::new(TypeB {
+        member1: 3.14,
+        member2: TypeA { member: 42 },
+    });
+
+    // A list of boxes to structures implementing "MyTrait"
+    let my_list: Vec<Box<dyn MyTrait>> = vec![my_box_1, my_box_2];
+}
+```
+
 ### Options
 
 `Option` is a templated type that allows to translate the fact that a variable can either have `Some` value or `None`. To access the value, we must **unwrap** the option to treat the two cases. To do so there are various ways, here are 3 of them:
@@ -192,3 +225,5 @@ fn main() {
     println!("{}", val);
 }
 ```
+
+The `Result` type works the same way, but must be also templated by an error type and `Ok()` replaces `Some()` and `Err()` will be used instead of `None`.
