@@ -152,7 +152,7 @@ fn main () {
     {
         let mut borrowed = heap_allocated.borrow_mut();
         borrowed.member = 43;
-        // will panic, only one mutable borrow a a time
+        // will panic, only one mutable borrow at a time
         // let mut illegal = heap_allocated.borrow_mut();
     } // borrowed leaves the scope
     let mut legal = heap_allocated.borrow_mut();
