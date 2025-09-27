@@ -51,16 +51,16 @@ path = "examples/contact_plans/contact_plans.rs"
 
 [[example]]
 name = "0-parsing"
-path = "exercises/0-parsing/main.rs"
+path = "exercises/0-parsing/0-parsing.rs"
 
 [[example]]
 name = "1-pathfinding"
-path = "exercises/1-pathfinding/main.rs"
+path = "exercises/1-pathfinding/1-pathfinding.rs"
 
 [[example]]
 name = "2-routing"
-path = "exercises/2-routing/main.rs"
+path = "exercises/2-routing/2-routing.rs"
 
 [[example]]
 name = "3-advanced"
-path = "exercises/3-advanced/main.rs"
+path = "exercises/3-advanced/3-advanced.rs"
