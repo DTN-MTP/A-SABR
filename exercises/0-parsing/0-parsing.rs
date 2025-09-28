@@ -9,14 +9,17 @@ fn main() {
 
     // Use the "NoManagement" type for the NM managers.
     // Use the "EVLManager" for the contacts managers. (EVL as defined in SABR)
+    // You can also try with "QDManager", "ETOManager", or their priority enabled versions "PEVLManager", "PQDManger", etc.
 
-    // Display Nodes and Contacts is the {:?} or {:#?} formats
+    // Display Nodes and Contacts with the {:?} or {:#?} formats
     // Example: println!("{:#?}", node);
 
     // cargo run --example 0-parsing  # Expected to fail
     // cargo run --example 0-parsing --features=debug
     // cargo run --example 0-parsing --features=debug,contact_work_area
     // cargo run --example 0-parsing --features=debug,contact_suppression,first_depleted
+
+    // Those different compilation options should already be reflected in the standard output of the contacts
 
     // Solution:
     let (nodes, contacts) = match IONContactPlan::parse::<NoManagement, EVLManager>(
@@ -30,6 +33,7 @@ fn main() {
     };
 
     println!("ION CP:\n{:#?}", (&nodes, &contacts));
+
 
     // Exo 2: retrieve and display the contacts from the examples/0-parsing/contact_plan.tvgutil file
 
