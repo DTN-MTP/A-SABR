@@ -8,9 +8,9 @@ Rust is a low-level language like C that provides high-level concepts like C++, 
 
 The A-SABR library relies on polymorphic features that allow compile-time and runtime flexibility. This section will go through some important concepts and how they are implemented in Rust.
 
-#### Templates and Static dispatch
+#### Templates
 
-Rust offers templating capabilities, similar to C++. The first use of a templated type will trigger at compile time the creation of the according variant (they are "monomorphized" during compilation). The memory layout is similar to C, no pointer indirection. In the following example, the type `TypeB<TypeA>` (`TypeB` templated by `TypeA`) is aligned in memory, and is part of the call stack (no heap allocation):
+Rust offers templating capabilities, similar to C++. The first use of a templated type will trigger at compile time the creation of the according variant. They are "monomorphized" during compilation, this is a **static dispatch**. The memory layout is similar to C, no pointer indirection. In the following example, the type `TypeB<TypeA>` (`TypeB` templated by `TypeA`) is aligned in memory, and is part of the call stack (no heap allocation):
 
 ```rust
 struct TypeA{
@@ -65,7 +65,7 @@ fn main() {
 
 #### Nodes
 
-The `Node` structure is a templated with some type `NM`, And `NM` must implement the `NodeManger` trait (dealt with later).
+The `Node` structure is templated with some type `NM`. `NM` must implement the `NodeManger` trait (dealt with later).
 
 ```rust
 pub struct ContactInfo {
@@ -83,7 +83,7 @@ pub struct Node<NM: NodeManager> {
 
 #### Contacts
 
-The `Contact` structure is a templated with some type `CM`, And `CM` must implement the `ContactManger` trait (dealt with later).
+The `Contact` structure is templated with some type `CM`. `CM` must implement the `ContactManger` trait (dealt with later).
 
 ```rust
 pub struct NodeInfo {
@@ -146,7 +146,7 @@ fn main() {
 
 The `Result` type works the same way, but must be also templated by an error type. `Ok()` replaces `Some()` and `Err()` will be used instead of `None`.
 
-But with a `Result` you might want to keep the error (to log it for example) and the "let .. else" method won't suffice. Here is a workaround:
+But with a `Result` you might want to keep the error (to log it for example) and the "let .. else" method won't suffice. Here is how to implement a guard:
 
 ```rust
 fn main() {
@@ -157,7 +157,7 @@ fn main() {
         Ok(val) => val,
         Err(err) => {
             println!("{}", err);
-            // ...because this case is unreachable
+            // ...because assigning err to val is unreachable
             return;
         },
     };
