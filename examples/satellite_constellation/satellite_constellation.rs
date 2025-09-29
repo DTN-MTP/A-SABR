@@ -4,7 +4,7 @@ use a_sabr::distance::sabr::SABR;
 use a_sabr::node_manager::none::NoManagement;
 use a_sabr::node_manager::NodeManager;
 use a_sabr::parsing::coerce_nm;
-use a_sabr::parsing::NodeDispatcher;
+use a_sabr::parsing::NodeMarkerMap;
 use a_sabr::parsing::{DispatchParser, Dispatcher, Lexer, Parser, ParsingState};
 use a_sabr::pathfinding::hybrid_parenting::HybridParentingPath;
 use a_sabr::pathfinding::Pathfinding;
@@ -96,7 +96,7 @@ fn main() {
     #[cfg(not(feature = "node_tx"))]
     panic!("Please enable the 'node_tx' feature.");
 
-    let mut node_dispatch: Dispatcher<NodeDispatcher> = Dispatcher::<NodeDispatcher>::new();
+    let mut node_dispatch: NodeMarkerMap = NodeMarkerMap::new();
     node_dispatch.add("noret", coerce_nm::<NoRetention>);
     node_dispatch.add("none", coerce_nm::<NoManagement>);
 

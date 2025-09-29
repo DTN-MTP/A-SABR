@@ -9,7 +9,7 @@ fn main() {
     let cp_ion = "exercises/0-parsing/contact_plan.ion";
     // Use the "NoManagement" type for the node managers.
     // Use the "EVLManager" for the contacts managers. (EVL as defined in SABR)
-    // You can also try with "SegmentationManager", "QDManager", "ETOManager",
+    // You can also try with "QDManager" and "ETOManager",
     // or their priority enabled versions "PEVLManager", "PQDManger", etc.
 
     // Display Nodes and Contacts with the {:?} (standard) or {:#?} (pettry print) formats

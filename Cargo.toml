@@ -62,5 +62,5 @@ name = "2-contact-segmentation"
 path = "exercises/2-contact-segmentation/2-contact-segmentation.rs"
 
 [[example]]
-name = "3-advanced"
-path = "exercises/3-advanced/3-advanced.rs"
+name = "3-asabr-dynamic-parsing"
+path = "exercises/3-asabr-dynamic-parsing/3-asabr-dynamic-parsing.rs"

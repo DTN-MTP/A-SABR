@@ -9,7 +9,7 @@ use a_sabr::{
     },
     contact_plan::{asabr_file_lexer::FileLexer, from_asabr_lexer::ASABRContactPlan},
     node_manager::none::NoManagement,
-    parsing::{coerce_cm, ContactDispatcher, Dispatcher},
+    parsing::{coerce_cm, ContactMarkerMap},
     route_storage::cache::TreeCache,
     routing::{aliases::SpsnHybridParenting, Router},
     utils::pretty_print,
@@ -29,8 +29,7 @@ fn main() {
     // All nodes will have the same management approach (NoManagement) but the contacts may be of various types
     // We provide a map with markers that will allow the parser to create the correct contacts types thanks to
     // the markers provides in the contact plan
-    let mut contact_dispatch: Dispatcher<ContactDispatcher> =
-        Dispatcher::<ContactDispatcher>::new();
+    let mut contact_dispatch: ContactMarkerMap = ContactMarkerMap::new();
     contact_dispatch.add("evl", coerce_cm::<EVLManager>);
     contact_dispatch.add("qd", coerce_cm::<QDManager>);
     contact_dispatch.add("evl", coerce_cm::<ETOManager>);
