@@ -1,0 +1,42 @@
+# ION Format:
+# a contact <start> <end> <from> <to> <rate>
+# a range <start> <end> <from> <to> <delay>
+
+
+# a contact +90 +140 1 2 10000
+# a contact +140 +160 1 2 15000
+# a contact +0 +80000 1 2 10000
+# a range +0 +40000 1 2 1
+# a range +40000 +80000 1 2 3
+
+
+# A-SABR format: nodes id must start with 0
+node 0 node1
+node 1 node2
+
+# Expected contact format : contact <from> <to> <start> <end> followed by a sequence of:
+# delay <start> <end> <delay> (at least one)
+# rate <start> <end> <delay> (at least one)
+
+# Exo 5: convert the ION cp above to A-SABR for contact segmentation
+
+# Solution
+
+# a contact +90 +140 1 2 10000
+# a contact +140 +160 1 2 15000
+# a range +0 +40000 1 2 1
+contact 0 1 90 160
+    rate 90 140 10000
+    rate 140 160 15000
+    delay 90 160 1
+
+# a contact +0 +80000 1 2 10000
+# a range +0 +40000 1 2 1
+# a range +40000 +80000 1 2 3
+contact 0 1 0 80000
+    rate 0 80000 10000
+    delay 0 40000 1
+    delay 40000 80000 3
+
+
+# Exo 6: Try to change the duration of a contact without adapting its segments

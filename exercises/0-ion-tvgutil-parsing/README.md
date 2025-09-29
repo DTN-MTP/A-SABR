@@ -112,6 +112,8 @@ The NM, and CM templates will define the **manager** types of the parsed contact
 
 They both return a `Result` that can be **unwrapped** to the contact plan tuple.
 
+*Note: More attention was accorded to the A-SABR format (more on that later). Some limitations with the ION and TVGUtil formats might be lifted in the future, e.g., the current ION parser only supports one range per contact.*
+
 ### Options and Results
 
 `Option` is a templated type that allows to translate the fact that a variable can either have `Some(<value>)` or `None`. To access the value, we must **unwrap** the option to treat the two cases. To do so there are various ways, here are 3 of them:

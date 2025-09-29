@@ -58,8 +58,8 @@ name = "1-asabr-static-parsing"
 path = "exercises/1-asabr-static-parsing/1-asabr-static-parsing.rs"
 
 [[example]]
-name = "2-routing"
-path = "exercises/2-routing/2-routing.rs"
+name = "2-contact-segmentation"
+path = "exercises/2-contact-segmentation/2-contact-segmentation.rs"
 
 [[example]]
 name = "3-advanced"
