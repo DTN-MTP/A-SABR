@@ -108,6 +108,8 @@ A contact plan is tuple of type ```(Vec<Node<NM>>, Vec<Contact<CM>>)``` created 
     TVGUtilContactPlan::parse::<NM, CM>(filename: &str)
 ```
 
+The NM, and CM templates will define the **manager** types of the parsed contacts (more on that later).
+
 They both return a `Result` that can be **unwrapped** to the contact plan tuple.
 
 ### Options and Results
