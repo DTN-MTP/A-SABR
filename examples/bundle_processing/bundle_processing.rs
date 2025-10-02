@@ -12,6 +12,8 @@ use a_sabr::types::Date;
 use a_sabr::types::Priority;
 use a_sabr::types::Token;
 use a_sabr::utils::{init_pathfinding, pretty_print};
+
+#[cfg_attr(feature = "debug", derive(Debug))]
 struct Compressing {
     max_priority: Priority,
 }
