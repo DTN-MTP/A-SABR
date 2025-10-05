@@ -21,7 +21,7 @@ struct NoRetention {
 impl NodeManager for NoRetention {
     #[cfg(feature = "node_tx")]
     fn dry_run_tx(&self, waiting_since: Date, start: Date, _end: Date, _bundle: &Bundle) -> bool {
-       return start - waiting_since < self.max_proc_time;
+        return start - waiting_since < self.max_proc_time;
     }
 
     #[cfg(feature = "node_tx")]
@@ -32,7 +32,7 @@ impl NodeManager for NoRetention {
         _end: Date,
         _bundle: &Bundle,
     ) -> bool {
-       return start - waiting_since < self.max_proc_time;
+        return start - waiting_since < self.max_proc_time;
     }
 
     // This manager only needs the node_tx feature

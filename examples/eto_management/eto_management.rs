@@ -2,6 +2,7 @@ use a_sabr::bundle::Bundle;
 use a_sabr::contact_manager::legacy::eto::ETOManager;
 use a_sabr::contact_manager::legacy::evl::EVLManager;
 use a_sabr::contact_manager::legacy::qd::QDManager;
+use a_sabr::contact_manager::seg::SegmentationManager;
 use a_sabr::contact_manager::ContactManager;
 use a_sabr::contact_plan::asabr_file_lexer::FileLexer;
 use a_sabr::contact_plan::from_asabr_lexer::ASABRContactPlan;
