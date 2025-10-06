@@ -7,6 +7,7 @@ readme = "README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+derivative = "2.2.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
@@ -65,9 +66,11 @@ path = "exercises/2-contact-segmentation/2-contact-segmentation.rs"
 name = "3-asabr-dynamic-parsing"
 path = "exercises/3-asabr-dynamic-parsing/3-asabr-dynamic-parsing.rs"
 
-
 [[example]]
 name = "4-new-resource-management"
 path = "exercises/4-new-resource-management/4-new-resource-management.rs"
 
+[[example]]
+name = "5-routing"
+path = "exercises/5-routing/5-routing.rs"
 

@@ -38,7 +38,8 @@ impl<NM: NodeManager, CM: ContactManager> Clone for ViaHop<NM, CM> {
 ///  # Type Parameters
 /// - `CM`: A type implementing the `ContactManager` trait, responsible for managing the
 ///   contact's operations.
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[cfg_attr(feature = "debug", derive(derivative::Derivative))]
+#[cfg_attr(feature = "debug", derivative(Debug))]
 pub struct RouteStage<NM: NodeManager, CM: ContactManager> {
     /// The ID of the destination node for this route stage.
     pub to_node: NodeID,
@@ -57,6 +58,7 @@ pub struct RouteStage<NM: NodeManager, CM: ContactManager> {
     /// A flag indicating whether the route has been fully initialized and is ready for routing.
     pub route_initialized: bool,
     /// A hashmap that maps destination node IDs to their respective next route stages.
+    #[derivative(Debug="ignore")] // avoid cyclic print with debug formatting
     pub next_for_destination: HashMap<NodeID, Rc<RefCell<RouteStage<NM, CM>>>>,
 
     #[cfg(feature = "node_proc")]
