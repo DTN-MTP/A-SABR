@@ -2,12 +2,12 @@
 
 ## Motivation
 
-**Contact segmentation** is volume management technique that provides for a single contact:
+**Contact segmentation** is a volume management technique that provides for a single contact:
 - Time segmentation of the delay intervals
 - Time segmentation of the rate intervals
 - Time segmentation of the available bandwidth intervals
 
-In other formats, this would such a **physical contact** would be converted in several **logical contacts**. With ION, this would be translated to several contacts, one for each data rate interval and several range messages to translate the variation of link delay.
+In other formats, such a **physical contact** would be converted in several **logical contacts**. With ION, this would be translated to several contacts, one for each data rate interval and several range messages to translate the variation of link delay.
 
 Contact segmentation allows maintaining a **single logical** contact for each **physical contact**. At first glance, this may look like nothing more than a software design convenience, but in fact it was motivated by real operational challenges:
 - **Large bundles and fragmentation**: Bundles that could be transmitted without fragmentation on a physical contact might overlap two or more logical contacts. Without segmentation, such bundles risk either being fragmented unnecessarily or scheduled on an alternate route.
@@ -24,8 +24,8 @@ The ION and TVGUtil format can be parsed templated by the SegmentationManager.
 
 The translation is however very naive and the fact that several **logical contacts** are in fact a single **physical contact** won't be detected, and one `Contact<SegmentationManager>` per **logical contact** will be created. We still can leverage the segmentation of available bandwidth intervals.
 
-## A-SABR format
 
+## A-SABR format
 
 The SegmentationManager parser expects a serie of delay/rate intervals or the form `delay <start> <end> <delay>` and `rate <start> <end> <rate>`.
 

@@ -7,7 +7,7 @@ use a_sabr::{
 fn main() {
     // Exo 5:
     // Here is the code to parse an A-SABR cp for contact segmentation
-    // The cp is however incomplete, go to check it out
+    // The cp is however incomplete, go check it out
 
     let cp_1 = "exercises/2-contact-segmentation/contact_plan.asabr";
 
