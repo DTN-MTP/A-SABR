@@ -65,7 +65,7 @@ fn main() {
 
 #### Nodes
 
-The `Node` structure is templated with some type `NM`. `NM` must implement the `NodeManger` trait (dealt with later).
+The `Node` structure is templated with some type `NM`. `NM` must implement the `NodeManager` trait (dealt with later).
 
 ```rust
 pub struct ContactInfo {
@@ -83,7 +83,7 @@ pub struct Node<NM: NodeManager> {
 
 #### Contacts
 
-The `Contact` structure is templated with some type `CM`. `CM` must implement the `ContactManger` trait (dealt with later).
+The `Contact` structure is templated with some type `CM`. `CM` must implement the `ContactManager` trait (dealt with later).
 
 ```rust
 pub struct NodeInfo {
@@ -101,7 +101,7 @@ pub struct Contact<CM: ContactManager> {
 
 ## Contact plans
 
-A contact plan is tuple of type ```(Vec<Node<NM>>, Vec<Contact<CM>>)``` created with to a source (most likely a file). For the external supported formats, the prototypes look like that:
+A contact plan is a tuple of type ```(Vec<Node<NM>>, Vec<Contact<CM>>)``` created from a source (most likely a file). For the externally supported formats, the prototypes look like that:
 
 ```rust
     IONContactPlan::parse::<NM, CM>(filename: &str)
@@ -112,7 +112,7 @@ The NM, and CM templates will define the **manager** types of the parsed contact
 
 They both return a `Result` that can be **unwrapped** to the contact plan tuple.
 
-*Note: More attention was accorded to the A-SABR format (more on that later). Some limitations with the ION and TVGUtil formats might be lifted in the future, e.g., the current ION parser only supports one range per contact.*
+*Note: More attention was paid to the A-SABR format (more on that later). Some limitations with the ION and TVGUtil formats might be lifted in the future, e.g. the current ION parser only supports one range per contact.*
 
 ### Options and Results
 

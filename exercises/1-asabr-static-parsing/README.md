@@ -2,13 +2,13 @@
 
 ## Motivation
 
-A-SABR is designed to be extensible, and one main aspect is the ability to define new resource management for nodes and contacts. Some new resource management may require additionnal information from contact planning, that must be embedded in the contact plans.
+A-SABR is designed to be extensible, and one main aspect is the ability to define new resource management for nodes and contacts. Some new resource management may require additional information from contact planning that must be embedded in the contact plans.
 
 This requires contact plan format extensions with a registration system that does not require the library source to be modified. The following excercise will go through the base principles.
 
 ## Components of a node or a contact (*elements*)
 
-**From the previous exercise:** We know from the Node and Contact source code, that any *element* is composed of a **base** being a  `ContactInfo` or a `NodeInfo`, and a templated **manager** part being of type `CM` (implementing the `ContactManager` or `NodeManager` trait):
+**From the previous exercise:** We know from the Node and Contact source code, that any *element* is composed of a **base** being a `ContactInfo` or a `NodeInfo`, and a templated **manager** part being of type `CM` (implementing the `ContactManager` or `NodeManager` trait):
 
 ```rust
 
@@ -40,7 +40,7 @@ pub struct Contact<CM: ContactManager> {
 
 ## Parsing logic for the static case
 
-An element entry in the the A-SABR format is  of the form:
+An element entry in the the A-SABR format is of the form:
 ```
 ["contact"|"node"][base members][manager members]
 ```

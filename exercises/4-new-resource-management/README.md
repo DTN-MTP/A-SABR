@@ -10,7 +10,7 @@ As operators, mission-specific characteristics may justify the introduction of a
 
 ## New management techniques in A-SABR
 
-As seen in the previous exercises, a compliant contact or node resource management technique is deployed as a structure that implements the `ContactManager` of `NodeManager` trait. In this example we will create a new manager that *could* render A-SABR compliant for routing in satellite constellation.
+As seen in the previous exercises, a compliant contact or node resource management technique is deployed as a structure that implements the `ContactManager` or `NodeManager` trait. In this example we will create a new manager that *could* render A-SABR compliant for routing in satellite constellation.
 
 #### The manager
 
