@@ -225,14 +225,6 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
             max_entries
         );
 
-        register_cgr_router!(
-            VolCgrNodeParenting,
-            "VolCgrNodeParenting",
-            router_type,
-            nodes,
-            contacts
-        );
-
         #[cfg(feature = "contact_work_area")]
         register_spsn_router!(
             SpsnContactParenting,
@@ -257,6 +249,14 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
             max_entries
         );
     }
+
+    register_cgr_router!(
+        VolCgrNodeParenting,
+        "VolCgrNodeParenting",
+        router_type,
+        nodes,
+        contacts
+    );
 
     register_cgr_router!(
         VolCgrHybridParenting,
