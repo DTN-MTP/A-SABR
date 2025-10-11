@@ -58,7 +58,8 @@ pub struct RouteStage<NM: NodeManager, CM: ContactManager> {
     /// A flag indicating whether the route has been fully initialized and is ready for routing.
     pub route_initialized: bool,
     /// A hashmap that maps destination node IDs to their respective next route stages.
-    #[derivative(Debug = "ignore")] // avoid cyclic print with debug formatting
+    #[cfg_attr(feature = "debug", derivative(Debug = "ignore"))]
+    // avoid cyclic print with debug formatting
     pub next_for_destination: HashMap<NodeID, Rc<RefCell<RouteStage<NM, CM>>>>,
 
     #[cfg(feature = "node_proc")]
