@@ -4,18 +4,24 @@ use a_sabr::distance::sabr::SABR;
 use a_sabr::node_manager::none::NoManagement;
 use a_sabr::node_manager::NodeManager;
 use a_sabr::parsing::coerce_nm;
-use a_sabr::parsing::NodeDispatcher;
+use a_sabr::parsing::NodeMarkerMap;
 use a_sabr::parsing::{DispatchParser, Dispatcher, Lexer, Parser, ParsingState};
 use a_sabr::pathfinding::hybrid_parenting::HybridParentingPath;
 use a_sabr::pathfinding::Pathfinding;
 use a_sabr::types::Date;
+use a_sabr::types::Duration;
+use a_sabr::types::Token;
 use a_sabr::utils::{init_pathfinding, pretty_print};
-struct NoRetention {}
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct NoRetention {
+    max_proc_time: Duration,
+}
 
 impl NodeManager for NoRetention {
     #[cfg(feature = "node_tx")]
     fn dry_run_tx(&self, waiting_since: Date, start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        return waiting_since == start;
+        return start - waiting_since < self.max_proc_time;
     }
 
     #[cfg(feature = "node_tx")]
@@ -26,10 +32,11 @@ impl NodeManager for NoRetention {
         _end: Date,
         _bundle: &Bundle,
     ) -> bool {
-        return waiting_since == start;
+        return start - waiting_since < self.max_proc_time;
     }
 
-    // The following 4 implementations are provided just to make the rust_analyzer happy
+    // This manager only needs the node_tx feature
+    // Those guards allow compilation even with the --all-features option
     #[cfg(feature = "node_proc")]
     fn dry_run_process(&self, _at_time: Date, _bundle: &mut Bundle) -> Date {
         panic!("Please disable the 'node_proc' and 'node_rx' features.");
@@ -53,10 +60,25 @@ impl NodeManager for NoRetention {
 /// Implements the DispatchParser to allow dynamic parsing.
 impl DispatchParser<NoRetention> for NoRetention {}
 
-/// The parser doesn't need to read tokens.
 impl Parser<NoRetention> for NoRetention {
-    fn parse(_lexer: &mut dyn Lexer) -> ParsingState<NoRetention> {
-        ParsingState::Finished(NoRetention {})
+    fn parse(lexer: &mut dyn Lexer) -> ParsingState<NoRetention> {
+        // read the next token as a Duration (alias for f64)
+        let max = <Duration as Token<Duration>>::parse(lexer);
+        // treat success/error cases
+        match max {
+            ParsingState::Finished(value) => {
+                return ParsingState::Finished(NoRetention {
+                    max_proc_time: value,
+                })
+            }
+            ParsingState::Error(msg) => return ParsingState::Error(msg),
+            ParsingState::EOF => {
+                return ParsingState::Error(format!(
+                    "Parsing failed ({})",
+                    lexer.get_current_position()
+                ))
+            }
+        }
     }
 }
 
@@ -96,7 +118,7 @@ fn main() {
     #[cfg(not(feature = "node_tx"))]
     panic!("Please enable the 'node_tx' feature.");
 
-    let mut node_dispatch: Dispatcher<NodeDispatcher> = Dispatcher::<NodeDispatcher>::new();
+    let mut node_dispatch: NodeMarkerMap = NodeMarkerMap::new();
     node_dispatch.add("noret", coerce_nm::<NoRetention>);
     node_dispatch.add("none", coerce_nm::<NoManagement>);
 

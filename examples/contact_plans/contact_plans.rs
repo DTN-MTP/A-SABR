@@ -13,7 +13,7 @@ use a_sabr::{
         from_ion_file::IONContactPlan, from_tvgutil_file::TVGUtilContactPlan,
     },
     node_manager::none::NoManagement,
-    parsing::{coerce_cm, ContactDispatcher, Dispatcher},
+    parsing::{coerce_cm, ContactMarkerMap},
 };
 
 fn main() {
@@ -92,8 +92,7 @@ fn main() {
     // All nodes will have the same management approach (NoManagement) but the contacts may be of various types
     // We provide a map with markers that will allow the parser to create the correct contacts types thanks to
     // the markers provides in the contact plan
-    let mut contact_dispatch: Dispatcher<ContactDispatcher> =
-        Dispatcher::<ContactDispatcher>::new();
+    let mut contact_dispatch: ContactMarkerMap = ContactMarkerMap::new();
     contact_dispatch.add("eto", coerce_cm::<ETOManager>);
     contact_dispatch.add("qd", coerce_cm::<QDManager>);
     contact_dispatch.add("evl", coerce_cm::<EVLManager>);

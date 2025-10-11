@@ -1,0 +1,16 @@
+# Node entry with no management: node <id> <name>
+node 0 node1
+node 1 node2
+node 2 node3
+node 3 node4
+node 4 node5
+node 5 node6
+
+# contact [base][manager]
+# contact [<from> <to> <start> <end> ][<rate> <delay>]
+# contact 0 1 100 200 10 10
+# contact 1 2 100 200 10 15
+# contact 2 3 100 200 10 20
+# contact 3 4 100 200 10 25
+# contact 4 5 100 200 10 30
+

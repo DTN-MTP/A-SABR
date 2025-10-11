@@ -19,7 +19,7 @@ The `NodeManager` trait provides node resource management capabilities for trans
 
 These two methods take two `Date` parameters: `waiting_since` and `start`. The former represents the arrival time at the node (including any additional delay if the `node_proc` feature is enabled), while the latter represents the transmission start time to the next node.
 
-Retention is effectively disabled when `dry_run_tx == schedule_tx` for those two methods on our `NoRetention` manager.
+Retention is effectively disabled if the delay between the arrival time at the node and the transmission on the next contact does not exceed 200ms.
 
 ### Scenario
 

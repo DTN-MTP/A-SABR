@@ -1,6 +1,6 @@
 
 node 0 source none
-node 1 intermediary noret
+node 1 intermediary noret 0.2
 node 2 destination none
 
 # C0

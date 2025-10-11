@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use crate::{contact_manager::ContactManager, node_manager::NodeManager};
 
+pub type ContactMarkerMap<'a> = Dispatcher<'a, ContactDispatcher>;
+pub type NodeMarkerMap<'a> = Dispatcher<'a, NodeDispatcher>;
 pub type ContactDispatcher = fn(&mut dyn Lexer) -> ParsingState<Box<dyn ContactManager>>;
 pub type NodeDispatcher = fn(&mut dyn Lexer) -> ParsingState<Box<dyn NodeManager>>;
 
