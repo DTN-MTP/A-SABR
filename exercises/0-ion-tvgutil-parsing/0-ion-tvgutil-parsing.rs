@@ -5,10 +5,10 @@
 // };
 
 fn main() {
-    // Exo 1: retrieve and display the contacts from the examples/0-parsing/contact_plan.ion file
+    // Exo 1: retrieve and display the contacts from the examples/0-ion-tvgutil-parsing/contact_plan.ion file
 
     // Use that
-    // let cp_ion = "exercises/0-parsing/contact_plan.ion";
+    // let cp_ion = "exercises/0-ion-tvgutil-parsing/contact_plan.ion";
 
     // Use the "NoManagement" type for the node managers.
     // Use the "EVLManager" for the contacts managers. (EVL as defined in SABR)
