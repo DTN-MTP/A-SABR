@@ -1,5 +1,8 @@
 # STINT Hackathon
 
+**Exercises and hackathon**: You will learn A-SABR and Rust through guided exercises with solutions.
+[A hackathon follows](./hackathon.md) (at your own pace), where you will participate in the integration of A-SABR with μD3TN (using Python) and Hardy (using Rust).
+
 ## Getting started
 
 Rust is a demanding (but rewarding) language, we encourage the use of an IDE with syntax analysis, for example with VScode and the **rust-analyzer** extension. And you can install Rust from [rust-lang.org](https://rust-lang.org/tools/install/).
