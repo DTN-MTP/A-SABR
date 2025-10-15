@@ -72,7 +72,7 @@ macro_rules! define_node_graph {
                 current_time: Date,
                 source: NodeID,
                 bundle: &Bundle,
-                excluded_nodes_sorted: &Vec<NodeID>,
+                excluded_nodes_sorted: &[NodeID],
             ) -> PathFindingOutput<NM, CM> {
                 let mut graph = self.graph.borrow_mut();
 

@@ -20,7 +20,7 @@ use crate::{
 ///
 /// # Type Parameters
 /// - `CM`: A type that implements the `ContactManager` trait, representing the contact management
-///         system used to manage and compare routes.
+///   system used to manage and compare routes.
 pub trait HybridParentingOrd<NM, CM>
 where
     NM: NodeManager,
@@ -90,10 +90,10 @@ impl<NM: NodeManager, CM: ContactManager> HybridParentingWorkArea<NM, CM> {
     pub fn new(
         bundle: &Bundle,
         source: Rc<RefCell<RouteStage<NM, CM>>>,
-        excluded_nodes_sorted: &Vec<NodeID>,
+        excluded_nodes_sorted: &[NodeID],
         node_count: usize,
     ) -> Self {
-        let exclusions = excluded_nodes_sorted.clone();
+        let exclusions = excluded_nodes_sorted.to_owned();
         Self {
             bundle: bundle.clone(),
             source,
@@ -122,12 +122,12 @@ impl<NM: NodeManager, CM: ContactManager> HybridParentingWorkArea<NM, CM> {
             }
         }
 
-        return PathFindingOutput {
+        PathFindingOutput {
             bundle: self.bundle,
             source: self.source,
             excluded_nodes_sorted: self.excluded_nodes_sorted.clone(),
             by_destination: options,
-        };
+        }
     }
 }
 
@@ -196,15 +196,15 @@ fn try_insert<
         // detect the first prune event but do nothing
         while truncate_index < routes_for_rx_node.len() {
             let route = &routes_for_rx_node[truncate_index].borrow();
-            if D::must_prune(&proposition, &route) {
+            if D::must_prune(&proposition, route) {
                 break;
             }
             truncate_index += 1
         }
 
         // Now disable the routes(for the shared ref in the priority queue)
-        for idx in (truncate_index)..routes_for_rx_node.len() {
-            routes_for_rx_node[idx].borrow_mut().is_disabled = true;
+        for route in routes_for_rx_node.iter().skip(truncate_index) {
+            route.borrow_mut().is_disabled = true;
         }
 
         // Now truncate
@@ -284,7 +284,7 @@ macro_rules! define_mpt {
                 current_time: Date,
                 source: NodeID,
                 bundle: &Bundle,
-                excluded_nodes_sorted: &Vec<NodeID>,
+                excluded_nodes_sorted: &[NodeID],
             ) -> PathFindingOutput<NM, CM> {
                 let mut graph = self.graph.borrow_mut();
                 if $with_exclusions {
