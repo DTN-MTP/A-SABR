@@ -3,9 +3,9 @@
 ## Motivation
 
 **Contact segmentation** is a volume management technique that provides for a single contact:
-- Time segmentation of the delay intervals
-- Time segmentation of the rate intervals
-- Time segmentation of the available bandwidth intervals
+- Time segmentation of the delay intervals (static, part of the contact plan)
+- Time segmentation of the rate intervals (static, part of the contact plan)
+- Time segmentation of the available bandwidth intervals (dynamic, not part of the contact plan, updated at runtime)
 
 In other formats, such a **physical contact** would be converted in several **logical contacts**. With ION, this would be translated to several contacts, one for each data rate interval and several range messages to translate the variation of link delay.
 
