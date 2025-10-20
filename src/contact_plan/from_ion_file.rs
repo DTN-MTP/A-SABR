@@ -33,19 +33,14 @@ pub struct IONContactData {
 // Implement `Ord` and `PartialOrd` for sorting
 impl Ord for IONContactData {
     fn cmp(&self, other: &Self) -> Ordering {
-        if self.tx_start > other.tx_start {
-            return Ordering::Greater;
-        }
-        if self.tx_start < other.tx_start {
-            return Ordering::Less;
-        }
-        return Ordering::Equal;
+        self.partial_cmp(other).expect("NaN in date?!")
     }
 }
 
+#[allow(clippy::non_canonical_partial_ord_impl)]
 impl PartialOrd for IONContactData {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
+        self.tx_start.partial_cmp(&other.tx_start)
     }
 }
 
@@ -66,7 +61,7 @@ struct IONRangeData {
 }
 
 fn contact_info_from_tvg_data(data: &IONContactData) -> ContactInfo {
-    return ContactInfo::new(data.tx_node, data.rx_node, data.tx_start, data.tx_end);
+    ContactInfo::new(data.tx_node, data.rx_node, data.tx_start, data.tx_end)
 }
 
 pub trait FromIONContactData<NM: NodeManager, CM: ContactManager> {
@@ -94,7 +89,7 @@ generate_for_evl_variants!(NoManagement, PQDManager);
 
 impl FromIONContactData<NoManagement, SegmentationManager> for SegmentationManager {
     fn ion_convert(data: &IONContactData) -> Option<Contact<NoManagement, SegmentationManager>> {
-        let contact_info = contact_info_from_tvg_data(&data);
+        let contact_info = contact_info_from_tvg_data(data);
         let manager = SegmentationManager::new(
             vec![Segment::<DataRate> {
                 start: data.tx_start,
@@ -107,7 +102,7 @@ impl FromIONContactData<NoManagement, SegmentationManager> for SegmentationManag
                 val: data.delay,
             }],
         );
-        return Contact::try_new(contact_info, manager);
+        Contact::try_new(contact_info, manager)
     }
 }
 
@@ -118,8 +113,8 @@ fn manage_aliases(
     candidate_name: &String,
     nodes: &mut Vec<Node<NoManagement>>,
 ) -> NodeID {
-    if let Some(value) = map_id_map.get(candidate_name.as_str()) {
-        return *value;
+    if let Some(value) = map_id_map.get(candidate_name) {
+        *value
     } else {
         let next = map_id_map.len() as NodeID;
         map_id_map.insert(candidate_name.clone(), next);
@@ -134,7 +129,7 @@ fn manage_aliases(
             )
             .unwrap(),
         );
-        return next;
+        next
     }
 }
 
@@ -157,7 +152,7 @@ fn manage_contacts(
     }
 }
 
-fn get_confidence(vec: &Vec<String>) -> f32 {
+fn get_confidence(vec: &[String]) -> f32 {
     if vec.len() >= 8 {
         vec[7].parse::<f32>().unwrap()
     } else {
@@ -240,8 +235,8 @@ impl IONContactPlan {
             continue;
         }
 
-        for (_tx, map) in &mut contact_info_map {
-            for (_rx, contacts) in map {
+        for map in contact_info_map.values_mut() {
+            for contacts in map.values_mut() {
                 contacts.sort_unstable();
             }
         }

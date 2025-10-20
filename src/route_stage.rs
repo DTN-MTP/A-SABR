@@ -79,7 +79,6 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
     /// # Returns
     ///
     /// A new instance of `RouteStage`.
-
     pub fn new(
         at_time: Date,
         to_node: NodeID,
@@ -101,7 +100,7 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
         }
     }
 
-    pub fn clone(&self) -> RouteStage<NM, CM> {
+    pub fn clone_work_area(&self) -> RouteStage<NM, CM> {
         let mut route = Self::new(
             self.at_time,
             self.to_node,
@@ -115,7 +114,7 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
         route.cumulative_delay = self.cumulative_delay;
         route.expiration = self.expiration;
 
-        return route;
+        route
     }
 
     pub fn init_route(route: Rc<RefCell<RouteStage<NM, CM>>>) {
@@ -221,7 +220,7 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
                 return true;
             }
         }
-        return false;
+        false
     }
 
     /// Performs a dry run to simulate the transmission of a `bundle` through a network without actually
@@ -312,7 +311,7 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
                 return true;
             }
         }
-        return false;
+        false
     }
 
     pub fn get_via_contact(&self) -> Option<Rc<RefCell<Contact<NM, CM>>>> {

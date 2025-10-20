@@ -81,10 +81,10 @@ impl<NM: NodeManager, CM: ContactManager> Distance<NM, CM> for SABR {
 impl<NM: NodeManager, CM: ContactManager> HybridParentingOrd<NM, CM> for SABR {
     // For SABR, the secondary metric to consider is the hop count.
     fn can_retain(prop: &RouteStage<NM, CM>, known: &RouteStage<NM, CM>) -> bool {
-        return prop.hop_count < known.hop_count;
+        prop.hop_count < known.hop_count
     }
     // Ignore expiration constraints to prioritize performance.
     fn must_prune(prop: &RouteStage<NM, CM>, known: &RouteStage<NM, CM>) -> bool {
-        return prop.at_time <= known.at_time && prop.hop_count <= known.hop_count;
+        prop.at_time <= known.at_time && prop.hop_count <= known.hop_count
     }
 }

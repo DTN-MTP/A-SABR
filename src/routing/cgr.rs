@@ -35,7 +35,7 @@ impl<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: RouteStorag
         source: NodeID,
         bundle: &Bundle,
         curr_time: Date,
-        excluded_nodes: &Vec<NodeID>,
+        excluded_nodes: &[NodeID],
     ) -> Option<RoutingOutput<NM, CM>> {
         if bundle.expiration < curr_time {
             return None;
@@ -71,7 +71,7 @@ impl<S: RouteStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfindin
         source: NodeID,
         bundle: &Bundle,
         curr_time: Date,
-        excluded_nodes: &Vec<NodeID>,
+        excluded_nodes: &[NodeID],
     ) -> Option<RoutingOutput<NM, CM>> {
         let dest = bundle.destinations[0];
 
@@ -105,10 +105,10 @@ impl<S: RouteStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfindin
                 RouteStage::init_route(route.destination_stage.clone());
                 self.route_storage
                     .borrow_mut()
-                    .store(&bundle, route.clone());
+                    .store(bundle, route.clone());
                 let dry_run =
                     dry_run_unicast_path(bundle, curr_time, route.source_stage.clone(), true);
-                if let Some(_) = dry_run {
+                if dry_run.is_some() {
                     return Some(schedule_unicast_path(
                         bundle,
                         curr_time,

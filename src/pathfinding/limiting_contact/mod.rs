@@ -157,7 +157,7 @@ macro_rules! create_new_alternative_path_variant {
                 current_time: crate::types::Date,
                 source: crate::types::NodeID,
                 bundle: &crate::bundle::Bundle,
-                excluded_nodes_sorted: &Vec<crate::types::NodeID>,
+                excluded_nodes_sorted: &[crate::types::NodeID],
             ) -> crate::pathfinding::PathFindingOutput<NM, CM> {
 
                 self.suppression_map[bundle.destinations[0] as usize].retain(|contact| {

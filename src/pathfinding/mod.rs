@@ -53,10 +53,10 @@ impl<NM: NodeManager, CM: ContactManager> PathFindingOutput<NM, CM> {
     pub fn new(
         bundle: &Bundle,
         source: Rc<RefCell<RouteStage<NM, CM>>>,
-        excluded_nodes_sorted: &Vec<NodeID>,
+        excluded_nodes_sorted: &[NodeID],
         node_count: usize,
     ) -> Self {
-        let exclusions = excluded_nodes_sorted.clone();
+        let exclusions = excluded_nodes_sorted.to_vec();
         Self {
             bundle: bundle.clone(),
             source,
@@ -66,7 +66,7 @@ impl<NM: NodeManager, CM: ContactManager> PathFindingOutput<NM, CM> {
     }
 
     pub fn get_source_route(&self) -> Rc<RefCell<RouteStage<NM, CM>>> {
-        return self.source.clone();
+        self.source.clone()
     }
 
     /// Initializes the route for a given destination in the routing stage.
@@ -120,7 +120,7 @@ pub trait Pathfinding<NM: NodeManager, CM: ContactManager> {
         current_time: Date,
         source: NodeID,
         bundle: &Bundle,
-        excluded_nodes_sorted: &Vec<NodeID>,
+        excluded_nodes_sorted: &[NodeID],
     ) -> PathFindingOutput<NM, CM>;
 
     /// Get a shared pointer to the multigraph.
@@ -150,7 +150,7 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
     first_contact_index: usize,
     sndr_route: &Rc<RefCell<RouteStage<NM, CM>>>,
     _bundle: &Bundle,
-    contacts: &Vec<Rc<RefCell<Contact<NM, CM>>>>,
+    contacts: &[Rc<RefCell<Contact<NM, CM>>>],
     tx_node: &Rc<RefCell<Node<NM>>>,
     rx_node: &Rc<RefCell<Node<NM>>>,
 ) -> Option<RouteStage<NM, CM>> {

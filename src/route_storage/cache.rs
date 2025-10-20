@@ -73,7 +73,7 @@ impl<NM: NodeManager, CM: ContactManager> TreeStorage<NM, CM> for TreeCache<NM, 
         &self,
         bundle: &Bundle,
         curr_time: Date,
-        excluded_nodes_sorted: &Vec<NodeID>,
+        excluded_nodes_sorted: &[NodeID],
     ) -> (
         Option<Rc<RefCell<PathFindingOutput<NM, CM>>>>,
         Option<Vec<NodeID>>,
@@ -87,7 +87,7 @@ impl<NM: NodeManager, CM: ContactManager> TreeStorage<NM, CM> for TreeCache<NM, 
             {
                 continue;
             }
-            if &tree.borrow().excluded_nodes_sorted != excluded_nodes_sorted {
+            if tree.borrow().excluded_nodes_sorted != excluded_nodes_sorted {
                 continue;
             }
             match multicast {
