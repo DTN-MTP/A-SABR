@@ -36,7 +36,7 @@ pub trait TreeStorage<NM: NodeManager, CM: ContactManager> {
         &self,
         bundle: &Bundle,
         curr_time: Date,
-        excluded_nodes_sorted: &Vec<NodeID>,
+        excluded_nodes_sorted: &[NodeID],
     ) -> (
         Option<Rc<RefCell<PathFindingOutput<NM, CM>>>>,
         Option<Vec<NodeID>>,
@@ -60,16 +60,12 @@ impl<NM: NodeManager, CM: ContactManager> Route<NM, CM> {
     pub fn from_tree(tree: Rc<RefCell<PathFindingOutput<NM, CM>>>, dest: NodeID) -> Option<Self> {
         let tree_ref = tree.borrow();
         let source_stage = tree_ref.get_source_route();
-        if tree_ref.by_destination[dest as usize].is_none() {
-            return None;
-        }
-        if let Some(destination_stage) = tree_ref.by_destination[dest as usize].clone() {
-            return Some(Route {
-                source_stage,
-                destination_stage,
-            });
-        }
-        return None;
+        let destination_stage= tree_ref.by_destination.get(dest as usize).cloned()??;
+        
+        Some(Route {
+            source_stage,
+            destination_stage,
+        })
     }
 }
 
@@ -106,7 +102,7 @@ pub trait RouteStorage<NM: NodeManager, CM: ContactManager> {
         bundle: &Bundle,
         curr_time: Date,
         multigraph: Rc<RefCell<Multigraph<NM, CM>>>,
-        excluded_nodes_sorted: &Vec<NodeID>,
+        excluded_nodes_sorted: &[NodeID],
     ) -> Option<Route<NM, CM>>;
 
     fn store(&mut self, bundle: &Bundle, route: Route<NM, CM>);

@@ -166,7 +166,7 @@ macro_rules! generate_struct_management {
                     rate,
                     delay,
                     queue_size: [0.0; $prio_count],
-                    budgets: budgets,
+                    budgets,
                     original_volume: 0.0,
                 }
             }

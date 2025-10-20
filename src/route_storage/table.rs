@@ -92,7 +92,7 @@ impl<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> RouteStorage<NM, 
         bundle: &Bundle,
         curr_time: crate::types::Date,
         multigraph: Rc<RefCell<Multigraph<NM, CM>>>,
-        excluded_nodes_sorted: &Vec<NodeID>,
+        excluded_nodes_sorted: &[NodeID],
     ) -> Option<Route<NM, CM>> {
         let dest = bundle.destinations[0];
 
@@ -134,6 +134,6 @@ impl<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> RouteStorage<NM, 
             }
         });
 
-        return best_route_option;
+        best_route_option
     }
 }
