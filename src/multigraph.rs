@@ -61,7 +61,7 @@ impl<NM: NodeManager, CM: ContactManager> Receiver<NM, CM> {
                 return Some(idx);
             }
         }
-        return None;
+        None
     }
 
     /// Checks if the receiver's node is excluded from routing or pathfinding.
@@ -153,7 +153,7 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
 
             senders[tx_id as usize].receivers.push(Receiver {
                 node: all_refs[rx_id as usize].clone(),
-                contacts_to_receiver: contacts_to_receiver,
+                contacts_to_receiver,
                 next: 0,
             });
         }
@@ -175,8 +175,8 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
     ///
     /// # Parameters
     ///
-    /// * `exclusions: &Vec<NodeID>` - A sorted list of node IDs to exclude.
-    pub fn prepare_for_exclusions_sorted(&mut self, exclusions: &Vec<NodeID>) {
+    /// * `exclusions: &[NodeID]` - A sorted list of node IDs to exclude.
+    pub fn prepare_for_exclusions_sorted(&mut self, exclusions: &[NodeID]) {
         let mut exclusion_idx = 0;
         let exclusion_len = exclusions.len();
 

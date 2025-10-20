@@ -45,7 +45,7 @@ impl<'a, T> Dispatcher<'a, T> {
     /// An `Option` containing a reference to the value of type `T` if it exists, or `None` if
     /// the `marker` is not found.
     pub fn get(&self, marker: &'a str) -> Option<&T> {
-        return self.map.get(marker);
+        self.map.get(marker)
     }
 }
 

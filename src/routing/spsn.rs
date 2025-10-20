@@ -52,7 +52,7 @@ impl<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: TreeStorage
         source: NodeID,
         bundle: &Bundle,
         curr_time: Date,
-        excluded_nodes: &Vec<NodeID>,
+        excluded_nodes: &[NodeID],
     ) -> Option<RoutingOutput<NM, CM>> {
         if bundle.expiration < curr_time {
             return None;
@@ -62,7 +62,7 @@ impl<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: TreeStorage
             return self.route_unicast(source, bundle, curr_time, excluded_nodes);
         }
 
-        return self.route_multicast(source, bundle, curr_time, excluded_nodes);
+        self.route_multicast(source, bundle, curr_time, excluded_nodes)
     }
 }
 
@@ -118,7 +118,7 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
         source: NodeID,
         bundle: &Bundle,
         curr_time: Date,
-        excluded_nodes: &Vec<NodeID>,
+        excluded_nodes: &[NodeID],
     ) -> Option<RoutingOutput<NM, CM>> {
         if self.unicast_guard.must_abort(bundle) {
             return None;
@@ -142,7 +142,7 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
 
         self.route_storage
             .borrow_mut()
-            .store(&bundle, tree_ref.clone());
+            .store(bundle, tree_ref.clone());
 
         match &tree_ref.borrow().by_destination[dest as usize] {
             // The tree is fresh, no dry run was performed, the remained expected fail case is bundle expiration
@@ -159,7 +159,7 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
             }
         }
 
-        return Some(schedule_unicast(bundle, curr_time, tree_ref, true));
+        Some(schedule_unicast(bundle, curr_time, tree_ref, true))
     }
 
     /// Routes a bundle to multiple destination nodes using multicast routing.
@@ -183,7 +183,7 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
         source: NodeID,
         bundle: &Bundle,
         curr_time: Date,
-        excluded_nodes: &Vec<NodeID>,
+        excluded_nodes: &[NodeID],
     ) -> Option<RoutingOutput<NM, CM>> {
         if let (Some(tree), Some(reachable_nodes)) =
             self.route_storage
@@ -204,8 +204,8 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
             .pathfinding
             .get_next(curr_time, source, bundle, excluded_nodes);
         let tree = Rc::new(RefCell::new(new_tree));
-        self.route_storage.borrow_mut().store(&bundle, tree.clone());
+        self.route_storage.borrow_mut().store(bundle, tree.clone());
 
-        return Some(schedule_multicast(bundle, curr_time, tree, None));
+        Some(schedule_multicast(bundle, curr_time, tree, None))
     }
 }
