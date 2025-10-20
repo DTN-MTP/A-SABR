@@ -111,7 +111,7 @@ pub fn dry_run_multicast<NM: NodeManager, CM: ContactManager>(
         let bundle_to_consider = route_borrowed.bundle.clone();
 
         if !is_source {
-            if !route_borrowed.dry_run(time, bundle_to_consider, false) {
+            if !route_borrowed.dry_run(time, &bundle_to_consider, false) {
                 continue;
             }
             time = route_borrowed.at_time;
@@ -172,7 +172,7 @@ fn update_multicast<NM: NodeManager, CM: ContactManager>(
         let bundle_to_consider = route_borrowed.bundle.clone();
 
         if first_hop_ptr.is_some() {
-            if !route_borrowed.schedule(time, bundle_to_consider) {
+            if !route_borrowed.schedule(time, &bundle_to_consider) {
                 continue;
             }
             time = route_borrowed.at_time;
@@ -266,7 +266,7 @@ pub fn dry_run_unicast_path<NM: NodeManager, CM: ContactManager>(
         #[cfg(feature = "node_proc")]
         let bundle_to_consider = curr_route_borrowed.bundle.clone();
 
-        if !curr_route_borrowed.dry_run(at_time, bundle_to_consider, with_exclusions) {
+        if !curr_route_borrowed.dry_run(at_time, &bundle_to_consider, with_exclusions) {
             return None;
         }
 
@@ -355,7 +355,7 @@ fn update_unicast<NM: NodeManager, CM: ContactManager>(
         #[cfg(feature = "node_proc")]
         let bundle_to_consider = curr_route_borrowed.bundle.clone();
 
-        if !curr_route_borrowed.schedule(at_time, bundle_to_consider) {
+        if !curr_route_borrowed.schedule(at_time, &bundle_to_consider) {
             panic!("Faulty dry run, didn't allow a clean update!");
         }
 

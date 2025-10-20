@@ -194,7 +194,7 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
         if let Some(hop) = contact_borrowed.manager.dry_run_tx(
             &contact_borrowed.info,
             sending_time,
-            bundle_to_consider,
+            &bundle_to_consider,
         ) {
             #[cfg(feature = "node_tx")]
             if !tx_node.borrow().manager.dry_run_tx(
