@@ -67,25 +67,6 @@ pub struct RouteStage<NM: NodeManager, CM: ContactManager> {
     pub bundle: Bundle,
 }
 
-impl<NM: NodeManager, CM: ContactManager>  Clone for RouteStage<NM, CM> {
-    fn clone(&self) -> RouteStage<NM, CM> {
-        let mut route = Self::new(
-            self.at_time,
-            self.to_node,
-            self.via.clone(),
-            #[cfg(feature = "node_proc")]
-            self.bundle.clone(),
-        );
-        route.is_disabled = self.is_disabled;
-        route.via = self.via.clone();
-        route.hop_count = self.hop_count;
-        route.cumulative_delay = self.cumulative_delay;
-        route.expiration = self.expiration;
-
-        route
-    }
-}
-
 impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
     /// Creates a new `RouteStage` with the specified parameters.
     ///
@@ -117,6 +98,23 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
             #[cfg(feature = "node_proc")]
             bundle: bundle,
         }
+    }
+
+    pub fn clone_work_area(&self) -> RouteStage<NM, CM> {
+        let mut route = Self::new(
+            self.at_time,
+            self.to_node,
+            self.via.clone(),
+            #[cfg(feature = "node_proc")]
+            self.bundle.clone(),
+        );
+        route.is_disabled = self.is_disabled;
+        route.via = self.via.clone();
+        route.hop_count = self.hop_count;
+        route.cumulative_delay = self.cumulative_delay;
+        route.expiration = self.expiration;
+
+        route
     }
 
     pub fn init_route(route: Rc<RefCell<RouteStage<NM, CM>>>) {
@@ -188,7 +186,7 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
             if let Some(res) =
                 contact_borrowed
                     .manager
-                    .schedule_tx(&info, sending_time, bundle_to_consider)
+                    .schedule_tx(&info, sending_time, &bundle_to_consider)
             {
                 #[cfg(feature = "node_tx")]
                 if !tx_node.manager.schedule_tx(
@@ -279,7 +277,7 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
             if let Some(res) =
                 contact_borrowed
                     .manager
-                    .dry_run_tx(&info, sending_time, bundle_to_consider)
+                    .dry_run_tx(&info, sending_time, &bundle_to_consider)
             {
                 #[cfg(feature = "node_tx")]
                 if !tx_node.manager.dry_run_tx(
