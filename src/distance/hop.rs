@@ -82,10 +82,10 @@ impl<NM: NodeManager, CM: ContactManager> Distance<NM, CM> for Hop {
 impl<NM: NodeManager, CM: ContactManager> HybridParentingOrd<NM, CM> for Hop {
     // For Hop, the secondary metric to consider is the arrival time.
     fn can_retain(prop: &RouteStage<NM, CM>, known: &RouteStage<NM, CM>) -> bool {
-        return prop.at_time < known.at_time;
+        prop.at_time < known.at_time
     }
     // Ignore expiration constraints to prioritize performance.
     fn must_prune(prop: &RouteStage<NM, CM>, known: &RouteStage<NM, CM>) -> bool {
-        return prop.at_time <= known.at_time && prop.hop_count <= known.hop_count;
+        prop.at_time <= known.at_time && prop.hop_count <= known.hop_count
     }
 }

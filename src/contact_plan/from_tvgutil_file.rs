@@ -31,7 +31,7 @@ pub struct TVGUtilContactData {
 }
 
 fn contact_info_from_tvg_data(data: &TVGUtilContactData) -> ContactInfo {
-    return ContactInfo::new(data.tx_node, data.rx_node, data.tx_start, data.tx_end);
+    ContactInfo::new(data.tx_node, data.rx_node, data.tx_start, data.tx_end)
 }
 
 pub trait FromTVGUtilContactData<NM: NodeManager, CM: ContactManager> {
@@ -72,7 +72,7 @@ impl FromTVGUtilContactData<NoManagement, SegmentationManager> for SegmentationM
                 val: data.delay,
             }],
         );
-        return Contact::try_new(contact_info, manager);
+        Contact::try_new(contact_info, manager)
     }
 }
 
@@ -92,7 +92,7 @@ impl TVGUtilContactPlan {
         let json_nodes = parsed["vertices"].as_object().unwrap();
 
         for (node_id, (node_name, _node_data)) in json_nodes.iter().enumerate() {
-            map_id_map.insert(&node_name, node_id as NodeID);
+            map_id_map.insert(node_name, node_id as NodeID);
             nodes.push(
                 Node::try_new(
                     NodeInfo {
