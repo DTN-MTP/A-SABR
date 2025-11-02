@@ -7,6 +7,7 @@ use crate::parsing::{DispatchParser, Lexer, Parser, ParsingState};
 use crate::types::{DataRate, Date, Duration, Token, Volume};
 
 use super::{ContactManager, ContactManagerTxData};
+pub mod pseg;
 
 /// A segment represents a time interval with an associated value of type `T`.
 #[cfg_attr(feature = "debug", derive(Debug))]
