@@ -64,10 +64,10 @@ impl ASABRContactPlan {
         let node_name = node.get_node_name();
 
         if known_node_ids.contains(&node_id) {
-            return Err(format!("Two nodes have the same id ({})", node_id));
+            return Err(format!("Two nodes have the same id ({node_id})"));
         }
         if known_node_names.contains(&node_name) {
-            return Err(format!("Two nodes have the same id ({})", node_name));
+            return Err(format!("Two nodes have the same id ({node_name})"));
         }
         let value = max(node.get_node_id(), node.get_node_id());
         *max_node_in_in_nodes = max(*max_node_in_in_nodes, value.into());
