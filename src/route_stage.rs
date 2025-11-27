@@ -96,7 +96,7 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
             route_initialized: false,
             next_for_destination: HashMap::new(),
             #[cfg(feature = "node_proc")]
-            bundle: bundle,
+            bundle,
         }
     }
 
