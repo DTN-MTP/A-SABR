@@ -224,21 +224,21 @@ macro_rules! implement_manager {
                     ParsingState::EOF => ParsingState::EOF,
                     ParsingState::Error(msg) => ParsingState::Error(msg),
                     ParsingState::Finished(marker) => {
-                        if let Some(marker_map) = marker_map_opt {
-                            if let Some(parse_fn) = marker_map.get(marker.as_str()) {
-                                parse_fn(lexer)
-                            } else {
-                                ParsingState::Error(format!(
-                                    "Unrecognized marker ({})",
-                                    lexer.get_current_position()
-                                ))
-                            }
-                        } else {
-                            ParsingState::Error(format!(
+                        let Some(marker_map) = marker_map_opt else {
+                            return ParsingState::Error(format!(
                                 "Dynamic parsing requires a map ({})",
                                 lexer.get_current_position()
-                            ))
-                        }
+                            ));
+                        };
+
+                        let Some(parse_fn) = marker_map.get(marker.as_str()) else {
+                            return ParsingState::Error(format!(
+                                "Unrecognized marker ({})",
+                                lexer.get_current_position()
+                            ));
+                        };
+
+                        parse_fn(lexer)
                     }
                 }
             }
