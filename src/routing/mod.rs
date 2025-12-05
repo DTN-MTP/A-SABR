@@ -203,7 +203,9 @@ fn update_multicast<NM: NodeManager, CM: ContactManager>(
                 if let Some(first_hop_contact) = first_hop_contact {
                     let ptr = first_hop_contact.as_ptr() as usize;
                     first_hop_ptr = Some(ptr);
-                    first_hops_map.entry(ptr).or_insert_with(|| (first_hop_contact, Vec::new()));
+                    first_hops_map
+                        .entry(ptr)
+                        .or_insert_with(|| (first_hop_contact, Vec::new()));
                 }
             }
             accumulator.push((next_route, first_hop_ptr, time, next_downstream_dests));
@@ -313,7 +315,7 @@ pub fn dry_run_unicast_tree<NM: NodeManager, CM: ContactManager>(
     let tree_ref = tree.borrow();
     let dest_route = tree_ref.by_destination.get(dest as usize).cloned()??;
     let source_route = tree_ref.get_source_route();
-    
+
     RouteStage::init_route(dest_route);
     dry_run_unicast_path(bundle, at_time, source_route, with_exclusions)
 }
