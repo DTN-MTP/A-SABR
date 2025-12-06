@@ -16,6 +16,12 @@ pub struct Dispatcher<'a, T> {
     /// A hashmap that stores the coercion functions with their associated markers.
     map: HashMap<&'a str, T>,
 }
+impl<'a, T> Default for Dispatcher<'a, T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a, T> Dispatcher<'a, T> {
     /// Creates a new, empty `Dispatcher`.
     pub fn new() -> Self {
