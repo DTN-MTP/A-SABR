@@ -183,11 +183,11 @@ fn update_multicast<NM: NodeManager, CM: ContactManager>(
             HashMap::new();
         for dest in downstream_dests {
             if reached_node == dest {
-                if let Some(ptr) = first_hop_ptr {
-                    if let Some((_, rts)) = first_hops_map.get_mut(&ptr) {
-                        rts.push(current_route.clone());
-                    }
-                }
+                let Some(ptr) = first_hop_ptr else { continue };
+                let Some((_, rts)) = first_hops_map.get_mut(&ptr) else {
+                    continue;
+                };
+                rts.push(current_route.clone());
             } else if let Some(next_route) = route_borrowed.next_for_destination.get(&dest) {
                 let ptr = Rc::as_ptr(next_route) as usize;
                 if let Some((_, entry)) = next_routes.get_mut(&ptr) {
