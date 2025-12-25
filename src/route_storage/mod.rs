@@ -57,8 +57,8 @@ impl<NM: NodeManager, CM: ContactManager> Route<NM, CM> {
     pub fn from_tree(tree: Rc<RefCell<PathFindingOutput<NM, CM>>>, dest: NodeID) -> Option<Self> {
         let tree_ref = tree.borrow();
         let source_stage = tree_ref.get_source_route();
-        let destination_stage= tree_ref.by_destination.get(dest as usize).cloned()??;
-        
+        let destination_stage = tree_ref.by_destination.get(dest as usize).cloned()??;
+
         Some(Route {
             source_stage,
             destination_stage,
