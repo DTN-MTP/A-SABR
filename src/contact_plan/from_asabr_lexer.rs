@@ -2,7 +2,7 @@ use crate::{
     contact::{Contact, ContactInfo},
     contact_manager::ContactManager,
     node::{Node, NodeInfo},
-    parsing::{Dispatcher, Parser},
+    parsing::{Parser, StaticMarkerMap},
     types::{NodeID, NodeName},
 };
 use crate::{
@@ -106,8 +106,8 @@ impl ASABRContactPlan {
         CM: ContactManager + DispatchParser<CM> + Parser<CM>,
     >(
         lexer: &mut dyn Lexer,
-        node_marker_map: Option<&Dispatcher<fn(&mut dyn Lexer) -> ParsingState<NM>>>,
-        contact_marker_map: Option<&Dispatcher<fn(&mut dyn Lexer) -> ParsingState<CM>>>,
+        node_marker_map: Option<&StaticMarkerMap<NM>>,
+        contact_marker_map: Option<&StaticMarkerMap<CM>>,
     ) -> Result<(Vec<Node<NM>>, Vec<Contact<NM, CM>>), String> {
         let mut contacts: Vec<Contact<NM, CM>> = Vec::new();
         let mut nodes: Vec<Node<NM>> = Vec::new();
