@@ -52,8 +52,8 @@ pub trait Router<NM: NodeManager, CM: ContactManager> {
 ///   to a tuple containing:
 ///     - `Rc<RefCell<Contact<NM, CM>>>`: A reference-counted, mutable reference to the `Contact`
 ///       that represents the first hop for the respective route.
-///     - `Vec<NodeID>`: A vector of `NodeID`s representing the nodes that can be reached from
-///       the first hop.
+///     - `Vec<Rc<RefCell<RouteStage<NM, CM>>>>`: A vector of reference-counted, mutable
+///       references to `RouteStage`s to the nodes that can be reached from the first hop.
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct RoutingOutput<NM: NodeManager, CM: ContactManager> {
     pub first_hops: HashMap<usize, (Rc<RefCell<Contact<NM, CM>>>, Vec<SharedRouteStage<NM, CM>>)>,
