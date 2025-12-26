@@ -37,6 +37,8 @@ pub struct PathFindingOutput<NM: NodeManager, CM: ContactManager> {
     pub by_destination: Vec<Option<SharedRouteStage<NM, CM>>>,
 }
 
+pub type SharedPathFindingOutput<NM, CM> = Rc<RefCell<PathFindingOutput<NM, CM>>>;
+
 impl<NM: NodeManager, CM: ContactManager> PathFindingOutput<NM, CM> {
     /// Creates a new `PathfindingOutput` instance, initializing the `by_destination` vector
     /// with empty vectors for each destination node and sorting the excluded nodes.

@@ -8,7 +8,7 @@ use crate::{
     contact_manager::ContactManager,
     multigraph::Multigraph,
     node_manager::NodeManager,
-    pathfinding::PathFindingOutput,
+    pathfinding::{PathFindingOutput, SharedPathFindingOutput},
     route_stage::SharedRouteStage,
     types::{Date, NodeID, Priority, Volume},
 };
@@ -37,10 +37,7 @@ pub trait TreeStorage<NM: NodeManager, CM: ContactManager> {
         bundle: &Bundle,
         curr_time: Date,
         excluded_nodes_sorted: &[NodeID],
-    ) -> (
-        Option<Rc<RefCell<PathFindingOutput<NM, CM>>>>,
-        Option<Vec<NodeID>>,
-    );
+    ) -> (Option<SharedPathFindingOutput<NM, CM>>, Option<Vec<NodeID>>);
 
     /// Stores the pathfinding output tree for future use.
     ///
