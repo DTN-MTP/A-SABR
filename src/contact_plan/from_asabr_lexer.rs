@@ -1,6 +1,7 @@
 use crate::{
     contact::{Contact, ContactInfo},
     contact_manager::ContactManager,
+    contact_plan::ContactPlan,
     node::{Node, NodeInfo},
     parsing::{Parser, StaticMarkerMap},
     types::{NodeID, NodeName},
@@ -108,7 +109,7 @@ impl ASABRContactPlan {
         lexer: &mut dyn Lexer,
         node_marker_map: Option<&StaticMarkerMap<NM>>,
         contact_marker_map: Option<&StaticMarkerMap<CM>>,
-    ) -> Result<(Vec<Node<NM>>, Vec<Contact<NM, CM>>), String> {
+    ) -> Result<ContactPlan<NM, NM, CM>, String> {
         let mut contacts: Vec<Contact<NM, CM>> = Vec::new();
         let mut nodes: Vec<Node<NM>> = Vec::new();
 

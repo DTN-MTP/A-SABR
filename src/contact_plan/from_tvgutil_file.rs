@@ -9,6 +9,7 @@ use crate::{
         seg::{Segment, SegmentationManager},
         ContactManager,
     },
+    contact_plan::ContactPlan,
     node::{Node, NodeInfo},
     node_manager::{none::NoManagement, NodeManager},
     types::{DataRate, Date, Duration, NodeID},
@@ -81,7 +82,7 @@ pub struct TVGUtilContactPlan {}
 impl TVGUtilContactPlan {
     pub fn parse<NM: NodeManager, CM: FromTVGUtilContactData<NM, CM> + ContactManager>(
         filename: &str,
-    ) -> io::Result<(Vec<Node<NoManagement>>, Vec<Contact<NM, CM>>)> {
+    ) -> io::Result<ContactPlan<NoManagement, NM, CM>> {
         let mut nodes: Vec<Node<NoManagement>> = Vec::new();
         let mut contacts: Vec<Contact<NM, CM>> = Vec::new();
 
