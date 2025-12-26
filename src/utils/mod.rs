@@ -7,7 +7,7 @@ use crate::{
     node_manager::NodeManager,
     parsing::{DispatchParser, Dispatcher, Lexer, Parser, ParsingState},
     pathfinding::Pathfinding,
-    route_stage::RouteStage,
+    route_stage::SharedRouteStage,
 };
 
 pub fn init_pathfinding<
@@ -30,7 +30,7 @@ pub fn init_pathfinding<
     ))))
 }
 
-pub fn pretty_print<NM: NodeManager, CM: ContactManager>(route: Rc<RefCell<RouteStage<NM, CM>>>) {
+pub fn pretty_print<NM: NodeManager, CM: ContactManager>(route: SharedRouteStage<NM, CM>) {
     let mut backtrace: Vec<String> = Vec::new();
     println!(
         "Route to node {} at t={} with {} hop(s): ",

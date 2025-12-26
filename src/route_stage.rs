@@ -60,12 +60,14 @@ pub struct RouteStage<NM: NodeManager, CM: ContactManager> {
     /// A hashmap that maps destination node IDs to their respective next route stages.
     #[cfg_attr(feature = "debug", derivative(Debug = "ignore"))]
     // avoid cyclic print with debug formatting
-    pub next_for_destination: HashMap<NodeID, Rc<RefCell<RouteStage<NM, CM>>>>,
+    pub next_for_destination: HashMap<NodeID, SharedRouteStage<NM, CM>>,
 
     #[cfg(feature = "node_proc")]
     /// The stage of the bundle that arrives at to_node
     pub bundle: Bundle,
 }
+
+pub type SharedRouteStage<NM, CM> = Rc<RefCell<RouteStage<NM, CM>>>;
 
 impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
     /// Creates a new `RouteStage` with the specified parameters.
@@ -117,7 +119,7 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
         route
     }
 
-    pub fn init_route(route: Rc<RefCell<RouteStage<NM, CM>>>) {
+    pub fn init_route(route: SharedRouteStage<NM, CM>) {
         let destination = route.borrow().to_node;
         {
             if route.borrow().route_initialized {
@@ -125,7 +127,7 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
             }
         }
 
-        let mut curr_opt: Option<Rc<RefCell<RouteStage<NM, CM>>>> = Some(route.clone());
+        let mut curr_opt: Option<SharedRouteStage<NM, CM>> = Some(route.clone());
 
         while let Some(current) = curr_opt.take() {
             let route_borrowed = current.borrow_mut();

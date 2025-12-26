@@ -1,7 +1,7 @@
 use crate::contact::Contact;
 use crate::contact_manager::ContactManager;
 use crate::node_manager::NodeManager;
-use crate::route_stage::RouteStage;
+use crate::route_stage::SharedRouteStage;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -32,7 +32,7 @@ pub use first_ending::FirstEnding;
 /// is found; otherwise, `None`.
 #[cfg(feature = "contact_suppression")]
 pub fn get_next_to_suppress<NM: NodeManager, CM: ContactManager>(
-    route: Rc<RefCell<RouteStage<NM, CM>>>,
+    route: SharedRouteStage<NM, CM>,
     better_for_suppression_than_fn: fn(&Contact<NM, CM>, &Contact<NM, CM>) -> bool,
 ) -> Option<Rc<RefCell<Contact<NM, CM>>>> {
     let mut to_suppress_opt: Option<Rc<RefCell<Contact<NM, CM>>>> = None;

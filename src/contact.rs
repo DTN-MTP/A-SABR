@@ -2,14 +2,10 @@ use crate::contact_manager::ContactManager;
 use crate::node_manager::NodeManager;
 use crate::parsing::{Lexer, Parser, ParsingState};
 #[cfg(feature = "contact_work_area")]
-use crate::route_stage::RouteStage;
+use crate::route_stage::SharedRouteStage;
 use crate::types::{Date, NodeID, Token};
-#[cfg(feature = "contact_work_area")]
-use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::marker::PhantomData;
-#[cfg(feature = "contact_work_area")]
-use std::rc::Rc;
 
 /// Represents basic information about a contact between two nodes.
 #[derive(Clone, Copy)]
@@ -70,7 +66,7 @@ pub struct Contact<NM: NodeManager, CM: ContactManager> {
     pub manager: CM,
     #[cfg(feature = "contact_work_area")]
     /// The work area for managing path construction stages (compilation option).
-    pub work_area: Option<Rc<RefCell<RouteStage<NM, CM>>>>,
+    pub work_area: Option<SharedRouteStage<NM, CM>>,
     #[cfg(feature = "contact_suppression")]
     /// Suppression option for path construction (compilation option).
     pub suppressed: bool,

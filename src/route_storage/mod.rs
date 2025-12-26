@@ -9,7 +9,7 @@ use crate::{
     multigraph::Multigraph,
     node_manager::NodeManager,
     pathfinding::PathFindingOutput,
-    route_stage::RouteStage,
+    route_stage::SharedRouteStage,
     types::{Date, NodeID, Priority, Volume},
 };
 
@@ -52,8 +52,8 @@ pub trait TreeStorage<NM: NodeManager, CM: ContactManager> {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Route<NM: NodeManager, CM: ContactManager> {
-    pub source_stage: Rc<RefCell<RouteStage<NM, CM>>>,
-    pub destination_stage: Rc<RefCell<RouteStage<NM, CM>>>,
+    pub source_stage: SharedRouteStage<NM, CM>,
+    pub destination_stage: SharedRouteStage<NM, CM>,
 }
 
 impl<NM: NodeManager, CM: ContactManager> Route<NM, CM> {
