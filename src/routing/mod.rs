@@ -15,6 +15,15 @@ pub mod cgr;
 pub mod spsn;
 pub mod volcgr;
 
+type FirstHopsVec<NM, CM> = (
+    Rc<RefCell<Contact<NM, CM>>>,
+    Vec<Rc<RefCell<RouteStage<NM, CM>>>>,
+);
+type FirstHop<NM, CM> = (
+    Rc<RefCell<Contact<NM, CM>>>,
+    Rc<RefCell<RouteStage<NM, CM>>>,
+);
+
 /// A trait to allow generic initialization of routers.
 pub trait Router<NM: NodeManager, CM: ContactManager> {
     /// Routes a bundle to its destination(s) using either unicast or multicast routing,
@@ -49,21 +58,18 @@ pub trait Router<NM: NodeManager, CM: ContactManager> {
 /// # Fields
 ///
 /// * `first_hops` - A hashmap mapping from a unique identifier (e.g., an index or destination ID)
-///   to a tuple containing:
+///   to a `FirstHopsVec` tuple containing:
 ///     - `Rc<RefCell<Contact<NM, CM>>>`: A reference-counted, mutable reference to the `Contact`
 ///       that represents the first hop for the respective route.
 ///     - `Vec<Rc<RefCell<RouteStage<NM, CM>>>>`: A vector of reference-counted, mutable
 ///       references to `RouteStage`s to the nodes that can be reached from the first hop.
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct RoutingOutput<NM: NodeManager, CM: ContactManager> {
-    pub first_hops: HashMap<usize, (Rc<RefCell<Contact<NM, CM>>>, Vec<SharedRouteStage<NM, CM>>)>,
+    pub first_hops: HashMap<usize, FirstHopsVec<NM, CM>>,
 }
 
 impl<NM: NodeManager, CM: ContactManager> RoutingOutput<NM, CM> {
-    pub fn lazy_get_for_unicast(
-        &self,
-        dest: NodeID,
-    ) -> Option<(Rc<RefCell<Contact<NM, CM>>>, SharedRouteStage<NM, CM>)> {
+    pub fn lazy_get_for_unicast(&self, dest: NodeID) -> Option<FirstHop<NM, CM>> {
         for (contact, dest_routes) in self.first_hops.values() {
             for route_rc in dest_routes {
                 if route_rc.borrow().to_node == dest {
@@ -138,10 +144,7 @@ fn update_multicast<NM: NodeManager, CM: ContactManager>(
     reachable_after_dry_run: Vec<NodeID>,
     source_route: SharedRouteStage<NM, CM>,
 ) -> RoutingOutput<NM, CM> {
-    let mut first_hops_map: HashMap<
-        usize,
-        (Rc<RefCell<Contact<NM, CM>>>, Vec<SharedRouteStage<NM, CM>>),
-    > = HashMap::new();
+    let mut first_hops_map: HashMap<usize, FirstHopsVec<NM, CM>> = HashMap::new();
     let mut accumulator: Vec<(SharedRouteStage<NM, CM>, Option<usize>, Date, Vec<u16>)> =
         vec![(source_route, None, at_time, reachable_after_dry_run)];
     #[cfg(not(feature = "node_proc"))]
@@ -347,10 +350,7 @@ fn update_unicast<NM: NodeManager, CM: ContactManager>(
 
         if curr_route_borrowed.to_node == dest {
             if let Some(first) = first_hop {
-                let mut first_hops: HashMap<
-                    usize,
-                    (Rc<RefCell<Contact<NM, CM>>>, Vec<SharedRouteStage<NM, CM>>),
-                > = HashMap::new();
+                let mut first_hops: HashMap<usize, FirstHopsVec<NM, CM>> = HashMap::new();
                 first_hops.insert(first.as_ptr() as usize, (first, vec![curr_route.clone()]));
                 return RoutingOutput { first_hops };
             }
