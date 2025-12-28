@@ -143,22 +143,23 @@ macro_rules! define_node_graph {
                             continue;
                         };
 
-                        let mut push = false;
-                        if let Some(know_route_ref) =
-                            tree.by_destination[receiver.node.borrow().info.id as usize].clone()
-                        {
-                            let mut known_route = know_route_ref.borrow_mut();
-                            if D::cmp(&route_proposition, &known_route) == Ordering::Less {
-                                known_route.is_disabled = true;
-                                push = true;
+                        let idx = receiver.node.borrow().info.id as usize;
+                        let push = match tree.by_destination[idx].as_ref() {
+                            Some(known_route_ref) => {
+                                let mut known_route = known_route_ref.borrow_mut();
+                                if D::cmp(&route_proposition, &known_route) == Ordering::Less {
+                                    known_route.is_disabled = true;
+                                    true
+                                } else {
+                                    false
+                                }
                             }
-                        } else {
-                            push = true;
-                        }
+                            None => true,
+                        };
+
                         if push {
                             let route_ref = Rc::new(RefCell::new(route_proposition));
-                            tree.by_destination[receiver.node.borrow().info.id as usize] =
-                                Some(route_ref.clone());
+                            tree.by_destination[idx] = Some(route_ref.clone());
                             priority_queue.push(Reverse(DistanceWrapper::new(route_ref)));
                         }
                     }
