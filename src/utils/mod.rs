@@ -5,9 +5,9 @@ use crate::{
     contact_plan::{asabr_file_lexer::FileLexer, from_asabr_lexer::ASABRContactPlan},
     multigraph::Multigraph,
     node_manager::NodeManager,
-    parsing::{DispatchParser, Dispatcher, Lexer, Parser, ParsingState},
+    parsing::{DispatchParser, Parser, StaticMarkerMap},
     pathfinding::Pathfinding,
-    route_stage::RouteStage,
+    route_stage::SharedRouteStage,
 };
 
 pub fn init_pathfinding<
@@ -16,8 +16,8 @@ pub fn init_pathfinding<
     P: Pathfinding<NM, CM>,
 >(
     cp_path: &str,
-    node_marker_map: Option<&Dispatcher<'_, fn(&mut dyn Lexer) -> ParsingState<NM>>>,
-    contact_marker_map: Option<&Dispatcher<'_, fn(&mut dyn Lexer) -> ParsingState<CM>>>,
+    node_marker_map: Option<&StaticMarkerMap<NM>>,
+    contact_marker_map: Option<&StaticMarkerMap<CM>>,
 ) -> P {
     let mut mylexer = FileLexer::new(cp_path).unwrap();
     let nodes_n_contacts =
@@ -30,7 +30,7 @@ pub fn init_pathfinding<
     ))))
 }
 
-pub fn pretty_print<NM: NodeManager, CM: ContactManager>(route: Rc<RefCell<RouteStage<NM, CM>>>) {
+pub fn pretty_print<NM: NodeManager, CM: ContactManager>(route: SharedRouteStage<NM, CM>) {
     let mut backtrace: Vec<String> = Vec::new();
     println!(
         "Route to node {} at t={} with {} hop(s): ",

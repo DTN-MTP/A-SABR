@@ -5,7 +5,7 @@ use a_sabr::node_manager::none::NoManagement;
 use a_sabr::node_manager::NodeManager;
 use a_sabr::parsing::coerce_nm;
 use a_sabr::parsing::NodeMarkerMap;
-use a_sabr::parsing::{DispatchParser, Dispatcher, Lexer, Parser, ParsingState};
+use a_sabr::parsing::{DispatchParser, Lexer, Parser, ParsingState, StaticMarkerMap};
 use a_sabr::pathfinding::hybrid_parenting::HybridParentingPath;
 use a_sabr::pathfinding::Pathfinding;
 use a_sabr::types::Date;
@@ -84,7 +84,7 @@ impl Parser<NoRetention> for NoRetention {
 
 fn edge_case_example<NM: NodeManager + Parser<NM> + DispatchParser<NM>>(
     cp_path: &str,
-    node_marker_map: Option<&Dispatcher<'_, fn(&mut dyn Lexer) -> ParsingState<NM>>>,
+    node_marker_map: Option<&StaticMarkerMap<NM>>,
 ) {
     let bundle = Bundle {
         source: 0,

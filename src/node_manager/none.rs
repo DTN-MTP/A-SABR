@@ -13,7 +13,7 @@ pub struct NoManagement {}
 impl NodeManager for NoManagement {
     #[cfg(feature = "node_proc")]
     fn dry_run_process(&self, at_time: Date, _bundle: &mut Bundle) -> Date {
-        return at_time;
+        at_time
     }
     #[cfg(feature = "node_tx")]
     fn dry_run_tx(&self, _waiting_since: Date, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
@@ -25,7 +25,7 @@ impl NodeManager for NoManagement {
     }
     #[cfg(feature = "node_proc")]
     fn schedule_process(&self, at_time: Date, _bundle: &mut Bundle) -> Date {
-        return at_time;
+        at_time
     }
     #[cfg(feature = "node_tx")]
     fn schedule_tx(

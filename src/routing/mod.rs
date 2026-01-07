@@ -6,7 +6,7 @@ use crate::{
     contact_manager::ContactManager,
     node_manager::NodeManager,
     pathfinding::PathFindingOutput,
-    route_stage::RouteStage,
+    route_stage::{RouteStage, SharedRouteStage},
     types::{Date, NodeID},
 };
 
@@ -14,6 +14,15 @@ pub mod aliases;
 pub mod cgr;
 pub mod spsn;
 pub mod volcgr;
+
+type FirstHopsVec<NM, CM> = (
+    Rc<RefCell<Contact<NM, CM>>>,
+    Vec<Rc<RefCell<RouteStage<NM, CM>>>>,
+);
+type FirstHop<NM, CM> = (
+    Rc<RefCell<Contact<NM, CM>>>,
+    Rc<RefCell<RouteStage<NM, CM>>>,
+);
 
 /// A trait to allow generic initialization of routers.
 pub trait Router<NM: NodeManager, CM: ContactManager> {
@@ -49,30 +58,18 @@ pub trait Router<NM: NodeManager, CM: ContactManager> {
 /// # Fields
 ///
 /// * `first_hops` - A hashmap mapping from a unique identifier (e.g., an index or destination ID)
-///   to a tuple containing:
+///   to a `FirstHopsVec` tuple containing:
 ///     - `Rc<RefCell<Contact<NM, CM>>>`: A reference-counted, mutable reference to the `Contact`
 ///       that represents the first hop for the respective route.
-///     - `Vec<NodeID>`: A vector of `NodeID`s representing the nodes that can be reached from
-///       the first hop.
+///     - `Vec<Rc<RefCell<RouteStage<NM, CM>>>>`: A vector of reference-counted, mutable
+///       references to `RouteStage`s to the nodes that can be reached from the first hop.
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct RoutingOutput<NM: NodeManager, CM: ContactManager> {
-    pub first_hops: HashMap<
-        usize,
-        (
-            Rc<RefCell<Contact<NM, CM>>>,
-            Vec<Rc<RefCell<RouteStage<NM, CM>>>>,
-        ),
-    >,
+    pub first_hops: HashMap<usize, FirstHopsVec<NM, CM>>,
 }
 
 impl<NM: NodeManager, CM: ContactManager> RoutingOutput<NM, CM> {
-    pub fn lazy_get_for_unicast(
-        &self,
-        dest: NodeID,
-    ) -> Option<(
-        Rc<RefCell<Contact<NM, CM>>>,
-        Rc<RefCell<RouteStage<NM, CM>>>,
-    )> {
+    pub fn lazy_get_for_unicast(&self, dest: NodeID) -> Option<FirstHop<NM, CM>> {
         for (contact, dest_routes) in self.first_hops.values() {
             for route_rc in dest_routes {
                 if route_rc.borrow().to_node == dest {
@@ -119,7 +116,7 @@ pub fn dry_run_multicast<NM: NodeManager, CM: ContactManager>(
 
         let reached_node = route_borrowed.to_node;
 
-        let mut next_routes: HashMap<usize, (Rc<RefCell<RouteStage<NM, CM>>>, Vec<NodeID>)> =
+        let mut next_routes: HashMap<usize, (SharedRouteStage<NM, CM>, Vec<NodeID>)> =
             HashMap::new();
         for dest in downstream_dests {
             if reached_node == dest {
@@ -145,21 +142,11 @@ fn update_multicast<NM: NodeManager, CM: ContactManager>(
     _bundle: &Bundle,
     at_time: Date,
     reachable_after_dry_run: Vec<NodeID>,
-    source_route: Rc<RefCell<RouteStage<NM, CM>>>,
+    source_route: SharedRouteStage<NM, CM>,
 ) -> RoutingOutput<NM, CM> {
-    let mut first_hops_map: HashMap<
-        usize,
-        (
-            Rc<RefCell<Contact<NM, CM>>>,
-            Vec<Rc<RefCell<RouteStage<NM, CM>>>>,
-        ),
-    > = HashMap::new();
-    let mut accumulator: Vec<(
-        Rc<RefCell<RouteStage<NM, CM>>>,
-        Option<usize>,
-        Date,
-        Vec<u16>,
-    )> = vec![(source_route, None, at_time, reachable_after_dry_run)];
+    let mut first_hops_map: HashMap<usize, FirstHopsVec<NM, CM>> = HashMap::new();
+    let mut accumulator: Vec<(SharedRouteStage<NM, CM>, Option<usize>, Date, Vec<u16>)> =
+        vec![(source_route, None, at_time, reachable_after_dry_run)];
     #[cfg(not(feature = "node_proc"))]
     let bundle_to_consider = _bundle;
 
@@ -179,7 +166,7 @@ fn update_multicast<NM: NodeManager, CM: ContactManager>(
         }
         let reached_node = route_borrowed.to_node;
 
-        let mut next_routes: HashMap<usize, (Rc<RefCell<RouteStage<NM, CM>>>, Vec<NodeID>)> =
+        let mut next_routes: HashMap<usize, (SharedRouteStage<NM, CM>, Vec<NodeID>)> =
             HashMap::new();
         for dest in downstream_dests {
             if reached_node == dest {
@@ -250,9 +237,9 @@ fn schedule_multicast<NM: NodeManager, CM: ContactManager>(
 pub fn dry_run_unicast_path<NM: NodeManager, CM: ContactManager>(
     bundle: &Bundle,
     mut at_time: Date,
-    source_route: Rc<RefCell<RouteStage<NM, CM>>>,
+    source_route: SharedRouteStage<NM, CM>,
     with_exclusions: bool,
-) -> Option<Rc<RefCell<RouteStage<NM, CM>>>> {
+) -> Option<SharedRouteStage<NM, CM>> {
     let dest = bundle.destinations[0];
 
     let mut curr_opt = source_route
@@ -303,14 +290,14 @@ pub fn dry_run_unicast_path<NM: NodeManager, CM: ContactManager>(
 /// - `node_list`: A list of nodes (`Node<NM>`) in the network, used in the pathfinding process.
 ///
 /// # Returns
-/// Returns an `Option<Rc<RefCell<RouteStage<NM, CM>>>>` containing the route stage to the
+/// Returns an `Option<SharedRouteStage<NM, CM>>` containing the route stage to the
 /// destination if a valid path is found, or `None` if no path is available.
 pub fn dry_run_unicast_tree<NM: NodeManager, CM: ContactManager>(
     bundle: &Bundle,
     at_time: Date,
     tree: Rc<RefCell<PathFindingOutput<NM, CM>>>,
     with_exclusions: bool,
-) -> Option<Rc<RefCell<RouteStage<NM, CM>>>> {
+) -> Option<SharedRouteStage<NM, CM>> {
     let dest = bundle.destinations[0];
     let tree_ref = tree.borrow();
     let dest_route = tree_ref.by_destination.get(dest as usize).cloned()??;
@@ -332,7 +319,7 @@ fn update_unicast<NM: NodeManager, CM: ContactManager>(
     _bundle: &Bundle,
     dest: NodeID,
     mut at_time: Date,
-    source_route: Rc<RefCell<RouteStage<NM, CM>>>,
+    source_route: SharedRouteStage<NM, CM>,
 ) -> RoutingOutput<NM, CM> {
     if source_route.borrow().to_node == dest {
         panic!("Bundle's destination is equal to source");
@@ -365,13 +352,7 @@ fn update_unicast<NM: NodeManager, CM: ContactManager>(
 
         if curr_route_borrowed.to_node == dest {
             if let Some(first) = first_hop {
-                let mut first_hops: HashMap<
-                    usize,
-                    (
-                        Rc<RefCell<Contact<NM, CM>>>,
-                        Vec<Rc<RefCell<RouteStage<NM, CM>>>>,
-                    ),
-                > = HashMap::new();
+                let mut first_hops: HashMap<usize, FirstHopsVec<NM, CM>> = HashMap::new();
                 first_hops.insert(first.as_ptr() as usize, (first, vec![curr_route.clone()]));
                 return RoutingOutput { first_hops };
             }
@@ -435,7 +416,7 @@ fn schedule_unicast<NM: NodeManager, CM: ContactManager>(
 fn schedule_unicast_path<NM: NodeManager, CM: ContactManager>(
     bundle: &Bundle,
     curr_time: Date,
-    source_route: Rc<RefCell<RouteStage<NM, CM>>>,
+    source_route: SharedRouteStage<NM, CM>,
 ) -> RoutingOutput<NM, CM> {
     let dest = bundle.destinations[0];
     update_unicast(bundle, dest, curr_time, source_route.clone())
