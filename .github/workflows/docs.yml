@@ -2,7 +2,7 @@ name: Docs
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
 
 permissions:
   contents: read
@@ -11,24 +11,34 @@ permissions:
 
 jobs:
   deploy:
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+
       - run: |
           sudo apt-get update && sudo apt-get install -y libssl-dev
           cargo doc --no-deps --all-features
-          mkdir -p public && cp -r target/doc/* public
+          mkdir -p public
+          cp -r target/doc/* public
           echo '<meta http-equiv="refresh" content="0; url=a_sabr/index.html">' > public/index.html
+
       - uses: actions/configure-pages@v4
+
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: './public'
-      - uses: actions/deploy-pages@v4
-        id: deployment
+          name: docs-pages
+          path: ./public
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: docs-pages
 
