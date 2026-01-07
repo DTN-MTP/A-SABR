@@ -332,26 +332,30 @@ macro_rules! define_mpt {
                             }
                         }
 
-                        if let Some(first_contact_index) =
+                        let Some(first_contact_index) =
                             receiver.lazy_prune_and_get_first_idx(current_time)
-                        {
-                            if let Some(route_proposition) = try_make_hop(
-                                first_contact_index,
-                                &from_route,
-                                bundle,
-                                &receiver.contacts_to_receiver,
-                                &sender.node,
-                                &receiver.node,
-                            ) {
-                                // This transforms a prop in the stack to a prop in the heap
-                                if let Some(new_route) =
-                                    try_insert::<NM, CM, D>(route_proposition, &mut tree)
-                                {
-                                    priority_queue
-                                        .push(Reverse(DistanceWrapper::new(new_route.clone())));
-                                }
-                            }
-                        }
+                        else {
+                            continue;
+                        };
+
+                        let Some(route_proposition) = try_make_hop(
+                            first_contact_index,
+                            &from_route,
+                            bundle,
+                            &receiver.contacts_to_receiver,
+                            &sender.node,
+                            &receiver.node,
+                        ) else {
+                            continue;
+                        };
+
+                        // This transforms a prop in the stack to a prop in the heap
+                        let Some(new_route) = try_insert::<NM, CM, D>(route_proposition, &mut tree)
+                        else {
+                            continue;
+                        };
+
+                        priority_queue.push(Reverse(DistanceWrapper::new(new_route.clone())));
                     }
                 }
 

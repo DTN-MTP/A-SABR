@@ -99,19 +99,16 @@ impl<S: RouteStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfindin
             .get_next(curr_time, source, bundle, excluded_nodes);
         let tree = Rc::new(RefCell::new(new_tree));
 
-        if let Some(route) = Route::from_tree(tree, dest) {
-            RouteStage::init_route(route.destination_stage.clone());
-            self.route_storage
-                .borrow_mut()
-                .store(bundle, route.clone());
-            let dry_run = dry_run_unicast_path(bundle, curr_time, route.source_stage.clone(), true);
-            if dry_run.is_some() {
-                return Some(schedule_unicast_path(
-                    bundle,
-                    curr_time,
-                    route.source_stage.clone(),
-                ));
-            }
+        let route = Route::from_tree(tree, dest)?;
+        RouteStage::init_route(route.destination_stage.clone());
+        self.route_storage.borrow_mut().store(bundle, route.clone());
+        let dry_run = dry_run_unicast_path(bundle, curr_time, route.source_stage.clone(), true);
+        if dry_run.is_some() {
+            return Some(schedule_unicast_path(
+                bundle,
+                curr_time,
+                route.source_stage.clone(),
+            ));
         }
         None
     }

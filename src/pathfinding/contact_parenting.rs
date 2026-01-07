@@ -190,8 +190,9 @@ macro_rules! define_contact_graph {
                                     let rx_node_id = receiver.node.borrow().info.id;
 
                                     if let Some(hop) = &route_proposition.via {
-                                        let route_proposition_ref =
-                                            Rc::new(RefCell::new(route_proposition.clone_work_area()));
+                                        let route_proposition_ref = Rc::new(RefCell::new(
+                                            route_proposition.clone_work_area(),
+                                        ));
                                         priority_queue.push(Reverse(DistanceWrapper::new(
                                             route_proposition_ref.clone(),
                                         )));

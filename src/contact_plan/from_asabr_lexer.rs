@@ -139,18 +139,18 @@ impl ASABRContactPlan {
                                 return Err(msg);
                             }
                             ParsingState::Finished((info, manager)) => {
-                                if let Some(contact) = Contact::try_new(info, manager) {
-                                    Self::add_contact(
-                                        contact,
-                                        &mut contacts,
-                                        &mut max_node_id_in_contacts,
-                                    );
-                                } else {
+                                let Some(contact) = Contact::try_new(info, manager) else {
                                     return Err(format!(
                                         "Malformed contact ({})",
                                         lexer.get_current_position()
                                     ));
-                                }
+                                };
+
+                                Self::add_contact(
+                                    contact,
+                                    &mut contacts,
+                                    &mut max_node_id_in_contacts,
+                                );
                             }
                         }
                     }
@@ -164,25 +164,20 @@ impl ASABRContactPlan {
                                 return Err(msg);
                             }
                             ParsingState::Finished((info, manager)) => {
-                                if let Some(node) = Node::try_new(info, manager) {
-                                    match Self::add_node(
-                                        node,
-                                        &mut nodes,
-                                        &mut max_node_in_in_nodes,
-                                        &mut known_node_ids,
-                                        &mut known_node_names,
-                                    ) {
-                                        Ok(_) => {}
-                                        Err(msg) => {
-                                            return Err(msg);
-                                        }
-                                    }
-                                } else {
+                                let Some(node) = Node::try_new(info, manager) else {
                                     return Err(format!(
                                         "Malformed node ({})",
                                         lexer.get_current_position()
                                     ));
-                                }
+                                };
+
+                                Self::add_node(
+                                    node,
+                                    &mut nodes,
+                                    &mut max_node_in_in_nodes,
+                                    &mut known_node_ids,
+                                    &mut known_node_names,
+                                )?;
                             }
                         }
                     }
