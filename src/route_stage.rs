@@ -160,67 +160,68 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
     /// * `true` if the scheduling process was successful and the bundle is properly scheduled.
     /// * `false` if the scheduling process failed for any reason, such as a node being excluded, timing constraints, or invalid transmission conditions.
     pub fn schedule(&mut self, at_time: Date, bundle: &Bundle) -> bool {
-        if let Some(via) = &self.via {
-            let mut contact_borrowed = via.contact.borrow_mut();
-            let info = contact_borrowed.info;
+        let Some(via) = &self.via else {
+            return false;
+        };
 
-            // If bundle processing is enabled, a mutable bundle copy is required to be attached to the RouteStage.
-            #[cfg(feature = "node_proc")]
-            let mut bundle_to_consider = bundle.clone();
-            #[cfg(not(feature = "node_proc"))]
-            let bundle_to_consider = bundle;
+        let mut contact_borrowed = via.contact.borrow_mut();
+        let info = contact_borrowed.info;
 
-            #[allow(unused_mut)]
-            #[cfg(any(feature = "node_tx", feature = "node_proc"))]
-            let mut tx_node = via.tx_node.borrow_mut();
-            #[cfg(feature = "node_rx")]
-            let mut rx_node = via.rx_node.borrow_mut();
+        // If bundle processing is enabled, a mutable bundle copy is required to be attached to the RouteStage.
+        #[cfg(feature = "node_proc")]
+        let mut bundle_to_consider = bundle.clone();
+        #[cfg(not(feature = "node_proc"))]
+        let bundle_to_consider = bundle;
 
-            #[cfg(feature = "node_proc")]
-            let sending_time = tx_node
+        #[allow(unused_mut)]
+        #[cfg(any(feature = "node_tx", feature = "node_proc"))]
+        let mut tx_node = via.tx_node.borrow_mut();
+        #[cfg(feature = "node_rx")]
+        let mut rx_node = via.rx_node.borrow_mut();
+
+        #[cfg(feature = "node_proc")]
+        let sending_time = tx_node
+            .manager
+            .schedule_process(at_time, &mut bundle_to_consider);
+        #[cfg(not(feature = "node_proc"))]
+        let sending_time = at_time;
+
+        let Some(res) =
+            contact_borrowed
                 .manager
-                .schedule_process(at_time, &mut bundle_to_consider);
-            #[cfg(not(feature = "node_proc"))]
-            let sending_time = at_time;
+                .schedule_tx(&info, sending_time, &bundle_to_consider)
+        else {
+            return false;
+        };
 
-            if let Some(res) =
-                contact_borrowed
-                    .manager
-                    .schedule_tx(&info, sending_time, &bundle_to_consider)
-            {
-                #[cfg(feature = "node_tx")]
-                if !tx_node.manager.schedule_tx(
-                    sending_time,
-                    res.tx_start,
-                    res.tx_end,
-                    &bundle_to_consider,
-                ) {
-                    return false;
-                }
-
-                let arrival_time = res.tx_end + res.delay;
-
-                if arrival_time > bundle_to_consider.expiration {
-                    return false;
-                }
-                #[cfg(feature = "node_rx")]
-                if !rx_node.manager.schedule_rx(
-                    res.tx_start + res.delay,
-                    res.tx_end + res.delay,
-                    &bundle_to_consider,
-                ) {
-                    return false;
-                }
-
-                self.at_time = arrival_time;
-                #[cfg(feature = "node_proc")]
-                {
-                    self.bundle = bundle_to_consider;
-                }
-                return true;
-            }
+        #[cfg(feature = "node_tx")]
+        if !tx_node
+            .manager
+            .schedule_tx(sending_time, res.tx_start, res.tx_end, &bundle_to_consider)
+        {
+            return false;
         }
-        false
+
+        let arrival_time = res.tx_end + res.delay;
+
+        if arrival_time > bundle_to_consider.expiration {
+            return false;
+        }
+        #[cfg(feature = "node_rx")]
+        if !rx_node.manager.schedule_rx(
+            res.tx_start + res.delay,
+            res.tx_end + res.delay,
+            &bundle_to_consider,
+        ) {
+            return false;
+        }
+
+        self.at_time = arrival_time;
+        #[cfg(feature = "node_proc")]
+        {
+            self.bundle = bundle_to_consider;
+        }
+        true
     }
 
     /// Performs a dry run to simulate the transmission of a `bundle` through a network without actually
@@ -243,75 +244,76 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
     /// * `true` if the dry run was successful and the bundle can be transmitted according to the simulation.
     /// * `false` if the dry run fails, such as due to an excluded node, invalid timing, or any other condition preventing transmission.
     pub fn dry_run(&mut self, at_time: Date, bundle: &Bundle, with_exclusions: bool) -> bool {
-        if let Some(via) = &self.via {
-            let contact_borrowed = via.contact.borrow_mut();
-            let info = contact_borrowed.info;
+        let Some(via) = &self.via else {
+            return false;
+        };
 
-            if with_exclusions {
-                {
-                    let node = via.rx_node.borrow();
-                    if node.info.excluded {
-                        return false;
-                    }
-                }
-            }
+        let contact_borrowed = via.contact.borrow_mut();
+        let info = contact_borrowed.info;
 
-            // If bundle processing is enabled, a mutable bundle copy is required to be attached to the RouteStage.
-            #[cfg(feature = "node_proc")]
-            let mut bundle_to_consider = bundle.clone();
-            #[cfg(not(feature = "node_proc"))]
-            let bundle_to_consider = bundle;
-
-            #[cfg(any(feature = "node_tx", feature = "node_proc"))]
-            let tx_node = via.tx_node.borrow_mut();
-            #[cfg(feature = "node_rx")]
-            let rx_node = via.rx_node.borrow_mut();
-            #[cfg(feature = "node_proc")]
-            let sending_time = tx_node
-                .manager
-                .dry_run_process(at_time, &mut bundle_to_consider);
-
-            #[cfg(not(feature = "node_proc"))]
-            let sending_time = at_time;
-
-            if let Some(res) =
-                contact_borrowed
-                    .manager
-                    .dry_run_tx(&info, sending_time, &bundle_to_consider)
+        if with_exclusions {
             {
-                #[cfg(feature = "node_tx")]
-                if !tx_node.manager.dry_run_tx(
-                    sending_time,
-                    res.tx_start,
-                    res.tx_end,
-                    &bundle_to_consider,
-                ) {
+                let node = via.rx_node.borrow();
+                if node.info.excluded {
                     return false;
                 }
-
-                let arrival_time = res.tx_end + res.delay;
-
-                if arrival_time > bundle_to_consider.expiration {
-                    return false;
-                }
-                #[cfg(feature = "node_rx")]
-                if !rx_node.manager.dry_run_rx(
-                    res.tx_start + res.delay,
-                    res.tx_end + res.delay,
-                    &bundle_to_consider,
-                ) {
-                    return false;
-                }
-
-                self.at_time = arrival_time;
-                #[cfg(feature = "node_proc")]
-                {
-                    self.bundle = bundle_to_consider;
-                }
-                return true;
             }
         }
-        false
+
+        // If bundle processing is enabled, a mutable bundle copy is required to be attached to the RouteStage.
+        #[cfg(feature = "node_proc")]
+        let mut bundle_to_consider = bundle.clone();
+        #[cfg(not(feature = "node_proc"))]
+        let bundle_to_consider = bundle;
+
+        #[cfg(any(feature = "node_tx", feature = "node_proc"))]
+        let tx_node = via.tx_node.borrow_mut();
+        #[cfg(feature = "node_rx")]
+        let rx_node = via.rx_node.borrow_mut();
+        #[cfg(feature = "node_proc")]
+        let sending_time = tx_node
+            .manager
+            .dry_run_process(at_time, &mut bundle_to_consider);
+
+        #[cfg(not(feature = "node_proc"))]
+        let sending_time = at_time;
+
+        let Some(res) =
+            contact_borrowed
+                .manager
+                .dry_run_tx(&info, sending_time, &bundle_to_consider)
+        else {
+            return false;
+        };
+
+        #[cfg(feature = "node_tx")]
+        if !tx_node
+            .manager
+            .dry_run_tx(sending_time, res.tx_start, res.tx_end, &bundle_to_consider)
+        {
+            return false;
+        }
+
+        let arrival_time = res.tx_end + res.delay;
+
+        if arrival_time > bundle_to_consider.expiration {
+            return false;
+        }
+        #[cfg(feature = "node_rx")]
+        if !rx_node.manager.dry_run_rx(
+            res.tx_start + res.delay,
+            res.tx_end + res.delay,
+            &bundle_to_consider,
+        ) {
+            return false;
+        }
+
+        self.at_time = arrival_time;
+        #[cfg(feature = "node_proc")]
+        {
+            self.bundle = bundle_to_consider;
+        }
+        true
     }
 
     pub fn get_via_contact(&self) -> Option<Rc<RefCell<Contact<NM, CM>>>> {
