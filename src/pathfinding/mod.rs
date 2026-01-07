@@ -1,11 +1,12 @@
+use crate::bundle::Bundle;
 use crate::contact::Contact;
 use crate::contact_manager::{ContactManager, ContactManagerTxData};
 use crate::multigraph::Multigraph;
 use crate::node::Node;
 use crate::node_manager::NodeManager;
 use crate::route_stage::ViaHop;
+use crate::route_stage::{RouteStage, SharedRouteStage};
 use crate::types::{Date, NodeID};
-use crate::{bundle::Bundle, route_stage::RouteStage};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -29,12 +30,14 @@ pub struct PathFindingOutput<NM: NodeManager, CM: ContactManager> {
     /// The `Bundle` for which the pathfinding is being performed.
     pub bundle: Bundle,
     /// The `source` RouteStage from which the pathfinding is being performed.
-    pub source: Rc<RefCell<RouteStage<NM, CM>>>,
+    pub source: SharedRouteStage<NM, CM>,
     /// A list of `NodeID`s representing nodes that should be excluded from the pathfinding.
     pub excluded_nodes_sorted: Vec<NodeID>,
     /// A vector that contains a `RouteStage`s for a specific destination node ID as the index.
-    pub by_destination: Vec<Option<Rc<RefCell<RouteStage<NM, CM>>>>>,
+    pub by_destination: Vec<Option<SharedRouteStage<NM, CM>>>,
 }
+
+pub type SharedPathFindingOutput<NM, CM> = Rc<RefCell<PathFindingOutput<NM, CM>>>;
 
 impl<NM: NodeManager, CM: ContactManager> PathFindingOutput<NM, CM> {
     /// Creates a new `PathfindingOutput` instance, initializing the `by_destination` vector
@@ -52,7 +55,7 @@ impl<NM: NodeManager, CM: ContactManager> PathFindingOutput<NM, CM> {
     /// A new `PathfindingOutput` instance.
     pub fn new(
         bundle: &Bundle,
-        source: Rc<RefCell<RouteStage<NM, CM>>>,
+        source: SharedRouteStage<NM, CM>,
         excluded_nodes_sorted: &[NodeID],
         node_count: usize,
     ) -> Self {
@@ -65,7 +68,7 @@ impl<NM: NodeManager, CM: ContactManager> PathFindingOutput<NM, CM> {
         }
     }
 
-    pub fn get_source_route(&self) -> Rc<RefCell<RouteStage<NM, CM>>> {
+    pub fn get_source_route(&self) -> SharedRouteStage<NM, CM> {
         self.source.clone()
     }
 
@@ -148,7 +151,7 @@ pub trait Pathfinding<NM: NodeManager, CM: ContactManager> {
 /// An `Option` containing a `RouteStage` if a suitable hop is found, or `None` if no valid hop is available.
 fn try_make_hop<NM: NodeManager, CM: ContactManager>(
     first_contact_index: usize,
-    sndr_route: &Rc<RefCell<RouteStage<NM, CM>>>,
+    sndr_route: &SharedRouteStage<NM, CM>,
     _bundle: &Bundle,
     contacts: &[Rc<RefCell<Contact<NM, CM>>>],
     tx_node: &Rc<RefCell<Node<NM>>>,

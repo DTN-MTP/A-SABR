@@ -20,7 +20,7 @@ fn had_less_volume_than<NM: NodeManager, CM: ContactManager>(
     a: &Contact<NM, CM>,
     b: &Contact<NM, CM>,
 ) -> bool {
-    return a.manager.get_original_volume() < b.manager.get_original_volume();
+    a.manager.get_original_volume() < b.manager.get_original_volume()
 }
 
 create_new_alternative_path_variant!(FirstDepleted, had_less_volume_than);

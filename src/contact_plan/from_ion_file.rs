@@ -9,6 +9,7 @@ use crate::{
         seg::{Segment, SegmentationManager},
         ContactManager,
     },
+    contact_plan::ContactPlan,
     node::{Node, NodeInfo},
     node_manager::{none::NoManagement, NodeManager},
     types::{DataRate, Date, Duration, NodeID},
@@ -163,7 +164,7 @@ fn get_confidence(vec: &[String]) -> f32 {
 impl IONContactPlan {
     pub fn parse<NM: NodeManager, CM: FromIONContactData<NM, CM> + ContactManager>(
         filename: &str,
-    ) -> io::Result<(Vec<Node<NoManagement>>, Vec<Contact<NM, CM>>)> {
+    ) -> io::Result<ContactPlan<NoManagement, NM, CM>> {
         let file = File::open(filename)?;
         let mut reader = BufReader::new(file);
         let mut map_id_map: HashMap<String, NodeID> = HashMap::new();

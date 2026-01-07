@@ -12,7 +12,7 @@ use crate::{
     distance::{Distance, DistanceWrapper},
     multigraph::Multigraph,
     node_manager::NodeManager,
-    route_stage::RouteStage,
+    route_stage::{RouteStage, SharedRouteStage},
     types::{Date, NodeID},
 };
 
@@ -66,13 +66,13 @@ struct HybridParentingWorkArea<NM: NodeManager, CM: ContactManager> {
     /// The bundle associated with this work area.
     pub bundle: Bundle,
     /// The source route stage, representing the starting point for routing.
-    pub source: Rc<RefCell<RouteStage<NM, CM>>>,
+    pub source: SharedRouteStage<NM, CM>,
     /// A sorted list of node IDs to be excluded from routing paths.
     pub excluded_nodes_sorted: Vec<NodeID>,
     /// A vector containing vectors of route stages, grouped by destination.
     /// Each inner vector represents possible routes to a specific destination,
     /// sorted in order of preference.
-    pub by_destination: Vec<Vec<Rc<RefCell<RouteStage<NM, CM>>>>>,
+    pub by_destination: Vec<Vec<SharedRouteStage<NM, CM>>>,
 }
 
 impl<NM: NodeManager, CM: ContactManager> HybridParentingWorkArea<NM, CM> {
@@ -81,7 +81,7 @@ impl<NM: NodeManager, CM: ContactManager> HybridParentingWorkArea<NM, CM> {
     ///
     /// # Parameters
     /// - `bundle`: A reference to the `Bundle` representing the data payload for routing.
-    /// - `source`: An `Rc<RefCell<RouteStage<NM, CM>>>` reference to the initial route stage.
+    /// - `source`: A `SharedRouteStage<NM, CM>` reference to the initial route stage.
     /// - `excluded_nodes_sorted`: A reference to a sorted vector of `NodeID`s to be excluded from routing paths.
     /// - `node_count`: The number of destination nodes, which determines the size of `by_destination`.
     ///
@@ -89,7 +89,7 @@ impl<NM: NodeManager, CM: ContactManager> HybridParentingWorkArea<NM, CM> {
     /// A new instance of `HybridParentingWorkArea` initialized with the provided parameters.
     pub fn new(
         bundle: &Bundle,
-        source: Rc<RefCell<RouteStage<NM, CM>>>,
+        source: SharedRouteStage<NM, CM>,
         excluded_nodes_sorted: &[NodeID],
         node_count: usize,
     ) -> Self {
@@ -146,7 +146,7 @@ use super::{try_make_hop, PathFindingOutput, Pathfinding};
 ///
 /// # Returns
 ///
-/// * `Option<Rc<RefCell<RouteStage<NM, CM>>>>` - Returns an `Option` containing a reference to the
+/// * `Option<SharedRouteStage<NM, CM>>` - Returns an `Option` containing a reference to the
 ///   newly inserted route if the insertion was successful; otherwise, returns `None`.
 fn try_insert<
     NM: NodeManager,
@@ -155,7 +155,7 @@ fn try_insert<
 >(
     proposition: RouteStage<NM, CM>,
     tree: &mut HybridParentingWorkArea<NM, CM>,
-) -> Option<Rc<RefCell<RouteStage<NM, CM>>>> {
+) -> Option<SharedRouteStage<NM, CM>> {
     let routes_for_rx_node = &mut tree.by_destination[proposition.to_node as usize];
     // if D::can_retain sets insert to true, but the next element does not trigger insert_index =idx, insert at the end
     let mut insert_index: usize = routes_for_rx_node.len();
@@ -290,7 +290,7 @@ macro_rules! define_mpt {
                 if $with_exclusions {
                     graph.prepare_for_exclusions_sorted(excluded_nodes_sorted);
                 }
-                let source_route: Rc<RefCell<RouteStage<NM, CM>>> =
+                let source_route: SharedRouteStage<NM, CM> =
                     Rc::new(RefCell::new(RouteStage::new(
                         current_time,
                         source,
