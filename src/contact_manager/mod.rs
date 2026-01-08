@@ -7,7 +7,7 @@ use crate::{
 };
 
 pub mod legacy;
-pub mod seg;
+pub mod segmentation;
 
 /// Data structure representing the transmission (tx) start, end, and related timing information.
 pub struct ContactManagerTxData {

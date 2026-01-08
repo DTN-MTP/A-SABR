@@ -1,5 +1,5 @@
 use a_sabr::{
-    contact_manager::seg::SegmentationManager,
+    contact_manager::segmentation::seg::SegmentationManager,
     contact_plan::{asabr_file_lexer::FileLexer, from_asabr_lexer::ASABRContactPlan},
     node_manager::none::NoManagement,
 };
