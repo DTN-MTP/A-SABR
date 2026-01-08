@@ -6,7 +6,7 @@ use crate::{
             evl::{EVLManager, PEVLManager},
             qd::{PQDManager, QDManager},
         },
-        seg::{Segment, SegmentationManager},
+        segmentation::{seg::SegmentationManager, Segment},
         ContactManager,
     },
     contact_plan::ContactPlan,

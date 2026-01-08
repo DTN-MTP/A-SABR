@@ -4,7 +4,7 @@ use a_sabr::{
     bundle::Bundle,
     contact_manager::{
         legacy::{eto::ETOManager, evl::EVLManager, qd::QDManager},
-        seg::SegmentationManager,
+        segmentation::seg::SegmentationManager,
         ContactManager,
     },
     contact_plan::{asabr_file_lexer::FileLexer, from_asabr_lexer::ASABRContactPlan},
