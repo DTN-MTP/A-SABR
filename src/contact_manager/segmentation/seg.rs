@@ -118,7 +118,8 @@ impl ContactManager for SegmentationManager {
         }
         None
     }
-    /// Schedule the transmission of a bundle based on the contact data and available free intervals.
+
+    /// Schedule the transmission of a bundle based on the contact data intervals booked with lower priority load.
     ///
     /// This method shall be called after a dry run ! Implementations might not ensure a clean behavior otherwise.
     ///

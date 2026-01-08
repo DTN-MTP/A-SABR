@@ -37,16 +37,45 @@ fn get_delay(tx_end: Date, delay_intervals: &Vec<Segment<Duration>>) -> Duration
     Duration::MAX
 }
 
-/// Initializes a segmentation manager by checking that rate and delay intervals have no gaps.
-/// Initializes specific values per implementation
+/// Attempts to initialize segmentation state by validating interval coverage.
+///
+/// This function verifies that:
+/// - `rate_intervals` fully and contiguously cover the contact time window
+/// - `delay_intervals` fully and contiguously cover the contact time window
+/// - No gaps or overlaps exist in either interval list
+/// - `other_intervals` is initially empty
+///
+/// If validation succeeds, `other_intervals` is initialized with a single
+/// segment covering the full contact window using `default` as its value.
 ///
 /// # Arguments
 ///
-/// * `contact_data` - Reference to the contact information.
+/// * `rate_intervals` - Rate segments that must exactly and contiguously span
+///   `[info.start, info.end)`.
+/// * `delay_intervals` - Delay segments that must exactly and contiguously span
+///   `[info.start, info.end)`.
+/// * `other_intervals` - Output interval vector to initialize on success.
+///   Must be empty on entry.
+/// * `default` - Default value assigned to the initialized segment in
+///   `other_intervals`.
+/// * `info` - Contact information defining the valid time window.
+///
+/// # Feature Flags
+///
+/// When the `first_depleted` feature is enabled, `original_volume` is reset
+/// and populated with the total transferable volume computed from
+/// `rate_intervals`.
 ///
 /// # Returns
 ///
-/// Returns `true` if initialization is successful, or `false` if there are gaps in the intervals.
+/// Returns `true` if:
+/// - All interval checks pass
+/// - Initialization completes successfully
+///
+/// Returns `false` if:
+/// - Any interval list has gaps
+/// - Intervals do not exactly match the contact window
+/// - `other_intervals` is not empty
 fn try_init<T>(
     rate_intervals: &Vec<Segment<DataRate>>,
     delay_intervals: &Vec<Segment<Duration>>,
