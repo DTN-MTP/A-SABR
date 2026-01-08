@@ -108,11 +108,60 @@ impl ContactManager for PSegmentationManager {
 
     fn schedule_tx(
         &mut self,
-        _contact_data: &ContactInfo,
-        _at_time: Date,
-        _bundle: &Bundle,
+        contact_data: &ContactInfo,
+        at_time: Date,
+        bundle: &Bundle,
     ) -> Option<ContactManagerTxData> {
-        todo!()
+        let out = self.dry_run_tx(contact_data, at_time, bundle)?;
+        let tx_start = out.tx_start;
+        let tx_end = out.tx_end;
+
+        let mut i = 0;
+        while i < self.booking.len() {
+            let seg = &self.booking[i];
+
+            // Segment completely before tx window
+            if seg.end <= tx_start {
+                i += 1;
+                continue;
+            }
+
+            // Segment completely after tx window
+            if seg.start >= tx_end {
+                break;
+            }
+
+            let old_prio = seg.val;
+
+            // Cut before
+            if seg.start < tx_start {
+                let left = Segment {
+                    start: seg.start,
+                    end: tx_start,
+                    val: old_prio,
+                };
+                self.booking.insert(i, left);
+                self.booking[i + 1].start = tx_start;
+                i += 1;
+            }
+
+            // Cut after
+            if self.booking[i].end > tx_end {
+                let right = Segment {
+                    start: tx_end,
+                    end: self.booking[i].end,
+                    val: old_prio,
+                };
+                self.booking.insert(i + 1, right);
+                self.booking[i].end = tx_end;
+            }
+
+            // Assign TX priority
+            self.booking[i].val = bundle.priority;
+            i += 1;
+        }
+
+        Some(out)
     }
 
     /// For first depleted compatibility
