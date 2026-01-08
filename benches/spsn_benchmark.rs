@@ -1,5 +1,5 @@
 use a_sabr::{
-    bundle::Bundle, contact_manager::seg::SegmentationManager,
+    bundle::Bundle, contact_manager::segmentation::seg::SegmentationManager,
     contact_plan::from_tvgutil_file::TVGUtilContactPlan, node_manager::none::NoManagement,
     routing::aliases::*, types::NodeID,
 };
