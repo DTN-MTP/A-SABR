@@ -5,7 +5,7 @@ use a_sabr::{
             evl::{EVLManager, PEVLManager},
             qd::{PQDManager, QDManager},
         },
-        seg::SegmentationManager,
+        segmentation::seg::SegmentationManager,
         ContactManager,
     },
     contact_plan::{
