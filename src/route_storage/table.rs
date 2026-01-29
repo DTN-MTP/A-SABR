@@ -1,8 +1,9 @@
 use std::{cell::RefCell, cmp::Ordering, marker::PhantomData, rc::Rc};
 
 use crate::{
-    bundle::Bundle, contact_manager::ContactManager, distance::Distance, multigraph::Multigraph,
-    node_manager::NodeManager, routing::dry_run_unicast_path, types::NodeID,
+    bundle::Bundle, contact_manager::ContactManager, distance::Distance, errors::ASABRError,
+    multigraph::Multigraph, node_manager::NodeManager, routing::dry_run_unicast_path,
+    types::NodeID,
 };
 
 use super::{Route, RouteStorage};
@@ -99,7 +100,7 @@ impl<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> RouteStorage<NM, 
         curr_time: crate::types::Date,
         multigraph: Rc<RefCell<Multigraph<NM, CM>>>,
         excluded_nodes_sorted: &[NodeID],
-    ) -> Option<Route<NM, CM>> {
+    ) -> Result<Option<Route<NM, CM>>, ASABRError> {
         let dest = bundle.destinations[0];
 
         if self.tables.len() < 1 + dest as usize {
@@ -109,37 +110,49 @@ impl<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> RouteStorage<NM, 
         let routes = &mut self.tables[dest as usize];
         let mut best_route_option: Option<Route<NM, CM>> = None;
 
-        routes.retain(|route| {
-            if curr_time > route.destination_stage.borrow().expiration {
-                false
-            } else {
-                // apply exclusions
-                multigraph
-                    .borrow_mut()
-                    .prepare_for_exclusions_sorted(excluded_nodes_sorted);
-                // dry run with exclusions
-                if let Some(new_candidate) =
-                    dry_run_unicast_path(bundle, curr_time, route.source_stage.clone(), true)
-                {
-                    match best_route_option {
-                        Some(ref best_route) => {
-                            if D::cmp(
-                                &new_candidate.borrow(),
-                                &best_route.destination_stage.borrow(),
-                            ) == Ordering::Less
-                            {
+        let mut i = 0;
+        while i < routes.len() {
+            let should_remove = {
+                let route = &routes[i];
+
+                if curr_time > route.destination_stage.borrow().expiration {
+                    true
+                } else {
+                    // apply exclusions
+                    multigraph
+                        .try_borrow_mut()?
+                        .prepare_for_exclusions_sorted(excluded_nodes_sorted)?;
+
+                    // dry run with exclusions
+                    if let Some(new_candidate) =
+                        dry_run_unicast_path(bundle, curr_time, route.source_stage.clone(), true)?
+                    {
+                        match best_route_option {
+                            Some(ref best_route) => {
+                                if D::cmp(
+                                    &new_candidate.borrow(),
+                                    &best_route.destination_stage.borrow(),
+                                ) == Ordering::Less
+                                {
+                                    best_route_option = Some(route.clone());
+                                }
+                            }
+                            None => {
                                 best_route_option = Some(route.clone());
                             }
                         }
-                        None => {
-                            best_route_option = Some(route.clone());
-                        }
                     }
-                };
-                true
-            }
-        });
+                    false
+                }
+            }; // All borrows dropped here
 
-        best_route_option
+            if should_remove {
+                routes.remove(i);
+            } else {
+                i += 1;
+            }
+        }
+
+        Ok(best_route_option)
     }
 }

@@ -1,6 +1,7 @@
 use crate::bundle::Bundle;
 use crate::contact::Contact;
 use crate::contact_manager::{ContactManager, ContactManagerTxData};
+use crate::errors::ASABRError;
 use crate::multigraph::Multigraph;
 use crate::node::Node;
 use crate::node_manager::NodeManager;
@@ -79,10 +80,11 @@ impl<NM: NodeManager, CM: ContactManager> PathFindingOutput<NM, CM> {
     /// # Parameters
     ///
     /// * `destination` - The target node ID for the routing.
-    pub fn init_for_destination(&self, destination: NodeID) {
+    pub fn init_for_destination(&self, destination: NodeID) -> Result<(), ASABRError> {
         if let Some(route) = self.by_destination[destination as usize].clone() {
-            RouteStage::init_route(route);
+            RouteStage::init_route(route)?;
         }
+        Ok(())
     }
 }
 
@@ -124,7 +126,7 @@ pub trait Pathfinding<NM: NodeManager, CM: ContactManager> {
         source: NodeID,
         bundle: &Bundle,
         excluded_nodes_sorted: &[NodeID],
-    ) -> PathFindingOutput<NM, CM>;
+    ) -> Result<PathFindingOutput<NM, CM>, ASABRError>;
 
     /// Get a shared pointer to the multigraph.
     ///

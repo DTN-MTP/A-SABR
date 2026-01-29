@@ -62,7 +62,7 @@ fn main() {
     println!(
         "Enqueueing bundle_1 status : {}",
         first_hop_contact
-            .borrow_mut()
+            .try_borrow_mut()
             .manager
             .manual_enqueue(&bundle_1)
     );
@@ -85,7 +85,7 @@ fn main() {
     println!(
         "Enqueueing bundle_2 status : {}",
         first_hop_contact
-            .borrow_mut()
+            .try_borrow_mut()
             .manager
             .manual_enqueue(&bundle_2)
     );
@@ -112,7 +112,7 @@ fn main() {
     println!(
         "Dequeueing bundle_1, status : {}",
         first_hop_contact
-            .borrow_mut()
+            .try_borrow_mut()
             .manager
             .manual_dequeue(&bundle_1)
     );
