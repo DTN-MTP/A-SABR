@@ -6,6 +6,7 @@ pub mod table;
 use crate::{
     bundle::Bundle,
     contact_manager::ContactManager,
+    errors::ASABRError,
     multigraph::Multigraph,
     node_manager::NodeManager,
     pathfinding::{PathFindingOutput, SharedPathFindingOutput},
@@ -37,7 +38,7 @@ pub trait TreeStorage<NM: NodeManager, CM: ContactManager> {
         bundle: &Bundle,
         curr_time: Date,
         excluded_nodes_sorted: &[NodeID],
-    ) -> (Option<SharedPathFindingOutput<NM, CM>>, Option<Vec<NodeID>>);
+    ) -> Result<(Option<SharedPathFindingOutput<NM, CM>>, Option<Vec<NodeID>>), ASABRError>;
 
     /// Stores the pathfinding output tree for future use.
     ///
@@ -100,7 +101,7 @@ pub trait RouteStorage<NM: NodeManager, CM: ContactManager> {
         curr_time: Date,
         multigraph: Rc<RefCell<Multigraph<NM, CM>>>,
         excluded_nodes_sorted: &[NodeID],
-    ) -> Option<Route<NM, CM>>;
+    ) -> Result<Option<Route<NM, CM>>, ASABRError>;
 
     fn store(&mut self, bundle: &Bundle, route: Route<NM, CM>);
 }

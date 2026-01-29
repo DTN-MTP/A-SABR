@@ -83,12 +83,12 @@ fn main () {
 
     // We open a block to constrain the scope of "borrowed"
     {
-        let mut borrowed = heap_allocated.borrow_mut();
+        let mut borrowed = heap_allocated.try_borrow_mut();
         borrowed.member = 43;
         // will panic, only one mutable borrow at a time
-        // let mut illegal = heap_allocated.borrow_mut();
+        // let mut illegal = heap_allocated.try_borrow_mut();
     } // borrowed leaves the scope
-    let mut legal = heap_allocated.borrow_mut();
+    let mut legal = heap_allocated.try_borrow_mut();
 }
 ```
 
