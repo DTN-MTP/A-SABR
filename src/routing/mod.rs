@@ -304,7 +304,7 @@ pub fn dry_run_unicast_tree<NM: NodeManager, CM: ContactManager>(
     let dest_route_req = tree_ref.by_destination.get(dest as usize).cloned();
 
     let Some(dest_route_opt) = dest_route_req else {
-        return Err(ASABRError::DryRun("Unknown destination"));
+        return Err(ASABRError::DryRunError("Unknown destination"));
     };
 
     let Some(dest_route) = dest_route_opt else {
@@ -332,7 +332,9 @@ fn update_unicast<NM: NodeManager, CM: ContactManager>(
     source_route: SharedRouteStage<NM, CM>,
 ) -> Result<RoutingOutput<NM, CM>, ASABRError> {
     if source_route.borrow().to_node == dest {
-        panic!("Bundle's destination is equal to source");
+        return Err(ASABRError::ScheduleError(
+            "Bundle's destination is equal to source",
+        ));
     }
 
     let mut curr_opt = source_route
@@ -364,7 +366,7 @@ fn update_unicast<NM: NodeManager, CM: ContactManager>(
                 first_hops.insert(first.as_ptr() as usize, (first, vec![curr_route.clone()]));
                 return Ok(RoutingOutput { first_hops });
             }
-            panic!("First hop tracking issue");
+            return Err(ASABRError::ScheduleError("First hop tracking issue"));
         }
 
         curr_opt = curr_route_borrowed.next_for_destination.get(&dest).cloned();

@@ -60,10 +60,10 @@ impl<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: TreeStorage
         }
 
         if bundle.destinations.len() == 1 {
-            return Ok(self.route_unicast(source, bundle, curr_time, excluded_nodes)?);
+            return self.route_unicast(source, bundle, curr_time, excluded_nodes);
         }
 
-        Ok(self.route_multicast(source, bundle, curr_time, excluded_nodes)?)
+        self.route_multicast(source, bundle, curr_time, excluded_nodes)
     }
 }
 
