@@ -50,7 +50,7 @@ impl<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: RouteStorag
             return self.route_unicast(source, bundle, curr_time, excluded_nodes);
         }
 
-        Err(ASABRError::MulticastUnsupported)
+        Err(ASABRError::MulticastUnsupportedError)
     }
 }
 

@@ -1,18 +1,11 @@
 use crate::{
-    contact::{Contact, ContactInfo},
-    contact_manager::{
-        legacy::{
+    contact::{Contact, ContactInfo}, contact_manager::{
+        ContactManager, legacy::{
             eto::{ETOManager, PETOManager},
             evl::{EVLManager, PEVLManager},
             qd::{PQDManager, QDManager},
-        },
-        segmentation::{seg::SegmentationManager, Segment},
-        ContactManager,
-    },
-    contact_plan::ContactPlan,
-    node::{Node, NodeInfo},
-    node_manager::{none::NoManagement, NodeManager},
-    types::{DataRate, Date, Duration, NodeID},
+        }, segmentation::{Segment, seg::SegmentationManager}
+    }, contact_plan::ContactPlan, errors::ASABRError, node::{Node, NodeInfo}, node_manager::{NodeManager, none::NoManagement}, types::{DataRate, Date, Duration, NodeID}
 };
 
 use std::{cmp::Ordering, collections::HashMap};
@@ -254,13 +247,13 @@ impl IONContactPlan {
                     contact.delay = range.delay;
                     contacts.push(CM::ion_convert(contact).unwrap());
                 } else {
-                    panic!("This parser only supports one range per contact");
+                    return Err(ASABRError::ContactPlanError("This parser only supports one range per contact"))?;
                 }
             }
         }
 
         if contacts.len() != contact_count {
-            panic!("At least one contact has no range");
+             return Err(ASABRError::ContactPlanError("At least one contact has no range"))?;
         }
 
         Ok((nodes, contacts))
