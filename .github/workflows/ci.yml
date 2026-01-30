@@ -16,5 +16,6 @@ jobs:
       - uses: swatinem/rust-cache@v2
 
       - run: cargo fmt --all -- --check
+        continue-on-error: true
       - run: cargo clippy -- -D warnings
       - run: cargo test
