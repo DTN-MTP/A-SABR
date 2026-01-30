@@ -106,7 +106,7 @@ fn edge_case_example<NM: NodeManager + Parser<NM> + DispatchParser<NM>>(
         cp_path
     );
 
-    let res = mpt_graph.get_next(0.0, 0, &bundle, &vec![]);
+    let res = mpt_graph.get_next(0.0, 0, &bundle, &vec![]).unwrap();
 
     match res.by_destination[2].clone() {
         Some(route) => pretty_print(route),

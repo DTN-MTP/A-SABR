@@ -46,7 +46,7 @@ fn edge_case_example(cp_path: &str, dest: NodeID) {
         cp_path, dest
     );
     println!("");
-    let res = node_graph.get_next(0.0, 0, &bundle, &vec![]);
+    let res = node_graph.get_next(0.0, 0, &bundle, &vec![]).unwrap();
     print!("With NodeParentingPath pathfinding. ");
     pretty_print(res.by_destination[dest as usize].clone().unwrap());
 
@@ -57,7 +57,7 @@ fn edge_case_example(cp_path: &str, dest: NodeID) {
         pretty_print(res.by_destination[dest as usize].clone().unwrap());
     }
 
-    let res = mpt_graph.get_next(0.0, 0, &bundle, &vec![]);
+    let res = mpt_graph.get_next(0.0, 0, &bundle, &vec![]).unwrap();
     print!("With HybridParentingPath pathfinding. ");
     pretty_print(res.by_destination[dest as usize].clone().unwrap());
 }
