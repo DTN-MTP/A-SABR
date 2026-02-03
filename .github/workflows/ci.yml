@@ -2,7 +2,7 @@ name: A-SABR CI
 
 on:
   push:
-    branches: ["develop","main","feature/*"]
+    branches: ["develop","main","feature/**"]
 
 jobs:
   test:
