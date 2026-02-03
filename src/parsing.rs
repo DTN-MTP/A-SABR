@@ -59,6 +59,7 @@ impl<'a, T> Dispatcher<'a, T> {
 }
 
 /// Represents the state of parsing for a generic type.
+#[derive(Debug, PartialEq)]
 pub enum ParsingState<T> {
     /// Indicates that the end of the file has been reached.
     EOF,
@@ -258,3 +259,93 @@ macro_rules! implement_manager {
 // Generate implementations for VolumeManager and NodeManager
 implement_manager!(ContactManager, coerce_cm);
 implement_manager!(NodeManager, coerce_nm);
+
+
+#[cfg(test)]
+mod tests{
+    use super::*;
+    struct MockLexer{
+        tokens: Vec<String>,
+        position: usize,
+    }
+
+    impl MockLexer {
+        fn new(data: Vec<&str>) -> Self {
+            Self {
+                tokens: data.iter().map(|s| s.to_string()).collect(),
+                position: 0,
+            }
+        }
+    }
+
+
+    impl Lexer for MockLexer{
+        fn lookup(&mut self) -> ParsingState<String>{
+            if self.position < self.tokens.len(){
+                ParsingState::Finished(self.tokens[self.position].clone())
+            }
+            else {
+                ParsingState::EOF
+            }
+        }
+        fn consume_next_token(&mut self) -> ParsingState<String> {
+            let state = self.lookup();
+            if let ParsingState::Finished(_) = state {
+                self.position += 1;
+            }
+            state
+        }
+        fn get_current_position(&self) -> String {
+            format!("Token at index {}",self.position)
+        }
+    }
+
+    #[derive(Debug, PartialEq)]
+    struct TestInfo {value: String}
+
+    impl Parser<TestInfo> for TestInfo{
+        fn parse(lexer: &mut dyn Lexer) -> ParsingState<TestInfo> {
+            match lexer.consume_next_token() {
+                ParsingState::Finished(val) => ParsingState::Finished(TestInfo {value: val}), _ => ParsingState::Error("Failed to parse Info".to_string()),
+            }
+            }
+        }
+    #[derive(Debug, PartialEq)]
+    struct TestManager {value: String}
+
+    impl Parser<TestManager> for TestManager {
+        fn parse(lexer: &mut dyn Lexer) -> ParsingState<TestManager>{
+            match lexer.consume_next_token() {
+                ParsingState::Finished(val) => ParsingState::Finished(TestManager { value: val }), 
+                _ => ParsingState::Error("Failed to parse Manager".to_string()),
+            }
+        }
+    }
+
+    impl DispatchParser<TestManager> for TestManager {}
+
+    #[test]
+    fn test_static_parsing_success() {
+        let mut lexer = MockLexer::new(vec!["MyInfo", "MyManager"]);
+        let result= parse_components::<TestInfo, TestManager>(&mut lexer, None);
+
+        match result {
+            ParsingState::Finished((info,manager)) => {
+                assert_eq!(info.value, "MyInfo");
+                assert_eq!(manager.value, "MyManager");
+            },
+            err => panic!("Unexpected parsing fail: {:?}",err),
+        }
+    }
+
+    #[test]
+    fn test_parsing_fails(){
+        let mut lexer = MockLexer::new(vec!["MyInfo"]);
+        let result = parse_components::<TestInfo,TestManager>(&mut lexer, None);
+        match result {
+            ParsingState::Error(_) => assert!(true),
+            ParsingState::EOF => panic!("Should be an error"),
+            ParsingState::Finished(_) => panic!("Should be an error"),
+        }
+    }
+    }
