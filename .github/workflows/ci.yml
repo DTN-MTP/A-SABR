@@ -3,7 +3,8 @@ name: A-SABR CI
 on:
   push:
     branches: ["develop","main","feature/**"]
-
+    
+  workflow_dispatch: 
 jobs:
   test:
     runs-on: ubuntu-latest
