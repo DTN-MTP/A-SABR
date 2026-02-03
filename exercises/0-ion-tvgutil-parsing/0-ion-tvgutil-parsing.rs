@@ -4,17 +4,20 @@
 //     node_manager::none::NoManagement,
 // };
 
+use a_sabr::{contact_manager::legacy::evl::EVLManager, contact_plan::from_ion_file::IONContactPlan, node_manager::none::NoManagement};
+
 fn main() {
     // Exo 1: retrieve and display the contacts from the examples/0-ion-tvgutil-parsing/contact_plan.ion file
 
     // Use that
-    // let cp_ion = "exercises/0-ion-tvgutil-parsing/contact_plan.ion";
+    let cp_ion = "exercises/0-ion-tvgutil-parsing/contact_plan.ion";
 
     // Use the "NoManagement" type for the node managers.
     // Use the "EVLManager" for the contacts managers. (EVL as defined in SABR)
     // You can also try with "QDManager" and "ETOManager",
     // or their priority enabled versions "PEVLManager", "PQDManger", etc.
-
+    let nodes = IONContactPlan::parse::<NoManagement, EVLManager>(cp_ion).expect("Parsing failed.");
+    println!("{:#?}",nodes);
     // Display Nodes and Contacts with the {:?} (standard) or {:#?} (pettry print) formats
     // Example: println!("{:?}", node);
 
