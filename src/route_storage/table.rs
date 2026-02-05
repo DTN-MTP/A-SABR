@@ -31,6 +31,12 @@ pub struct RoutingTable<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>
     _phantom_distance: PhantomData<D>,
 }
 
+impl<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> Default for RoutingTable<NM, CM, D> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> RoutingTable<NM, CM, D> {
     /// Creates a new, empty `RoutingTable`.
     ///

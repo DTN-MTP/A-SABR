@@ -337,15 +337,13 @@ macro_rules! generate_prio_volume_manager {
                 at_time: crate::types::Date,
                 bundle: &crate::bundle::Bundle,
             ) -> Option<crate::contact_manager::ContactManagerTxData> {
-                if let Some(data) = self.dry_run_tx(contact_data, at_time, bundle) {
-                    // Conditionally update queue size based on $auto_update
-                    // Can overflow with overbooking
-                    if $auto_update {
-                        self.enqueue(bundle);
-                    }
-                    return Some(data);
+                let data = self.dry_run_tx(contact_data, at_time, bundle)?;
+                // Conditionally update queue size based on $auto_update
+                // Can overflow with overbooking
+                if $auto_update {
+                    self.enqueue(bundle);
                 }
-                None
+                return Some(data);
             }
 
             /// Initializes the segmentation manager by checking that rate and delay intervals have no gaps.
