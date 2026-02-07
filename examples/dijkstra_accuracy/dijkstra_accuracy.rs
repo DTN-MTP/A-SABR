@@ -52,7 +52,7 @@ fn edge_case_example(cp_path: &str, dest: NodeID) {
 
     #[cfg(feature = "contact_work_area")]
     {
-        let res = contact_graph.get_next(0.0, 0, &bundle, &vec![]);
+        let res = contact_graph.get_next(0.0, 0, &bundle, &vec![]).unwrap();
         print!("With ContactParentingPath pathfinding. ");
         pretty_print(res.by_destination[dest as usize].clone().unwrap());
     }
