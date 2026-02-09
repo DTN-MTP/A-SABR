@@ -81,10 +81,19 @@ pub fn benchmark(c: &mut Criterion) {
                     >(ptvg_filepath)
                     .unwrap();
 
-                    build_generic_router(router_type, nodes, contacts, Some(spsn_opts.clone()))
+                    let router = match build_generic_router(
+                        router_type,
+                        nodes,
+                        contacts,
+                        Some(spsn_opts.clone()),
+                    ) {
+                        Ok(rter) => rter,
+                        Err(err) => panic!("{}", err),
+                    };
+                    router
                 },
                 |mut router| {
-                    black_box(router.route(
+                    let _ = black_box(router.route(
                         black_box(source),
                         black_box(&bundle),
                         black_box(curr_time),

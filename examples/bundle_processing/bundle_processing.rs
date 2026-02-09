@@ -8,6 +8,7 @@ use a_sabr::parsing::{DispatchParser, Lexer, Parser, ParsingState};
 use a_sabr::parsing::{NodeMarkerMap, StaticMarkerMap};
 use a_sabr::pathfinding::hybrid_parenting::HybridParentingPath;
 use a_sabr::pathfinding::Pathfinding;
+#[cfg(any(feature = "node_rx", feature = "node_proc", feature = "node_rx"))]
 use a_sabr::types::Date;
 use a_sabr::types::Priority;
 use a_sabr::types::Token;
@@ -115,7 +116,7 @@ fn edge_case_example<NM: NodeManager + Parser<NM> + DispatchParser<NM>>(
         cp_path, bundle_priority
     );
 
-    let res = mpt_graph.get_next(0.0, 0, &bundle, &vec![]);
+    let res = mpt_graph.get_next(0.0, 0, &bundle, &vec![]).unwrap();
 
     match res.by_destination[3].clone() {
         Some(route) => pretty_print(route),

@@ -3,6 +3,7 @@ use std::{cell::RefCell, collections::VecDeque, marker::PhantomData, rc::Rc};
 use crate::{
     bundle::Bundle,
     contact_manager::ContactManager,
+    errors::ASABRError,
     node_manager::NodeManager,
     pathfinding::PathFindingOutput,
     routing::{dry_run_multicast, dry_run_unicast_tree},
@@ -74,10 +75,13 @@ impl<NM: NodeManager, CM: ContactManager> TreeStorage<NM, CM> for TreeCache<NM, 
         bundle: &Bundle,
         curr_time: Date,
         excluded_nodes_sorted: &[NodeID],
-    ) -> (
-        Option<Rc<RefCell<PathFindingOutput<NM, CM>>>>,
-        Option<Vec<NodeID>>,
-    ) {
+    ) -> Result<
+        (
+            Option<Rc<RefCell<PathFindingOutput<NM, CM>>>>,
+            Option<Vec<NodeID>>,
+        ),
+        ASABRError,
+    > {
         let multicast = bundle.destinations.len() > 1;
         for tree in &self.trees {
             if tree
@@ -92,18 +96,19 @@ impl<NM: NodeManager, CM: ContactManager> TreeStorage<NM, CM> for TreeCache<NM, 
             }
             match multicast {
                 false => {
-                    if let Some(_res) = dry_run_unicast_tree(bundle, curr_time, tree.clone(), false)
+                    if let Some(_res) =
+                        dry_run_unicast_tree(bundle, curr_time, tree.clone(), false)?
                     {
-                        return (Some(tree.clone()), None);
+                        return Ok((Some(tree.clone()), None));
                     }
                 }
                 true => {
-                    let reachable_nodes = dry_run_multicast(bundle, curr_time, tree.clone());
-                    return (Some(tree.clone()), Some(reachable_nodes));
+                    let reachable_nodes = dry_run_multicast(bundle, curr_time, tree.clone())?;
+                    return Ok((Some(tree.clone()), Some(reachable_nodes)));
                 }
             }
         }
-        (None, None)
+        Ok((None, None))
     }
 
     /// Stores a pathfinding output tree in the cache. Replaces a tree for a known exclusion list.

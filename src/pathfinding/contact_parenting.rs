@@ -94,10 +94,10 @@ macro_rules! define_contact_graph {
                 source: NodeID,
                 bundle: &Bundle,
                 excluded_nodes_sorted: &[NodeID],
-            ) -> PathFindingOutput<NM, CM> {
-                let mut graph = self.graph.borrow_mut();
+            ) -> Result<PathFindingOutput<NM, CM>, crate::errors::ASABRError> {
+                let mut graph = self.graph.try_borrow_mut()?;
                 if $with_exclusions {
-                    graph.prepare_for_exclusions_sorted(excluded_nodes_sorted);
+                    graph.prepare_for_exclusions_sorted(excluded_nodes_sorted)?;
                 }
                 let source_route: Rc<RefCell<RouteStage<NM, CM>>> =
                     Rc::new(RefCell::new(RouteStage::new(
@@ -173,7 +173,7 @@ macro_rules! define_contact_graph {
                                 if let Some(hop) = &route_proposition.via {
                                     // todo : improve CF..
                                     if let Some(know_route_ref) = &hop.contact.borrow().work_area {
-                                        let mut know_route = know_route_ref.borrow_mut();
+                                        let mut know_route = know_route_ref.try_borrow_mut()?;
                                         if D::cmp(&route_proposition, &know_route) == Ordering::Less
                                         {
                                             // if "Test"
@@ -197,14 +197,15 @@ macro_rules! define_contact_graph {
                                             route_proposition_ref.clone(),
                                         )));
                                         let contact = &hop.contact;
-                                        contact.borrow_mut().work_area =
+                                        contact.try_borrow_mut()?.work_area =
                                             Some(route_proposition_ref.clone());
 
                                         // We can do this directly only in the if "Test" without the else
                                         if let Some(know_route_ref) =
                                             tree.by_destination[rx_node_id as usize].clone()
                                         {
-                                            let known_best_route = know_route_ref.borrow_mut();
+                                            let known_best_route =
+                                                know_route_ref.try_borrow_mut()?;
                                             if D::cmp(&route_proposition, &known_best_route)
                                                 == Ordering::Less
                                             {
@@ -237,10 +238,10 @@ macro_rules! define_contact_graph {
 
                 // We replace rather than clear because some work areas became part of the output.
                 for contact in altered_contacts {
-                    contact.borrow_mut().work_area = None;
+                    contact.try_borrow_mut()?.work_area = None;
                 }
 
-                return tree;
+                return Ok(tree);
             }
 
             /// Get a shared pointer to the multigraph.

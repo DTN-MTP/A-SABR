@@ -2,6 +2,7 @@ use crate::{
     contact::Contact,
     contact_manager::ContactManager,
     distance::{hop::Hop, sabr::SABR},
+    errors::ASABRError,
     node::Node,
     node_manager::NodeManager,
     pathfinding::{
@@ -140,7 +141,11 @@ macro_rules! register_cgr_router {
         if $test_name_variable == $router_name {
             let routing_table = Rc::new(RefCell::new(RoutingTable::new()));
 
-            return Box::new($router::<NM, CM>::new($nodes, $contacts, routing_table));
+            return Ok(Box::new($router::<NM, CM>::new(
+                $nodes,
+                $contacts,
+                routing_table,
+            )));
         }
     };
 }
@@ -154,12 +159,12 @@ macro_rules! register_spsn_router {
                 $max_entries,
             )));
 
-            return Box::new($router::<NM, CM>::new(
+            return Ok(Box::new($router::<NM, CM>::new(
                 $nodes,
                 $contacts,
                 cache,
                 $check_priority,
-            ));
+            )));
         }
     };
 }
@@ -175,7 +180,7 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
     nodes: Vec<Node<NM>>,
     contacts: Vec<Contact<NM, CM>>,
     spsn_options: Option<SpsnOptions>,
-) -> Box<dyn Router<NM, CM>> {
+) -> Result<Box<dyn Router<NM, CM>>, ASABRError> {
     if let Some(options) = spsn_options {
         let check_size = options.check_size;
         let check_priority = options.check_priority;
@@ -416,8 +421,5 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
         contacts
     );
 
-    panic!(
-        "Router type \"{}\" is invalid! (check for typo, disabled feature, or missing options for Spsn algos)",
-        &router_type
-    );
+    Err(ASABRError::ScheduleError("Router type is invalid! (check for typo, disabled feature, or missing options for Spsn algos)"))
 }

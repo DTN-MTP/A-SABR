@@ -10,6 +10,7 @@ use crate::{
     bundle::Bundle,
     contact_manager::ContactManager,
     distance::{Distance, DistanceWrapper},
+    errors::ASABRError,
     multigraph::Multigraph,
     node_manager::NodeManager,
     route_stage::{RouteStage, SharedRouteStage},
@@ -155,7 +156,7 @@ fn try_insert<
 >(
     proposition: RouteStage<NM, CM>,
     tree: &mut HybridParentingWorkArea<NM, CM>,
-) -> Option<SharedRouteStage<NM, CM>> {
+) -> Result<Option<SharedRouteStage<NM, CM>>, ASABRError> {
     let routes_for_rx_node = &mut tree.by_destination[proposition.to_node as usize];
     // if D::can_retain sets insert to true, but the next element does not trigger insert_index =idx, insert at the end
     let mut insert_index: usize = routes_for_rx_node.len();
@@ -164,7 +165,7 @@ fn try_insert<
     if routes_for_rx_node.is_empty() {
         let proposition_rc = Rc::new(RefCell::new(proposition));
         routes_for_rx_node.push(Rc::clone(&proposition_rc));
-        return Some(proposition_rc);
+        return Ok(Some(proposition_rc));
     }
 
     for (idx, route) in routes_for_rx_node.iter().enumerate() {
@@ -204,7 +205,7 @@ fn try_insert<
 
         // Now disable the routes(for the shared ref in the priority queue)
         for route in routes_for_rx_node.iter().skip(truncate_index) {
-            route.borrow_mut().is_disabled = true;
+            route.try_borrow_mut()?.is_disabled = true;
         }
 
         // Now truncate
@@ -214,10 +215,10 @@ fn try_insert<
         // if everything was truncated, the following has no overhead
         routes_for_rx_node.insert(insert_index, Rc::clone(&proposition_rc));
 
-        return Some(proposition_rc);
+        return Ok(Some(proposition_rc));
     }
 
-    None
+    Ok(None)
 }
 
 macro_rules! define_mpt {
@@ -285,10 +286,10 @@ macro_rules! define_mpt {
                 source: NodeID,
                 bundle: &Bundle,
                 excluded_nodes_sorted: &[NodeID],
-            ) -> PathFindingOutput<NM, CM> {
-                let mut graph = self.graph.borrow_mut();
+            ) -> Result<PathFindingOutput<NM, CM>, ASABRError> {
+                let mut graph = self.graph.try_borrow_mut()?;
                 if $with_exclusions {
-                    graph.prepare_for_exclusions_sorted(excluded_nodes_sorted);
+                    graph.prepare_for_exclusions_sorted(excluded_nodes_sorted)?;
                 }
                 let source_route: SharedRouteStage<NM, CM> =
                     Rc::new(RefCell::new(RouteStage::new(
@@ -350,7 +351,8 @@ macro_rules! define_mpt {
                         };
 
                         // This transforms a prop in the stack to a prop in the heap
-                        let Some(new_route) = try_insert::<NM, CM, D>(route_proposition, &mut tree)
+                        let Some(new_route) =
+                            try_insert::<NM, CM, D>(route_proposition, &mut tree)?
                         else {
                             continue;
                         };
@@ -364,7 +366,7 @@ macro_rules! define_mpt {
                     v.truncate(1);
                 }
 
-                return tree.to_pathfinding_output();
+                return Ok(tree.to_pathfinding_output());
             }
 
             /// Get a shared pointer to the multigraph.
