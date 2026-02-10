@@ -4,6 +4,7 @@ use std::rc::Rc;
 use super::node::Node;
 use crate::contact::Contact;
 use crate::contact_manager::ContactManager;
+use crate::errors::ASABRError;
 use crate::node_manager::NodeManager;
 use crate::types::*;
 
@@ -176,18 +177,22 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
     /// # Parameters
     ///
     /// * `exclusions: &[NodeID]` - A sorted list of node IDs to exclude.
-    pub fn prepare_for_exclusions_sorted(&mut self, exclusions: &[NodeID]) {
+    pub fn prepare_for_exclusions_sorted(
+        &mut self,
+        exclusions: &[NodeID],
+    ) -> Result<(), ASABRError> {
         let mut exclusion_idx = 0;
         let exclusion_len = exclusions.len();
 
         for (node_id, sender) in self.senders.iter_mut().enumerate() {
             if exclusion_idx < exclusion_len && exclusions[exclusion_idx] as usize == node_id {
-                sender.node.borrow_mut().info.excluded = true;
+                sender.node.try_borrow_mut()?.info.excluded = true;
                 exclusion_idx += 1;
             } else {
-                sender.node.borrow_mut().info.excluded = false;
+                sender.node.try_borrow_mut()?.info.excluded = false;
             }
         }
+        Ok(())
     }
 
     /// Retrieves the total number of nodes in the multigraph.

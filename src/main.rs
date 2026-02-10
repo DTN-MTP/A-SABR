@@ -32,7 +32,7 @@ fn main() {
     let mut contact_dispatch: ContactMarkerMap = ContactMarkerMap::new();
     contact_dispatch.add("evl", coerce_cm::<EVLManager>);
     contact_dispatch.add("qd", coerce_cm::<QDManager>);
-    contact_dispatch.add("evl", coerce_cm::<ETOManager>);
+    contact_dispatch.add("eto", coerce_cm::<ETOManager>);
     contact_dispatch.add("seg", coerce_cm::<SegmentationManager>);
 
     // We parse the contact plan (A-SABR format thanks to ASABRContactPlan) and the lexer
@@ -62,7 +62,7 @@ fn main() {
     // We schedule the bundle (resource updates were conducted)
     let out = spsn.route(0, &b, 0.0, &Vec::new());
 
-    if let Some(out) = out {
+    if let Ok(Some(out)) = out {
         for (_contact, dest_routes) in out.first_hops.values() {
             for route_rc in dest_routes {
                 pretty_print(route_rc.clone());

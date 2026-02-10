@@ -2,6 +2,7 @@ use crate::{
     bundle::Bundle,
     contact::Contact,
     contact_manager::ContactManager,
+    errors::ASABRError,
     multigraph::Multigraph,
     node::Node,
     node_manager::NodeManager,
@@ -53,9 +54,9 @@ impl<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: TreeStorage
         bundle: &Bundle,
         curr_time: Date,
         excluded_nodes: &[NodeID],
-    ) -> Option<RoutingOutput<NM, CM>> {
+    ) -> Result<Option<RoutingOutput<NM, CM>>, ASABRError> {
         if bundle.expiration < curr_time {
-            return None;
+            return Ok(None);
         }
 
         if bundle.destinations.len() == 1 {
@@ -119,9 +120,9 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
         bundle: &Bundle,
         curr_time: Date,
         excluded_nodes: &[NodeID],
-    ) -> Option<RoutingOutput<NM, CM>> {
+    ) -> Result<Option<RoutingOutput<NM, CM>>, ASABRError> {
         if self.unicast_guard.must_abort(bundle) {
-            return None;
+            return Ok(None);
         }
 
         let dest = bundle.destinations[0];
@@ -129,19 +130,19 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
         let (tree_option, _reachable_nodes) =
             self.route_storage
                 .borrow()
-                .select(bundle, curr_time, excluded_nodes);
+                .select(bundle, curr_time, excluded_nodes)?;
 
         if let Some(tree) = tree_option {
-            return Some(schedule_unicast(bundle, curr_time, tree, false));
+            return Ok(Some(schedule_unicast(bundle, curr_time, tree, false)?));
         }
 
         let new_tree = self
             .pathfinding
-            .get_next(curr_time, source, bundle, excluded_nodes);
+            .get_next(curr_time, source, bundle, excluded_nodes)?;
         let tree_ref = Rc::new(RefCell::new(new_tree));
 
         self.route_storage
-            .borrow_mut()
+            .try_borrow_mut()?
             .store(bundle, tree_ref.clone());
 
         match &tree_ref.borrow().by_destination[dest as usize] {
@@ -150,16 +151,16 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
             // /!\ But maybe it should, issues expected with non-SABR distances
             Some(route) => {
                 if route.borrow().at_time > bundle.expiration {
-                    return None;
+                    return Ok(None);
                 }
             }
             None => {
                 self.unicast_guard.add_limit(bundle, dest as NodeID);
-                return None;
+                return Ok(None);
             }
         }
 
-        Some(schedule_unicast(bundle, curr_time, tree_ref, true))
+        Ok(Some(schedule_unicast(bundle, curr_time, tree_ref, true)?))
     }
 
     /// Routes a bundle to multiple destination nodes using multicast routing.
@@ -184,28 +185,30 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
         bundle: &Bundle,
         curr_time: Date,
         excluded_nodes: &[NodeID],
-    ) -> Option<RoutingOutput<NM, CM>> {
+    ) -> Result<Option<RoutingOutput<NM, CM>>, ASABRError> {
         if let (Some(tree), Some(reachable_nodes)) =
             self.route_storage
                 .borrow()
-                .select(bundle, curr_time, excluded_nodes)
+                .select(bundle, curr_time, excluded_nodes)?
         {
             if bundle.destinations.len() == reachable_nodes.len() {
-                return Some(schedule_multicast(
+                return Ok(Some(schedule_multicast(
                     bundle,
                     curr_time,
                     tree,
                     Some(reachable_nodes),
-                ));
+                )?));
             }
         }
 
         let new_tree = self
             .pathfinding
-            .get_next(curr_time, source, bundle, excluded_nodes);
+            .get_next(curr_time, source, bundle, excluded_nodes)?;
         let tree = Rc::new(RefCell::new(new_tree));
-        self.route_storage.borrow_mut().store(bundle, tree.clone());
+        self.route_storage
+            .try_borrow_mut()?
+            .store(bundle, tree.clone());
 
-        Some(schedule_multicast(bundle, curr_time, tree, None))
+        Ok(Some(schedule_multicast(bundle, curr_time, tree, None)?))
     }
 }

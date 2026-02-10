@@ -7,6 +7,7 @@ use crate::{
     bundle::Bundle,
     contact_manager::ContactManager,
     distance::{Distance, DistanceWrapper},
+    errors::ASABRError,
     multigraph::Multigraph,
     node_manager::NodeManager,
     route_stage::RouteStage,
@@ -73,11 +74,11 @@ macro_rules! define_node_graph {
                 source: NodeID,
                 bundle: &Bundle,
                 excluded_nodes_sorted: &[NodeID],
-            ) -> PathFindingOutput<NM, CM> {
-                let mut graph = self.graph.borrow_mut();
+            ) -> Result<PathFindingOutput<NM, CM>, ASABRError> {
+                let mut graph = self.graph.try_borrow_mut()?;
 
                 if $with_exclusions {
-                    graph.prepare_for_exclusions_sorted(excluded_nodes_sorted);
+                    graph.prepare_for_exclusions_sorted(excluded_nodes_sorted)?;
                 }
                 let source_route: Rc<RefCell<RouteStage<NM, CM>>> =
                     Rc::new(RefCell::new(RouteStage::new(
@@ -146,7 +147,7 @@ macro_rules! define_node_graph {
                         let idx = receiver.node.borrow().info.id as usize;
                         let push = match tree.by_destination[idx].as_ref() {
                             Some(known_route_ref) => {
-                                let mut known_route = known_route_ref.borrow_mut();
+                                let mut known_route = known_route_ref.try_borrow_mut()?;
                                 if D::cmp(&route_proposition, &known_route) == Ordering::Less {
                                     known_route.is_disabled = true;
                                     true
@@ -165,7 +166,7 @@ macro_rules! define_node_graph {
                     }
                 }
 
-                tree
+                Ok(tree)
             }
 
             /// Get a shared pointer to the multigraph.
