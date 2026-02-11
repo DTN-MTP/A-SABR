@@ -98,6 +98,17 @@ impl ContactManager for PSegmentationManager {
                         bundle.size,
                         contact_data.end,
                     ) {
+                    if tx_end < seg.end{
+                        let delay = super::get_delay(tx_end,&self.delay_intervals);
+                        return Some(ContactManagerTxData{
+                            tx_start,
+                            tx_end,
+                            delay,
+                            expiration: seg.end,
+                            arrival: tx_end + delay,
+
+                        })
+                    }
                         tx_end_opt = Some(tx_end);
                     };
                 }
@@ -211,4 +222,107 @@ impl Parser<PSegmentationManager> for PSegmentationManager {
     fn parse(lexer: &mut dyn Lexer) -> ParsingState<PSegmentationManager> {
         super::parse::<PSegmentationManager>(lexer)
     }
+}
+
+
+#[cfg(test)]
+mod tests{
+    use super::*;
+    use std::ops::Not;
+    use crate::types::{Date, DataRate, Duration};
+    use crate::contact_manager::segmentation::Segment;
+    use crate::contact_manager::ContactManager;
+    use crate::contact::ContactInfo;
+    use crate::bundle::Bundle;
+
+    fn mock_contact_info() -> ContactInfo{
+        ContactInfo::new(
+            0,
+            1,
+            0.0,
+            100.0,
+        )
+    }
+
+    fn setup_manager() -> PSegmentationManager{
+        //Defining rate (1000 bytes/s)
+        let rate_segments = vec![
+            Segment{
+                start: 0.0,
+                end: 100.0,
+                val: 1000.0,
+            }
+        ];
+        
+        //Defining delay (1s)
+        let delay_segments = vec![
+            Segment{
+                start: 0.0,
+                end: 100.0,
+                val: 1.0,
+            }
+        ];
+
+        let mut mgr = PSegmentationManager::new(rate_segments,delay_segments);
+
+        mgr.try_init(&mock_contact_info());
+        mgr
+    }
+
+    #[test]
+    fn test_higher_priority_replace_lower_priority(){
+        let mut mgr = setup_manager();
+        let contact_info = mock_contact_info();
+
+        let normal_bundle = Bundle{
+            source: 0,
+            destinations: vec![1],
+            priority: 0,
+            size: 10000.0,
+            expiration: 2000.0,
+        };
+        let normal_res = mgr.schedule_tx(&contact_info, 0.0, &normal_bundle);
+
+        //Normal priority (0) bundle should take the segment
+        assert!(normal_res.is_some(),"schedule_tx method for normal priority failed");
+
+        let urgent_bundle = Bundle{
+            source: 0,
+            destinations:vec![1],
+            priority: 2,
+            size: 8000.0,
+            expiration: 1800.0,
+        };
+        let urgent_res = mgr.schedule_tx(&contact_info, 0.0, &urgent_bundle);
+        //Urgent priority (2) bundle should take the segment already occupied by normal priority bundle
+        assert!(urgent_res.is_some(),"schedule_tx method for urgent priority failed");
+    }
+
+    #[test]
+    fn test_lower_priority_dont_replace_higher_priority(){
+        let mut mgr = setup_manager();
+        let contact_info = mock_contact_info();
+        let urgent_bundle = Bundle {
+            source: 0,
+            destinations: vec![1],
+            priority: 2,
+            size: 80000.0,
+            expiration: 1600.0,
+        };
+        //Urgent bundle takes the only segment entirely
+        let res_urgent = mgr.schedule_tx(&contact_info, 0.0, &urgent_bundle);
+        assert!(res_urgent.is_some(),"Urgent bundle should fit");
+
+        let normal_bundle = Bundle{
+            source: 0,
+            destinations: vec![1],
+            priority: 0,
+            size: 30000.0,
+            expiration: 1700.0,
+        };
+        let add_normal_bundle_res = mgr.schedule_tx(&contact_info, 0.0, &normal_bundle);
+        assert!(add_normal_bundle_res.is_none(),"Normal priority bundle shouldn't take urgent bundle segment.");
+
+    }
+
 }
