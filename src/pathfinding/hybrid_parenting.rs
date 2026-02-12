@@ -10,9 +10,10 @@ use crate::{
     bundle::Bundle,
     contact_manager::ContactManager,
     distance::{Distance, DistanceWrapper},
+    errors::ASABRError,
     multigraph::Multigraph,
     node_manager::NodeManager,
-    route_stage::RouteStage,
+    route_stage::{RouteStage, SharedRouteStage},
     types::{Date, NodeID},
 };
 
@@ -66,13 +67,13 @@ struct HybridParentingWorkArea<NM: NodeManager, CM: ContactManager> {
     /// The bundle associated with this work area.
     pub bundle: Bundle,
     /// The source route stage, representing the starting point for routing.
-    pub source: Rc<RefCell<RouteStage<NM, CM>>>,
+    pub source: SharedRouteStage<NM, CM>,
     /// A sorted list of node IDs to be excluded from routing paths.
     pub excluded_nodes_sorted: Vec<NodeID>,
     /// A vector containing vectors of route stages, grouped by destination.
     /// Each inner vector represents possible routes to a specific destination,
     /// sorted in order of preference.
-    pub by_destination: Vec<Vec<Rc<RefCell<RouteStage<NM, CM>>>>>,
+    pub by_destination: Vec<Vec<SharedRouteStage<NM, CM>>>,
 }
 
 impl<NM: NodeManager, CM: ContactManager> HybridParentingWorkArea<NM, CM> {
@@ -81,7 +82,7 @@ impl<NM: NodeManager, CM: ContactManager> HybridParentingWorkArea<NM, CM> {
     ///
     /// # Parameters
     /// - `bundle`: A reference to the `Bundle` representing the data payload for routing.
-    /// - `source`: An `Rc<RefCell<RouteStage<NM, CM>>>` reference to the initial route stage.
+    /// - `source`: A `SharedRouteStage<NM, CM>` reference to the initial route stage.
     /// - `excluded_nodes_sorted`: A reference to a sorted vector of `NodeID`s to be excluded from routing paths.
     /// - `node_count`: The number of destination nodes, which determines the size of `by_destination`.
     ///
@@ -89,7 +90,7 @@ impl<NM: NodeManager, CM: ContactManager> HybridParentingWorkArea<NM, CM> {
     /// A new instance of `HybridParentingWorkArea` initialized with the provided parameters.
     pub fn new(
         bundle: &Bundle,
-        source: Rc<RefCell<RouteStage<NM, CM>>>,
+        source: SharedRouteStage<NM, CM>,
         excluded_nodes_sorted: &[NodeID],
         node_count: usize,
     ) -> Self {
@@ -146,7 +147,7 @@ use super::{try_make_hop, PathFindingOutput, Pathfinding};
 ///
 /// # Returns
 ///
-/// * `Option<Rc<RefCell<RouteStage<NM, CM>>>>` - Returns an `Option` containing a reference to the
+/// * `Option<SharedRouteStage<NM, CM>>` - Returns an `Option` containing a reference to the
 ///   newly inserted route if the insertion was successful; otherwise, returns `None`.
 fn try_insert<
     NM: NodeManager,
@@ -155,7 +156,7 @@ fn try_insert<
 >(
     proposition: RouteStage<NM, CM>,
     tree: &mut HybridParentingWorkArea<NM, CM>,
-) -> Option<Rc<RefCell<RouteStage<NM, CM>>>> {
+) -> Result<Option<SharedRouteStage<NM, CM>>, ASABRError> {
     let routes_for_rx_node = &mut tree.by_destination[proposition.to_node as usize];
     // if D::can_retain sets insert to true, but the next element does not trigger insert_index =idx, insert at the end
     let mut insert_index: usize = routes_for_rx_node.len();
@@ -164,7 +165,7 @@ fn try_insert<
     if routes_for_rx_node.is_empty() {
         let proposition_rc = Rc::new(RefCell::new(proposition));
         routes_for_rx_node.push(Rc::clone(&proposition_rc));
-        return Some(proposition_rc);
+        return Ok(Some(proposition_rc));
     }
 
     for (idx, route) in routes_for_rx_node.iter().enumerate() {
@@ -204,7 +205,7 @@ fn try_insert<
 
         // Now disable the routes(for the shared ref in the priority queue)
         for route in routes_for_rx_node.iter().skip(truncate_index) {
-            route.borrow_mut().is_disabled = true;
+            route.try_borrow_mut()?.is_disabled = true;
         }
 
         // Now truncate
@@ -214,10 +215,10 @@ fn try_insert<
         // if everything was truncated, the following has no overhead
         routes_for_rx_node.insert(insert_index, Rc::clone(&proposition_rc));
 
-        return Some(proposition_rc);
+        return Ok(Some(proposition_rc));
     }
 
-    None
+    Ok(None)
 }
 
 macro_rules! define_mpt {
@@ -285,12 +286,12 @@ macro_rules! define_mpt {
                 source: NodeID,
                 bundle: &Bundle,
                 excluded_nodes_sorted: &[NodeID],
-            ) -> PathFindingOutput<NM, CM> {
-                let mut graph = self.graph.borrow_mut();
+            ) -> Result<PathFindingOutput<NM, CM>, ASABRError> {
+                let mut graph = self.graph.try_borrow_mut()?;
                 if $with_exclusions {
-                    graph.prepare_for_exclusions_sorted(excluded_nodes_sorted);
+                    graph.prepare_for_exclusions_sorted(excluded_nodes_sorted)?;
                 }
-                let source_route: Rc<RefCell<RouteStage<NM, CM>>> =
+                let source_route: SharedRouteStage<NM, CM> =
                     Rc::new(RefCell::new(RouteStage::new(
                         current_time,
                         source,
@@ -332,26 +333,31 @@ macro_rules! define_mpt {
                             }
                         }
 
-                        if let Some(first_contact_index) =
+                        let Some(first_contact_index) =
                             receiver.lazy_prune_and_get_first_idx(current_time)
-                        {
-                            if let Some(route_proposition) = try_make_hop(
-                                first_contact_index,
-                                &from_route,
-                                bundle,
-                                &receiver.contacts_to_receiver,
-                                &sender.node,
-                                &receiver.node,
-                            ) {
-                                // This transforms a prop in the stack to a prop in the heap
-                                if let Some(new_route) =
-                                    try_insert::<NM, CM, D>(route_proposition, &mut tree)
-                                {
-                                    priority_queue
-                                        .push(Reverse(DistanceWrapper::new(new_route.clone())));
-                                }
-                            }
-                        }
+                        else {
+                            continue;
+                        };
+
+                        let Some(route_proposition) = try_make_hop(
+                            first_contact_index,
+                            &from_route,
+                            bundle,
+                            &receiver.contacts_to_receiver,
+                            &sender.node,
+                            &receiver.node,
+                        ) else {
+                            continue;
+                        };
+
+                        // This transforms a prop in the stack to a prop in the heap
+                        let Some(new_route) =
+                            try_insert::<NM, CM, D>(route_proposition, &mut tree)?
+                        else {
+                            continue;
+                        };
+
+                        priority_queue.push(Reverse(DistanceWrapper::new(new_route.clone())));
                     }
                 }
 
@@ -360,7 +366,7 @@ macro_rules! define_mpt {
                     v.truncate(1);
                 }
 
-                return tree.to_pathfinding_output();
+                return Ok(tree.to_pathfinding_output());
             }
 
             /// Get a shared pointer to the multigraph.

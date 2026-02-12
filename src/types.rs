@@ -18,7 +18,7 @@ pub type Duration = f64;
 pub type Date = f64;
 
 /// Represents the priority of a task or node.
-pub type Priority = u8;
+pub type Priority = i8;
 
 /// Represents the volume of data (in bytes, for example).
 pub type Volume = f64;

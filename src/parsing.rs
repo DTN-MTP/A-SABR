@@ -7,6 +7,9 @@ pub type NodeMarkerMap<'a> = Dispatcher<'a, NodeDispatcher>;
 pub type ContactDispatcher = fn(&mut dyn Lexer) -> ParsingState<Box<dyn ContactManager>>;
 pub type NodeDispatcher = fn(&mut dyn Lexer) -> ParsingState<Box<dyn NodeManager>>;
 
+pub type StaticMarkerMap<'a, M> = Dispatcher<'a, StaticDispatcher<M>>;
+pub type StaticDispatcher<M> = fn(&mut dyn Lexer) -> ParsingState<M>;
+
 /// Wrapper object to a marker -> coercion function map for contacts or nodes versions (T)
 ///
 /// # Type Parameters
@@ -16,6 +19,12 @@ pub struct Dispatcher<'a, T> {
     /// A hashmap that stores the coercion functions with their associated markers.
     map: HashMap<&'a str, T>,
 }
+impl<'a, T> Default for Dispatcher<'a, T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a, T> Dispatcher<'a, T> {
     /// Creates a new, empty `Dispatcher`.
     pub fn new() -> Self {
@@ -115,7 +124,7 @@ implement_parser!(ContactManager);
 /// * `ParsingState<(INFO, MANAGER)>` - The parsing state containing either the parsed components or an error.
 pub fn parse_components<INFO: Parser<INFO>, MANAGER: DispatchParser<MANAGER> + Parser<MANAGER>>(
     lexer: &mut dyn Lexer,
-    dispatch_map: Option<&Dispatcher<fn(&mut dyn Lexer) -> ParsingState<MANAGER>>>,
+    dispatch_map: Option<&StaticMarkerMap<MANAGER>>,
 ) -> ParsingState<(INFO, MANAGER)> {
     let info: INFO;
     let manager: MANAGER;
@@ -170,7 +179,7 @@ pub trait DispatchParser<T: Parser<T>> {
     ///     - `EOF` - Indicates the end of the input stream, suggesting that parsing cannot continue.
     fn parse_dispatch(
         lexer: &mut dyn Lexer,
-        _marker_map: Option<&Dispatcher<fn(&mut dyn Lexer) -> ParsingState<T>>>,
+        _marker_map: Option<&StaticMarkerMap<T>>,
     ) -> ParsingState<T> {
         T::parse(lexer)
     }
@@ -224,21 +233,21 @@ macro_rules! implement_manager {
                     ParsingState::EOF => ParsingState::EOF,
                     ParsingState::Error(msg) => ParsingState::Error(msg),
                     ParsingState::Finished(marker) => {
-                        if let Some(marker_map) = marker_map_opt {
-                            if let Some(parse_fn) = marker_map.get(marker.as_str()) {
-                                parse_fn(lexer)
-                            } else {
-                                ParsingState::Error(format!(
-                                    "Unrecognized marker ({})",
-                                    lexer.get_current_position()
-                                ))
-                            }
-                        } else {
-                            ParsingState::Error(format!(
+                        let Some(marker_map) = marker_map_opt else {
+                            return ParsingState::Error(format!(
                                 "Dynamic parsing requires a map ({})",
                                 lexer.get_current_position()
-                            ))
-                        }
+                            ));
+                        };
+
+                        let Some(parse_fn) = marker_map.get(marker.as_str()) else {
+                            return ParsingState::Error(format!(
+                                "Unrecognized marker ({})",
+                                lexer.get_current_position()
+                            ));
+                        };
+
+                        parse_fn(lexer)
                     }
                 }
             }

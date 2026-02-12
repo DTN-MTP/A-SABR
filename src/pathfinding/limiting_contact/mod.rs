@@ -1,7 +1,7 @@
 use crate::contact::Contact;
 use crate::contact_manager::ContactManager;
 use crate::node_manager::NodeManager;
-use crate::route_stage::RouteStage;
+use crate::route_stage::SharedRouteStage;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -32,7 +32,7 @@ pub use first_ending::FirstEnding;
 /// is found; otherwise, `None`.
 #[cfg(feature = "contact_suppression")]
 pub fn get_next_to_suppress<NM: NodeManager, CM: ContactManager>(
-    route: Rc<RefCell<RouteStage<NM, CM>>>,
+    route: SharedRouteStage<NM, CM>,
     better_for_suppression_than_fn: fn(&Contact<NM, CM>, &Contact<NM, CM>) -> bool,
 ) -> Option<Rc<RefCell<Contact<NM, CM>>>> {
     let mut to_suppress_opt: Option<Rc<RefCell<Contact<NM, CM>>>> = None;
@@ -158,20 +158,29 @@ macro_rules! create_new_alternative_path_variant {
                 source: crate::types::NodeID,
                 bundle: &crate::bundle::Bundle,
                 excluded_nodes_sorted: &[crate::types::NodeID],
-            ) -> crate::pathfinding::PathFindingOutput<NM, CM> {
+            ) -> Result<crate::pathfinding::PathFindingOutput<NM, CM>, crate::errors::ASABRError> {
 
-                self.suppression_map[bundle.destinations[0] as usize].retain(|contact| {
-                    if contact.borrow().info.end < current_time {
-                        false
-                    } else {
-                        contact.borrow_mut().suppressed = true;
-                        true
+                let contacts = &mut self.suppression_map[bundle.destinations[0] as usize];
+                let mut i = 0;
+                while i < contacts.len() {
+                    let mut contact_borrowed = contacts[i].try_borrow_mut()?;
+
+                    let should_remove = contact_borrowed.info.end < current_time;
+                    if !should_remove {
+                        contact_borrowed.suppressed = true;
                     }
-                });
+                    drop(contact_borrowed);
+
+                    if should_remove {
+                        contacts.remove(i);
+                    } else {
+                        i += 1;
+                    }
+                }
 
                 let tree = self
                     .pathfinding
-                    .get_next(current_time, source, bundle, excluded_nodes_sorted);
+                    .get_next(current_time, source, bundle, excluded_nodes_sorted)?;
 
                 if let Some(route) = tree.by_destination[bundle.destinations[0] as usize].clone() {
                     if let Some(contact) = crate::pathfinding::limiting_contact::get_next_to_suppress(route, $better_fn) {
@@ -179,10 +188,10 @@ macro_rules! create_new_alternative_path_variant {
                     }
                 }
                 for contact in &self.suppression_map[bundle.destinations[0] as usize] {
-                    contact.borrow_mut().suppressed = false;
+                    contact.try_borrow_mut()?.suppressed = false;
                 }
 
-                return tree;
+                return Ok(tree);
             }
 
             /// Get a shared pointer to the multigraph.

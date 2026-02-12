@@ -2,6 +2,8 @@
 pub mod contact;
 /// Module containing the variable component of a contact for resource management.
 pub mod contact_manager;
+/// Module containing the library error types.
+pub mod errors;
 /// Module containing the adaptive node definition.
 pub mod node;
 /// Module containing the variable component of a node for resource management.

@@ -20,7 +20,7 @@ fn ends_earlier_than<NM: NodeManager, CM: ContactManager>(
     a: &Contact<NM, CM>,
     b: &Contact<NM, CM>,
 ) -> bool {
-    return a.info.end < b.info.end;
+    a.info.end < b.info.end
 }
 
 create_new_alternative_path_variant!(FirstEnding, ends_earlier_than);

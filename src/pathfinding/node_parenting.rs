@@ -7,6 +7,7 @@ use crate::{
     bundle::Bundle,
     contact_manager::ContactManager,
     distance::{Distance, DistanceWrapper},
+    errors::ASABRError,
     multigraph::Multigraph,
     node_manager::NodeManager,
     route_stage::RouteStage,
@@ -73,11 +74,11 @@ macro_rules! define_node_graph {
                 source: NodeID,
                 bundle: &Bundle,
                 excluded_nodes_sorted: &[NodeID],
-            ) -> PathFindingOutput<NM, CM> {
-                let mut graph = self.graph.borrow_mut();
+            ) -> Result<PathFindingOutput<NM, CM>, ASABRError> {
+                let mut graph = self.graph.try_borrow_mut()?;
 
                 if $with_exclusions {
-                    graph.prepare_for_exclusions_sorted(excluded_nodes_sorted);
+                    graph.prepare_for_exclusions_sorted(excluded_nodes_sorted)?;
                 }
                 let source_route: Rc<RefCell<RouteStage<NM, CM>>> =
                     Rc::new(RefCell::new(RouteStage::new(
@@ -126,42 +127,46 @@ macro_rules! define_node_graph {
                             }
                         }
 
-                        if let Some(first_contact_index) =
+                        let Some(first_contact_index) =
                             receiver.lazy_prune_and_get_first_idx(current_time)
-                        {
-                            if let Some(route_proposition) = try_make_hop(
-                                first_contact_index,
-                                &from_route,
-                                bundle,
-                                &receiver.contacts_to_receiver,
-                                &sender.node,
-                                &receiver.node,
-                            ) {
-                                let mut push = false;
-                                if let Some(know_route_ref) = tree.by_destination
-                                    [receiver.node.borrow().info.id as usize]
-                                    .clone()
-                                {
-                                    let mut known_route = know_route_ref.borrow_mut();
-                                    if D::cmp(&route_proposition, &known_route) == Ordering::Less {
-                                        known_route.is_disabled = true;
-                                        push = true;
-                                    }
+                        else {
+                            continue;
+                        };
+
+                        let Some(route_proposition) = try_make_hop(
+                            first_contact_index,
+                            &from_route,
+                            bundle,
+                            &receiver.contacts_to_receiver,
+                            &sender.node,
+                            &receiver.node,
+                        ) else {
+                            continue;
+                        };
+
+                        let idx = receiver.node.borrow().info.id as usize;
+                        let push = match tree.by_destination[idx].as_ref() {
+                            Some(known_route_ref) => {
+                                let mut known_route = known_route_ref.try_borrow_mut()?;
+                                if D::cmp(&route_proposition, &known_route) == Ordering::Less {
+                                    known_route.is_disabled = true;
+                                    true
                                 } else {
-                                    push = true;
-                                }
-                                if push {
-                                    let route_ref = Rc::new(RefCell::new(route_proposition));
-                                    tree.by_destination[receiver.node.borrow().info.id as usize] =
-                                        Some(route_ref.clone());
-                                    priority_queue.push(Reverse(DistanceWrapper::new(route_ref)));
+                                    false
                                 }
                             }
+                            None => true,
+                        };
+
+                        if push {
+                            let route_ref = Rc::new(RefCell::new(route_proposition));
+                            tree.by_destination[idx] = Some(route_ref.clone());
+                            priority_queue.push(Reverse(DistanceWrapper::new(route_ref)));
                         }
                     }
                 }
 
-                tree
+                Ok(tree)
             }
 
             /// Get a shared pointer to the multigraph.

@@ -6,10 +6,11 @@ pub mod table;
 use crate::{
     bundle::Bundle,
     contact_manager::ContactManager,
+    errors::ASABRError,
     multigraph::Multigraph,
     node_manager::NodeManager,
-    pathfinding::PathFindingOutput,
-    route_stage::RouteStage,
+    pathfinding::{PathFindingOutput, SharedPathFindingOutput},
+    route_stage::SharedRouteStage,
     types::{Date, NodeID, Priority, Volume},
 };
 
@@ -37,10 +38,7 @@ pub trait TreeStorage<NM: NodeManager, CM: ContactManager> {
         bundle: &Bundle,
         curr_time: Date,
         excluded_nodes_sorted: &[NodeID],
-    ) -> (
-        Option<Rc<RefCell<PathFindingOutput<NM, CM>>>>,
-        Option<Vec<NodeID>>,
-    );
+    ) -> Result<(Option<SharedPathFindingOutput<NM, CM>>, Option<Vec<NodeID>>), ASABRError>;
 
     /// Stores the pathfinding output tree for future use.
     ///
@@ -52,16 +50,16 @@ pub trait TreeStorage<NM: NodeManager, CM: ContactManager> {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Route<NM: NodeManager, CM: ContactManager> {
-    pub source_stage: Rc<RefCell<RouteStage<NM, CM>>>,
-    pub destination_stage: Rc<RefCell<RouteStage<NM, CM>>>,
+    pub source_stage: SharedRouteStage<NM, CM>,
+    pub destination_stage: SharedRouteStage<NM, CM>,
 }
 
 impl<NM: NodeManager, CM: ContactManager> Route<NM, CM> {
     pub fn from_tree(tree: Rc<RefCell<PathFindingOutput<NM, CM>>>, dest: NodeID) -> Option<Self> {
         let tree_ref = tree.borrow();
         let source_stage = tree_ref.get_source_route();
-        let destination_stage= tree_ref.by_destination.get(dest as usize).cloned()??;
-        
+        let destination_stage = tree_ref.by_destination.get(dest as usize).cloned()??;
+
         Some(Route {
             source_stage,
             destination_stage,
@@ -103,7 +101,7 @@ pub trait RouteStorage<NM: NodeManager, CM: ContactManager> {
         curr_time: Date,
         multigraph: Rc<RefCell<Multigraph<NM, CM>>>,
         excluded_nodes_sorted: &[NodeID],
-    ) -> Option<Route<NM, CM>>;
+    ) -> Result<Option<Route<NM, CM>>, ASABRError>;
 
     fn store(&mut self, bundle: &Bundle, route: Route<NM, CM>);
 }

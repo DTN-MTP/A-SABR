@@ -1,8 +1,9 @@
 use crate::{
     contact::{Contact, ContactInfo},
     contact_manager::ContactManager,
+    contact_plan::ContactPlan,
     node::{Node, NodeInfo},
-    parsing::{Dispatcher, Parser},
+    parsing::{Parser, StaticMarkerMap},
     types::{NodeID, NodeName},
 };
 use crate::{
@@ -64,10 +65,10 @@ impl ASABRContactPlan {
         let node_name = node.get_node_name();
 
         if known_node_ids.contains(&node_id) {
-            return Err(format!("Two nodes have the same id ({})", node_id));
+            return Err(format!("Two nodes have the same id ({node_id})"));
         }
         if known_node_names.contains(&node_name) {
-            return Err(format!("Two nodes have the same id ({})", node_name));
+            return Err(format!("Two nodes have the same id ({node_name})"));
         }
         let value = max(node.get_node_id(), node.get_node_id());
         *max_node_in_in_nodes = max(*max_node_in_in_nodes, value.into());
@@ -106,9 +107,9 @@ impl ASABRContactPlan {
         CM: ContactManager + DispatchParser<CM> + Parser<CM>,
     >(
         lexer: &mut dyn Lexer,
-        node_marker_map: Option<&Dispatcher<fn(&mut dyn Lexer) -> ParsingState<NM>>>,
-        contact_marker_map: Option<&Dispatcher<fn(&mut dyn Lexer) -> ParsingState<CM>>>,
-    ) -> Result<(Vec<Node<NM>>, Vec<Contact<NM, CM>>), String> {
+        node_marker_map: Option<&StaticMarkerMap<NM>>,
+        contact_marker_map: Option<&StaticMarkerMap<CM>>,
+    ) -> Result<ContactPlan<NM, NM, CM>, String> {
         let mut contacts: Vec<Contact<NM, CM>> = Vec::new();
         let mut nodes: Vec<Node<NM>> = Vec::new();
 
@@ -139,18 +140,18 @@ impl ASABRContactPlan {
                                 return Err(msg);
                             }
                             ParsingState::Finished((info, manager)) => {
-                                if let Some(contact) = Contact::try_new(info, manager) {
-                                    Self::add_contact(
-                                        contact,
-                                        &mut contacts,
-                                        &mut max_node_id_in_contacts,
-                                    );
-                                } else {
+                                let Some(contact) = Contact::try_new(info, manager) else {
                                     return Err(format!(
                                         "Malformed contact ({})",
                                         lexer.get_current_position()
                                     ));
-                                }
+                                };
+
+                                Self::add_contact(
+                                    contact,
+                                    &mut contacts,
+                                    &mut max_node_id_in_contacts,
+                                );
                             }
                         }
                     }
@@ -164,25 +165,20 @@ impl ASABRContactPlan {
                                 return Err(msg);
                             }
                             ParsingState::Finished((info, manager)) => {
-                                if let Some(node) = Node::try_new(info, manager) {
-                                    match Self::add_node(
-                                        node,
-                                        &mut nodes,
-                                        &mut max_node_in_in_nodes,
-                                        &mut known_node_ids,
-                                        &mut known_node_names,
-                                    ) {
-                                        Ok(_) => {}
-                                        Err(msg) => {
-                                            return Err(msg);
-                                        }
-                                    }
-                                } else {
+                                let Some(node) = Node::try_new(info, manager) else {
                                     return Err(format!(
                                         "Malformed node ({})",
                                         lexer.get_current_position()
                                     ));
-                                }
+                                };
+
+                                Self::add_node(
+                                    node,
+                                    &mut nodes,
+                                    &mut max_node_in_in_nodes,
+                                    &mut known_node_ids,
+                                    &mut known_node_names,
+                                )?;
                             }
                         }
                     }
