@@ -228,9 +228,9 @@ impl Parser<PSegmentationManager> for PSegmentationManager {
 #[cfg(test)]
 mod tests{
     use super::*;
-    use std::ops::Not;
+    use crate::contact_plan::asabr_file_lexer::FileLexer;
     use crate::types::{Date, DataRate, Duration};
-    use crate::contact_manager::segmentation::Segment;
+    use crate::contact_manager::segmentation::{Segment, parse};
     use crate::contact_manager::ContactManager;
     use crate::contact::ContactInfo;
     use crate::bundle::Bundle;
@@ -244,18 +244,59 @@ mod tests{
         )
     }
 
-    fn setup_manager() -> PSegmentationManager{
-        //Defining rate (1000 bytes/s)
-        let rate_segments = vec![
+    fn setup_manager(rate_segments: Vec<Segment<Date>>, delay_segments: Vec<Segment<Date>>) -> PSegmentationManager{
+        
+        let mut mgr = PSegmentationManager::new(rate_segments,delay_segments);
+
+        mgr.try_init(&mock_contact_info());
+        mgr
+    }
+      struct MockLexer{
+        tokens: Vec<String>,
+        position: usize,
+    }
+
+    impl MockLexer {
+        fn new(data: Vec<&str>) -> Self {
+            Self {
+                tokens: data.iter().map(|s| s.to_string()).collect(),
+                position: 0,
+            }
+        }
+    }
+
+
+    impl Lexer for MockLexer{
+        fn lookup(&mut self) -> ParsingState<String>{
+            if self.position < self.tokens.len(){
+                ParsingState::Finished(self.tokens[self.position].clone())
+            }
+            else {
+                ParsingState::EOF
+            }
+        }
+        fn consume_next_token(&mut self) -> ParsingState<String> {
+            let state = self.lookup();
+            if let ParsingState::Finished(_) = state {
+                self.position += 1;
+            }
+            state
+        }
+        fn get_current_position(&self) -> String {
+            format!("Token at index {}",self.position)
+        }
+    }
+
+    #[test]
+    fn test_higher_priority_replace_lower_priority(){
+        let rate_segments: Vec<Segment<Date>> = vec![
             Segment{
                 start: 0.0,
                 end: 100.0,
                 val: 1000.0,
             }
         ];
-        
-        //Defining delay (1s)
-        let delay_segments = vec![
+        let delay_segments: Vec<Segment<Duration>> = vec![
             Segment{
                 start: 0.0,
                 end: 100.0,
@@ -263,15 +304,7 @@ mod tests{
             }
         ];
 
-        let mut mgr = PSegmentationManager::new(rate_segments,delay_segments);
-
-        mgr.try_init(&mock_contact_info());
-        mgr
-    }
-
-    #[test]
-    fn test_higher_priority_replace_lower_priority(){
-        let mut mgr = setup_manager();
+        let mut mgr = setup_manager(rate_segments,delay_segments);
         let contact_info = mock_contact_info();
 
         let normal_bundle = Bundle{
@@ -294,13 +327,29 @@ mod tests{
             expiration: 1800.0,
         };
         let urgent_res = mgr.schedule_tx(&contact_info, 0.0, &urgent_bundle);
+
         //Urgent priority (2) bundle should take the segment already occupied by normal priority bundle
         assert!(urgent_res.is_some(),"schedule_tx method for urgent priority failed");
     }
 
     #[test]
     fn test_lower_priority_dont_replace_higher_priority(){
-        let mut mgr = setup_manager();
+        let rate_segments: Vec<Segment<Date>> = vec![
+            Segment{
+                start: 0.0,
+                end: 100.0,
+                val: 1000.0,
+            }
+        ];
+        let delay_segments: Vec<Segment<Duration>> = vec![
+            Segment{
+                start: 0.0,
+                end: 100.0,
+                val: 1.0,
+            }
+        ];
+
+        let mut mgr = setup_manager(rate_segments,delay_segments);
         let contact_info = mock_contact_info();
         let urgent_bundle = Bundle {
             source: 0,
@@ -324,5 +373,194 @@ mod tests{
         assert!(add_normal_bundle_res.is_none(),"Normal priority bundle shouldn't take urgent bundle segment.");
 
     }
+    #[test]
+    fn test_bundles_takes_the_same_segment(){
+        let rate_segments: Vec<Segment<Date>> = vec![
+            Segment{
+                start: 0.0,
+                end: 100.0,
+                val: 1000.0,
+            }
+        ];
+        let delay_segments: Vec<Segment<Duration>> = vec![
+            Segment{
+                start: 0.0,
+                end: 100.0,
+                val: 1.0,
+            }
+        ];
 
-}
+        let mut mgr = setup_manager(rate_segments,delay_segments);
+        let contact_info = mock_contact_info();
+
+        let bundle1 = Bundle{
+            source: 0,
+            destinations: vec![1],
+            priority: 1,
+            size: 50000.0,
+            expiration: 2000.0,
+        };
+        let bundle2 = Bundle{
+            source: 0,
+            destinations: vec![1],
+            priority: 1,
+            size: 49000.0,
+            expiration: 2000.0,
+        };
+
+        //Add first bundle
+        let first_result = mgr.schedule_tx(&contact_info, 0.0, &bundle1);
+        assert!(first_result.is_some(), "First bundle should have been added.");
+
+        //Add second bundle
+        let second_result = mgr.schedule_tx(&contact_info, 0.0, &bundle2);
+        assert!(second_result.is_some(), "Second bundle should have been added.");
+
+    }
+
+    #[test]
+    fn test_match_dry_run_schedule_tx(){
+        let rate_segments: Vec<Segment<Date>> = vec![
+            Segment{
+                start: 0.0,
+                end: 70.0,
+                val: 1000.0,
+            },
+            Segment{
+                start: 70.0,
+                end: 100.0,
+                val: 800.0,
+            }
+        ];
+        let delay_segments: Vec<Segment<Duration>> = vec![
+            Segment{
+                start: 0.0,
+                end: 100.0,
+                val: 1.0,
+            }
+        ];
+
+        let mut mgr = setup_manager(rate_segments,delay_segments);
+        let contact_info = mock_contact_info();
+
+        let bundle = Bundle{
+            source: 0,
+            destinations: vec![1],
+            priority: 1,
+            size: 50000.0,
+            expiration: 2000.0,
+        };
+
+        let dry_run_result = mgr.dry_run_tx(&contact_info,0.0,&bundle).unwrap();
+        let schedule_result =  mgr.schedule_tx(&contact_info,0.0,&bundle).unwrap();
+
+        //Checking if fields match each other
+        assert!(dry_run_result.tx_start == schedule_result.tx_start, "tx_start fields doesn't match");
+        assert!(dry_run_result.tx_end == schedule_result.tx_end, "tx_end fields doesn't match");
+        assert!(dry_run_result.delay == schedule_result.delay, "delay fields doesn't match");
+        assert!(dry_run_result.expiration == schedule_result.expiration, "expiration fields doesn't match");
+        assert!(dry_run_result.arrival == schedule_result.arrival, "arrival fields doesn't match");
+    }
+
+    #[test]
+    fn test_bundle_takes_two_segments(){
+        let rate_segments: Vec<Segment<Date>> = vec![
+            Segment{
+                start: 0.0,
+                end: 50.0,
+                val: 1000.0,
+            },
+            Segment{
+                start: 50.0,
+                end: 100.0,
+                val: 50.0,
+            }
+        ];
+
+        let delay_segments: Vec<Segment<Duration>> = vec![
+            Segment{
+                start: 0.0,
+                end: 100.0,
+                val: 1.0,
+            }
+        ];
+
+        let contact_info = mock_contact_info();
+        let mut mgr = setup_manager(rate_segments, delay_segments);
+        let bundle = Bundle{
+            source: 0,
+            destinations: vec![1],
+            priority: 1,
+            size: 50_250.0,
+            expiration: 1000.0,
+        };
+
+        let result = mgr.schedule_tx(&contact_info, 0.0, &bundle);
+        assert!(result.is_some(),"schedule_tx method failed.");
+
+        let data = result.unwrap();
+        //50s for first 50_000 bundle's bytes, first rate segment is fully used.
+        //250 bytes left at 50 bytes/s = 5s
+        //Expected result = 50 + 5 = 55s 
+        assert!(data.tx_end == 55.0, "tx_end field is incorrect.");
+    }
+
+    #[test]
+    fn test_successful_parsing(){
+        let input_script = vec![
+            "rate", "0.0", "100.0", "1000.0",
+            "rate", "100.0", "150.0", "300.0",
+            "delay", "0.0", "150.0", "1.0"
+
+        ];
+        let lexer: MockLexer = MockLexer::new(input_script); 
+        let mut boxed_lexer = Box::new(lexer);
+        let state = PSegmentationManager::parse(&mut *boxed_lexer);
+        match state {
+            ParsingState::Finished(mgr) => {
+                assert_eq!(mgr.rate_intervals.len(),2,"Should have two rate_intervals.");
+
+                //First rate segment checks
+                assert_eq!(mgr.rate_intervals[0].start, 0.0);
+                assert_eq!(mgr.rate_intervals[0].end, 100.0);
+                assert_eq!(mgr.rate_intervals[0].val, 1000.0);
+
+                //Second rate segment checks
+                assert_eq!(mgr.rate_intervals[1].start, 100.0);
+                assert_eq!(mgr.rate_intervals[1].end, 150.0);
+                assert_eq!(mgr.rate_intervals[1].val, 300.0);
+
+                //Delay checks
+                assert_eq!(mgr.delay_intervals[0].start, 0.0);
+                assert_eq!(mgr.delay_intervals[0].end, 150.0);
+                assert_eq!(mgr.delay_intervals[0].val, 1.0);
+                assert_eq!(mgr.delay_intervals.len(), 1);
+
+            }
+            ParsingState::EOF => {
+                panic!("Parsing failed too early (EOF)");
+            }
+            ParsingState::Error(msg) => {
+                panic!("Parsing failed: {}",msg);
+            }
+        }
+    }
+
+    #[test]
+    fn test_parsing_fail(){
+        let input_script = vec![
+            "rate", "0.0", "100.0", "NOT_A_NUMBER",
+            "delay", "0.0", "100.0", "1.0"
+        ];
+        let lexer = MockLexer::new(input_script);
+        let mut boxed_lexer = Box::new(lexer);
+        let result = PSegmentationManager::parse(&mut *boxed_lexer);
+        if let ParsingState::Error(_) = result {
+            assert!(true); //What we expect
+        }
+        else{
+            panic!("Parsing should have failed on NOT_A_NUMBER.");
+        }
+        }
+    }
+
