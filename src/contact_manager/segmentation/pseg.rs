@@ -506,6 +506,89 @@ mod tests{
     }
 
     #[test]
+    fn test_high_priority_bundle_overwrites_multiple_low_priority_bundles(){
+        let rate_segments: Vec<Segment<Date>> = vec![
+            Segment{
+                start: 0.0,
+                end: 50.0,
+                val: 100.0,
+            },
+            Segment{
+                start: 50.0,
+                end: 100.0,
+                val: 100.0,
+            }
+        ];
+
+        let delay_segments: Vec<Segment<Duration>> = vec![
+            Segment{
+                start: 0.0,
+                end: 100.0,
+                val: 1.0,
+            }
+        ];
+        let mut mgr = setup_manager(rate_segments, delay_segments);
+        let contact_info = mock_contact_info();
+        let low_prio_bundle1 = Bundle{
+            source: 0,
+            destinations: vec![1],
+            priority: 1,
+            size: 4_000.0,
+            expiration: 500.0
+        };
+        let low_prio_bundle2 = Bundle{
+            source: 0,
+            destinations: vec![1],
+            priority: 1,
+            size: 2_000.0,
+            expiration: 300.0
+        };
+        //Add first two bundles (should suceed)
+        assert!(mgr.schedule_tx(&contact_info, 0.0, &low_prio_bundle1).is_some(),"First bundle should have been added.");
+        assert!(mgr.schedule_tx(&contact_info, 0.0, &low_prio_bundle2).is_some(),"Second bundle should have been added.");
+        
+        let high_prio_bundle = Bundle{
+            source: 0,
+            destinations: vec![1],
+            priority: 2,
+            size: 7_000.0,
+            expiration: 300.0
+        };
+        let result = mgr.schedule_tx(&contact_info, 0.0, &high_prio_bundle);
+        assert!(result.is_some(),"High prio bundle should have been added.");
+    }
+    #[test]
+    fn test_schedule_with_start_offset_creates_left_segment(){
+        let rate_segments = vec![
+            Segment{
+                start: 0.0,
+                end: 100.0,
+                val: 1000.0
+            }
+        ];
+        let delay_segments = vec![
+            Segment{
+                start: 0.0,
+                end: 100.0,
+                val: 1.0
+            }
+        ];
+        let mut mgr = setup_manager(rate_segments, delay_segments);
+        let contatc_info = mock_contact_info();
+
+        let bundle = Bundle{
+            source: 0,
+            destinations: vec![1],
+            priority: 1,
+            size: 3000.0,
+            expiration: 200.0
+        };
+        let result = mgr.schedule_tx(&contatc_info, 20.0, &bundle);
+        assert!(result.is_some(),"Bundle should have been added.");
+    }
+
+
+    #[test]
     fn test_successful_parsing(){
         let input_script = vec![
             "rate", "0.0", "100.0", "1000.0",
