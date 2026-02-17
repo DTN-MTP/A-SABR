@@ -228,9 +228,8 @@ impl Parser<PSegmentationManager> for PSegmentationManager {
 #[cfg(test)]
 mod tests{
     use super::*;
-    use crate::contact_plan::asabr_file_lexer::FileLexer;
-    use crate::types::{Date, DataRate, Duration};
-    use crate::contact_manager::segmentation::{Segment, parse};
+    use crate::types::{Date, Duration};
+    use crate::contact_manager::segmentation::Segment;
     use crate::contact_manager::ContactManager;
     use crate::contact::ContactInfo;
     use crate::bundle::Bundle;
