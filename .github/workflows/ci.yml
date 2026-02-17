@@ -2,8 +2,9 @@ name: A-SABR CI
 
 on:
   push:
-    branches: ["develop","main","feature/*"]
 
+    branches: ["**"]
+    
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -18,4 +19,6 @@ jobs:
       - run: cargo fmt --all -- --check
         continue-on-error: true
       - run: cargo clippy
+
       - run: cargo test --lib --bins --tests
+
