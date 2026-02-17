@@ -2,6 +2,7 @@ name: A-SABR CI
 
 on:
   push:
+
     branches: ["**"]
     
 jobs:
@@ -18,4 +19,6 @@ jobs:
       - run: cargo fmt --all -- --check
         continue-on-error: true
       - run: cargo clippy
+
       - run: cargo test --lib --bins --tests
+
