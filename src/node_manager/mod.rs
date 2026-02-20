@@ -32,7 +32,7 @@ macro_rules! define_node_manager {
             /// within the provided start and end times, without actually transmitting the data.
             ///
             /// # Parameters
-            /// - `waiting_since`: The arrival time at the transmiter (allows to calculate a retention time)
+            /// - `waiting_since`: The arrival time at the transmitter (allows to calculate a retention time)
             /// - `start`: The start time of the transmission window.
             /// - `end`: The end time of the transmission window.
             /// - `bundle`: A reference to the `Bundle` to be transmitted.
@@ -77,7 +77,7 @@ macro_rules! define_node_manager {
             /// transmitted within the provided time window. If successful, the bundle is transmitted.
             ///
             /// # Parameters
-            /// - `waiting_since`: The arrival time at the transmiter (allows to calculate a retention time)
+            /// - `waiting_since`: The arrival time at the transmitter (allows to calculate a retention time)
             /// - `start`: The start time of the transmission window.
             /// - `end`: The end time of the transmission window.
             /// - `bundle`: A reference to the `Bundle` to be transmitted.

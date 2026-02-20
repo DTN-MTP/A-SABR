@@ -82,7 +82,7 @@ impl<NM: NodeManager, CM: ContactManager> Receiver<NM, CM> {
 /// Represents a multigraph structure, where each node can have multiple connections.
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Multigraph<NM: NodeManager, CM: ContactManager> {
-    /// * `senders` - The list of sender objects.
+    /// The list of sender objects.
     pub senders: Vec<Sender<NM, CM>>,
     /// * `nodes` - The list of node objects.
     pub nodes: Vec<Rc<RefCell<Node<NM>>>>,
@@ -177,6 +177,10 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
     /// # Parameters
     ///
     /// * `exclusions: &[NodeID]` - A sorted list of node IDs to exclude.
+    /// 
+    /// # Returns
+    /// - `Ok(())`: If all exclusions were applied successfully.
+    /// - Err(ASABRError)`: If a node cannot be mutably borrowed.
     pub fn prepare_for_exclusions_sorted(
         &mut self,
         exclusions: &[NodeID],

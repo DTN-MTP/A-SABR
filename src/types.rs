@@ -47,8 +47,8 @@ pub trait Token<T> {
     fn parse(lexer: &mut dyn Lexer) -> ParsingState<T>;
 }
 
+/// Implement the `Token` trait for any type that implements `FromStr`.
 impl<T: FromStr> Token<T> for T {
-    /// Implement the `Token` trait for any type that implements `FromStr`.
     fn parse(lexer: &mut dyn Lexer) -> ParsingState<T> {
         let res = lexer.consume_next_token();
         match res {
