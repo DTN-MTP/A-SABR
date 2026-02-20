@@ -56,6 +56,8 @@ impl ContactInfo {
 /// Represents a contact with associated management information.
 ///
 ///  # Type Parameters
+/// - `NM`: A type implementing the `NodeManager` trait, responsible for managing the
+///   node's operations.
 /// - `CM`: A type implementing the `ContactManager` trait, responsible for managing the
 ///   contact's operations.
 #[cfg_attr(feature = "debug", derive(Debug))]

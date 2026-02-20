@@ -19,7 +19,9 @@ pub struct ViaHop<NM: NodeManager, CM: ContactManager> {
     pub contact: Rc<RefCell<Contact<NM, CM>>>,
     /// A reference to the parent route stage for this hop.
     pub parent_route: Rc<RefCell<RouteStage<NM, CM>>>,
+    /// A reference to the transmitting node for this hop.
     pub tx_node: Rc<RefCell<Node<NM>>>,
+    /// A reference to the receiving node for this hop.
     pub rx_node: Rc<RefCell<Node<NM>>>,
 }
 
@@ -39,6 +41,8 @@ impl<NM: NodeManager, CM: ContactManager> Clone for ViaHop<NM, CM> {
 ///  # Type Parameters
 /// - `CM`: A type implementing the `ContactManager` trait, responsible for managing the
 ///   contact's operations.
+/// - `NM`: A type implementing the `NodeManager` trait, responsible for managing the
+///   node's operations.
 #[cfg_attr(feature = "debug", derive(derivative::Derivative))]
 #[cfg_attr(feature = "debug", derivative(Debug))]
 pub struct RouteStage<NM: NodeManager, CM: ContactManager> {
@@ -157,12 +161,11 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
     ///
     /// * `at_time` - current time at the tx node.
     /// * `bundle` - The bundle to be transmitted.
-    /// * `node_list` - A reference to the list of nodes where transmission and reception occur.
     ///
     /// # Returns
     ///
-    /// * `true` if the scheduling process was successful and the bundle is properly scheduled.
-    /// * `false` if the scheduling process failed for any reason, such as a node being excluded, timing constraints, or invalid transmission conditions.
+    /// * `Ok(())` - If the scheduling was successful.
+    /// * `Err(ASABRError)` - If the scheduling failed due to any reason, such as a faulty dry run or an issue with the contact manager.
     pub fn schedule(&mut self, at_time: Date, bundle: &Bundle) -> Result<(), ASABRError> {
         let Some(via) = &self.via else {
             return Err(ASABRError::ScheduleError("No via hop for"));
@@ -240,13 +243,13 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
     ///
     /// * `at_time` - current time at the tx node.
     /// * `bundle` - The bundle to simulate transmission for.
-    /// * `node_list` - A reference to the list of nodes where transmission and reception occur.
     /// * `with_exclusions` - If `true`, checks whether the receiving node is excluded from the transmission. If `false`, no exclusions are checked.
     ///
     /// # Returns
     ///
-    /// * `true` if the dry run was successful and the bundle can be transmitted according to the simulation.
-    /// * `false` if the dry run fails, such as due to an excluded node, invalid timing, or any other condition preventing transmission.
+    /// * `Ok(true)` - If the dry run was successful and the bundle can be transmitted according to the simulation.
+    /// * `Ok(false)` - If the dry run fails, such as due to an excluded node, invalid timing, or any other condition preventing transmission.
+    /// * `Err(ASABRError)` - If a borrowing error occurred.
     pub fn dry_run(
         &mut self,
         at_time: Date,

@@ -17,7 +17,7 @@ use crate::{
     types::{Date, NodeID},
 };
 
-/// A trait that allows HybridParenting to handle nage the lexicographic costs.
+/// A trait that allows HybridParenting to handle the lexicographic costs.
 ///
 /// # Type Parameters
 /// - `CM`: A type that implements the `ContactManager` trait, representing the contact management
@@ -40,7 +40,7 @@ where
     /// - `false` otherwise.
     fn can_retain(prop: &RouteStage<NM, CM>, known: &RouteStage<NM, CM>) -> bool;
 
-    /// Determines whether the knwon route should be pruned due to the proposition's retention.
+    /// Determines whether the known route should be pruned due to the proposition's retention.
     ///
     /// # Parameters
     /// - `prop`: A reference to the proposed `RouteStage`. This represents the proposition that was retained.
