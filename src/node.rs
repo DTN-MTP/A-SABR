@@ -12,6 +12,7 @@ use crate::{
 ///
 /// * `id` - The unique identifier for the node.
 /// * `name` - The name associated with the node.
+/// * `excluded` - Indicates whether the node is excluded from routing operations.
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct NodeInfo {
     pub id: NodeID,

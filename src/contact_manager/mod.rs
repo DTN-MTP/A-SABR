@@ -102,7 +102,7 @@ macro_rules! define_contact_manager {
                 false
             }
 
-            /// Finalize the initialize of the contact and notify if the initailization is consistent.
+            /// Finalize the initialize of the contact and notify if the initialization is consistent.
             ///
             /// # Arguments
             ///

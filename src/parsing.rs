@@ -97,7 +97,7 @@ impl<T: Parser<T>> Parser<Box<T>> for Box<T> {
     }
 }
 
-/// Macro to generate the unability to dispatch for concrete Parser types.
+/// Macro to generate the inability to dispatch for concrete Parser types.
 macro_rules! implement_parser {
     ($manager_type:ident) => {
         /// Dispatching is impossible for concrete Parser types.
@@ -159,7 +159,7 @@ pub fn parse_components<INFO: Parser<INFO>, MANAGER: DispatchParser<MANAGER> + P
 ///
 /// # Methods
 ///
-/// * `parse` - Parses an instance of type `T` from the provided lexer and optional marker map.
+/// * `parse_dispatch` - Parses an instance of type `T` from the provided lexer and optional marker map.
 pub trait DispatchParser<T: Parser<T>> {
     /// Parses a manager component from the lexer.
     ///
@@ -255,6 +255,6 @@ macro_rules! implement_manager {
     };
 }
 
-// Generate implementations for VolumeManager and NodeManager
+// Generate implementations for ContactManager and NodeManager
 implement_manager!(ContactManager, coerce_cm);
 implement_manager!(NodeManager, coerce_nm);
