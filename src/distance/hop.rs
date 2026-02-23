@@ -7,7 +7,7 @@ use crate::{
 
 use super::Distance;
 
-/// A struct allowing to use a varient of the Schedule-Aware Bundle Routing distance definition, where
+/// A struct allowing to use a variant of the Schedule-Aware Bundle Routing distance definition, where
 /// a fewer hop count is prioritized over an earlier arrival time.
 ///
 /// `Hop` is used to implement the `Distance` trait, providing a comparison method
@@ -59,7 +59,7 @@ impl<NM: NodeManager, CM: ContactManager> Distance<NM, CM> for Hop {
     /// Equality is determined by the following criteria:
     /// - `hop_count`: Both instances must have the same `hop_count`.
     /// - `at_time`: Both instances must have the same `at_time`.
-    /// - `expiration`: Both instances must have the same `expiration`..
+    /// - `expiration`: Both instances must have the same `expiration`.
     ///
     /// # Parameters
     /// - `first`: The first route stage to check for equality.
@@ -80,11 +80,11 @@ impl<NM: NodeManager, CM: ContactManager> Distance<NM, CM> for Hop {
 }
 
 impl<NM: NodeManager, CM: ContactManager> HybridParentingOrd<NM, CM> for Hop {
-    // For Hop, the secondary metric to consider is the arrival time.
+    /// For Hop, the secondary metric to consider is the arrival time.
     fn can_retain(prop: &RouteStage<NM, CM>, known: &RouteStage<NM, CM>) -> bool {
         prop.at_time < known.at_time
     }
-    // Ignore expiration constraints to prioritize performance.
+    /// Ignore expiration constraints to prioritize performance.
     fn must_prune(prop: &RouteStage<NM, CM>, known: &RouteStage<NM, CM>) -> bool {
         prop.at_time <= known.at_time && prop.hop_count <= known.hop_count
     }

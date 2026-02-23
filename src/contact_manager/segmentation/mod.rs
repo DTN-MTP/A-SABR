@@ -148,6 +148,7 @@ fn try_init<T>(
 ///
 /// # Arguments
 ///
+/// * `rate_intervals` - The rate segments defining available bandwidth over time.
 /// * `at_time` - The current time for scheduling.
 /// * `volume` - The volume to be transmitted.
 /// * `deadline` - The transmission deadline (end of the contact interval).
@@ -173,7 +174,7 @@ fn get_tx_end(
         if tx_end > deadline {
             return None;
         }
-        // We exceeded the capacity of the segement
+        // We exceeded the capacity of the segment
         if tx_end > rate_seg.end {
             // take everything by updating the remaining volume
             volume -= rate_seg.val * (rate_seg.end - at_time);
@@ -281,7 +282,6 @@ fn parse_interval<T: std::str::FromStr>(lexer: &mut dyn Lexer) -> ParsingState<(
 /// # Arguments
 ///
 /// * `lexer` - The lexer used for parsing tokens.
-/// * `_sub` - An optional map for handling custom parsing logic (unused here).
 ///
 /// # Returns
 ///

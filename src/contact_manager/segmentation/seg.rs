@@ -119,7 +119,7 @@ impl ContactManager for SegmentationManager {
         None
     }
 
-    /// Schedule the transmission of a bundle based on the contact data intervals booked with lower priority load.
+    /// Schedule the transmission of a bundle by splitting the available free intervals accordingly.
     ///
     /// This method shall be called after a dry run ! Implementations might not ensure a clean behavior otherwise.
     ///
@@ -225,7 +225,6 @@ impl Parser<SegmentationManager> for SegmentationManager {
     /// # Arguments
     ///
     /// * `lexer` - The lexer used for parsing tokens.
-    /// * `_sub` - An optional map for handling custom parsing logic (unused here).
     ///
     /// # Returns
     ///

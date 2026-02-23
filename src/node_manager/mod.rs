@@ -144,7 +144,7 @@ macro_rules! define_node_manager {
             }
         }
 
-        /// Implementation of `NodeManager` for boxed dynamic types (`Box<dyn ContactManager>`).
+        /// Implementation of `NodeManager` for boxed dynamic types (`Box<dyn NodeManager>`).
         impl NodeManager for Box<dyn NodeManager> {
             /// Delegates the dry_run method to the boxed object.
             #[cfg(feature = "node_proc")]

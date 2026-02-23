@@ -9,7 +9,7 @@ pub mod qd;
 /// specific configurations of priority levels and queue size types.
 ///  Budget approach by Longrui Ma
 ///
-// # Arguments
+/// # Arguments
 ///
 /// - `$manager_name`: The identifier to be used as the name of the generated structure (e.g., `ETOManager`).
 /// - `$priority_count`: A priority count is set to 1, means no priority levels are supported.
@@ -267,7 +267,7 @@ macro_rules! generate_prio_volume_manager {
             ///
             /// # Arguments
             ///
-            /// * `contact_data` - Reference to the contact information (unused in this implementation).
+            /// * `contact_data` - Reference to the contact information.
             /// * `at_time` - The current time for scheduling purposes.
             /// * `bundle` - The bundle to be transmitted.
             ///
@@ -321,7 +321,6 @@ macro_rules! generate_prio_volume_manager {
             ///
             /// This method shall be called after a dry run !Implementations might not ensure a clean behavior otherwise.
             #[doc = concat!( "The queue volume will be updated by this method: ", stringify!($auto_update),"`.")]
-            ///contact_data.start
             /// # Arguments
             ///
             /// * `contact_data` - Reference to the contact information (unused in this implementation).
@@ -375,7 +374,6 @@ macro_rules! generate_prio_volume_manager {
         impl crate::parsing::DispatchParser<$manager_name> for $manager_name {}
 
         #[doc = concat!("Implements the `Parser` trait for ", stringify!($manager_name),"`, allowing the manager to be parsed from a lexer.")]
-        /// Implements the `Parser` trait for `SegmentationManager`, allowing the manager to be parsed from a lexer.
         impl crate::parsing::Parser<$manager_name> for $manager_name {
             #[doc = concat!("Parses a `", stringify!($manager_name),"` from the lexer, extracting the rate and delay intervals.")]
             ///
