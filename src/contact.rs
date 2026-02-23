@@ -158,7 +158,7 @@ impl<NM: NodeManager, CM: ContactManager> PartialEq for Contact<NM, CM> {
     fn eq(&self, other: &Self) -> bool {
         self.info.tx_node == other.info.tx_node
             && self.info.rx_node == other.info.rx_node
-            && self.info.start < other.info.start
+            && self.info.start == other.info.start
     }
 }
 impl<NM: NodeManager, CM: ContactManager> Eq for Contact<NM, CM> {}
