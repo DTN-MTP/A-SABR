@@ -24,6 +24,7 @@ impl ASABRContactPlan {
     ///
     /// * `contact` - The `Contact` to be added to the plan.
     /// * `contacts` - A mutable reference to a vector of contacts, where the new contact will be stored.
+    /// * `max_node_id_in_contacts` - A mutable reference to the current maximum node ID found in contacts.
     ///
     /// # Type Parameters
     ///
@@ -68,7 +69,7 @@ impl ASABRContactPlan {
             return Err(format!("Two nodes have the same id ({node_id})"));
         }
         if known_node_names.contains(&node_name) {
-            return Err(format!("Two nodes have the same id ({node_name})"));
+            return Err(format!("Two nodes have the same name ({node_name})"));
         }
         let value = max(node.get_node_id(), node.get_node_id());
         *max_node_in_in_nodes = max(*max_node_in_in_nodes, value.into());
@@ -93,7 +94,7 @@ impl ASABRContactPlan {
     ///
     /// # Returns
     ///
-    /// * `Result<(Vec<Node<NM>>, Vec<Contact<NM, CM>>), String>` - Returns a tuple containing vectors of parsed
+    /// * `Result<ContactPlan<NM, NM, CM>, String>` - Returns a `ContactPlan` containing vectors of parsed
     ///   nodes and contacts, or an error message if there is an issue during parsing.
     ///
     /// # Type Parameters

@@ -58,7 +58,7 @@ impl<NM: NodeManager, CM: ContactManager> Distance<NM, CM> for SABR {
     /// Equality is determined by the following criteria:
     /// - `at_time`: Both instances must have the same `at_time`.
     /// - `hop_count`: Both instances must have the same `hop_count`.
-    /// - `expiration`: Both instances must have the same `expiration`..
+    /// - `expiration`: Both instances must have the same `expiration`.
     ///
     /// # Parameters
     /// - `first`: The first route stage to check for equality.
@@ -79,11 +79,11 @@ impl<NM: NodeManager, CM: ContactManager> Distance<NM, CM> for SABR {
 }
 
 impl<NM: NodeManager, CM: ContactManager> HybridParentingOrd<NM, CM> for SABR {
-    // For SABR, the secondary metric to consider is the hop count.
+    /// For SABR, the secondary metric to consider is the hop count.
     fn can_retain(prop: &RouteStage<NM, CM>, known: &RouteStage<NM, CM>) -> bool {
         prop.hop_count < known.hop_count
     }
-    // Ignore expiration constraints to prioritize performance.
+    /// Ignore expiration constraints to prioritize performance.
     fn must_prune(prop: &RouteStage<NM, CM>, known: &RouteStage<NM, CM>) -> bool {
         prop.at_time <= known.at_time && prop.hop_count <= known.hop_count
     }
