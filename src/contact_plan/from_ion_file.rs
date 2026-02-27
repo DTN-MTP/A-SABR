@@ -244,20 +244,18 @@ impl IONContactPlan {
         }
 
         for range in &ranges {
-            let Some(tx_map) = contact_info_map.get_mut(&range.tx_node) else {
-                continue;
-            };
-            let Some(contact_vec) = tx_map.get_mut(&range.rx_node) else {
-                continue;
-            };
-            for contact in contact_vec.iter_mut() {
-                if range.tx_start <= contact.tx_start && contact.tx_end <= range.tx_end {
-                    contact.delay = range.delay;
-                    contacts.push(CM::ion_convert(contact).unwrap());
-                } else {
-                    return Err(ASABRError::ContactPlanError(
-                        "This parser only supports one range per contact",
-                    ))?;
+            if let Some(tx_map) = contact_info_map.get_mut(&range.tx_node)
+                && let Some(contact_vec) = tx_map.get_mut(&range.rx_node)
+            {
+                for contact in contact_vec.iter_mut() {
+                    if range.tx_start <= contact.tx_start && contact.tx_end <= range.tx_end {
+                        contact.delay = range.delay;
+                        contacts.push(CM::ion_convert(contact).unwrap());
+                    } else {
+                        return Err(ASABRError::ContactPlanError(
+                            "This parser only supports one range per contact",
+                        ))?;
+                    }
                 }
             }
         }
