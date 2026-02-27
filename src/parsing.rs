@@ -137,7 +137,7 @@ pub fn parse_components<INFO: Parser<INFO>, MANAGER: DispatchParser<MANAGER> + P
             return ParsingState::Error(format!(
                 "Parsing failed ({})",
                 lexer.get_current_position()
-            ))
+            ));
         }
     }
 
@@ -149,7 +149,7 @@ pub fn parse_components<INFO: Parser<INFO>, MANAGER: DispatchParser<MANAGER> + P
             return ParsingState::Error(format!(
                 "Parsing failed ({})",
                 lexer.get_current_position()
-            ))
+            ));
         }
     }
     ParsingState::Finished((info, manager))

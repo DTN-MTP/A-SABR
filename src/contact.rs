@@ -187,7 +187,7 @@ impl Parser<ContactInfo> for ContactInfo {
                 return ParsingState::Error(format!(
                     "Parsing failed ({})",
                     lexer.get_current_position()
-                ))
+                ));
             }
         }
 
@@ -199,7 +199,7 @@ impl Parser<ContactInfo> for ContactInfo {
                 return ParsingState::Error(format!(
                     "Parsing failed ({})",
                     lexer.get_current_position()
-                ))
+                ));
             }
         }
 
@@ -211,7 +211,7 @@ impl Parser<ContactInfo> for ContactInfo {
                 return ParsingState::Error(format!(
                     "Parsing failed ({})",
                     lexer.get_current_position()
-                ))
+                ));
             }
         }
 
@@ -223,7 +223,7 @@ impl Parser<ContactInfo> for ContactInfo {
                 return ParsingState::Error(format!(
                     "Parsing failed ({})",
                     lexer.get_current_position()
-                ))
+                ));
             }
         }
 

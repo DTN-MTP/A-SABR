@@ -1,18 +1,18 @@
 use crate::{
     contact::{Contact, ContactInfo},
     contact_manager::{
+        ContactManager,
         legacy::{
             eto::{ETOManager, PETOManager},
             evl::{EVLManager, PEVLManager},
             qd::{PQDManager, QDManager},
         },
-        segmentation::{seg::SegmentationManager, Segment},
-        ContactManager,
+        segmentation::{Segment, seg::SegmentationManager},
     },
     contact_plan::ContactPlan,
     errors::ASABRError,
     node::{Node, NodeInfo},
-    node_manager::{none::NoManagement, NodeManager},
+    node_manager::{NodeManager, none::NoManagement},
     types::{DataRate, Date, Duration, NodeID},
 };
 

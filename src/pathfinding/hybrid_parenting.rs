@@ -132,7 +132,7 @@ impl<NM: NodeManager, CM: ContactManager> HybridParentingWorkArea<NM, CM> {
     }
 }
 
-use super::{try_make_hop, PathFindingOutput, Pathfinding};
+use super::{PathFindingOutput, Pathfinding, try_make_hop};
 
 /// Attempts to insert a new route proposal into the pathfinding output tree.
 ///
@@ -243,11 +243,8 @@ macro_rules! define_mpt {
             _phantom_distance: PhantomData<D>,
         }
 
-        impl<
-                NM: NodeManager,
-                CM: ContactManager,
-                D: Distance<NM, CM> + HybridParentingOrd<NM, CM>,
-            > Pathfinding<NM, CM> for $name<NM, CM, D>
+        impl<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParentingOrd<NM, CM>>
+            Pathfinding<NM, CM> for $name<NM, CM, D>
         {
             /// Constructs a new `HybridParenting` instance with the provided nodes and contacts.
             ///
