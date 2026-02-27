@@ -4,7 +4,7 @@ use a_sabr::{
     distance::sabr::SABR,
     node_manager::none::NoManagement,
     pathfinding::{
-        hybrid_parenting::HybridParentingPath, node_parenting::NodeParentingPath, Pathfinding,
+        Pathfinding, hybrid_parenting::HybridParentingPath, node_parenting::NodeParentingPath,
     },
     types::NodeID,
     utils::{init_pathfinding, pretty_print},
@@ -69,7 +69,9 @@ fn main() {
     edge_case_example("examples/dijkstra_accuracy/contact_plan_1.cp", 3);
     edge_case_example("examples/dijkstra_accuracy/contact_plan_2.cp", 4);
 
-    println!("\nN.B.: Results with the single end-to-end \"Path\" variant. We would get the same results with their \"Tree\" versions.");
+    println!(
+        "\nN.B.: Results with the single end-to-end \"Path\" variant. We would get the same results with their \"Tree\" versions."
+    );
 
     // === OUTPUT ===
     // Running with contact plan location=examples/dijkstra_accuracy/contact_plan_1.cp, and destination node=3

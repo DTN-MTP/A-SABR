@@ -14,7 +14,7 @@ use crate::{
 
 use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
-use super::{dry_run_unicast_path, schedule_unicast_path, Router, RoutingOutput};
+use super::{Router, RoutingOutput, dry_run_unicast_path, schedule_unicast_path};
 
 pub struct Cgr<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: RouteStorage<NM, CM>>
 {

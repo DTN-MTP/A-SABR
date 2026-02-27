@@ -1,15 +1,15 @@
 use a_sabr::bundle::Bundle;
+use a_sabr::contact_manager::ContactManager;
 use a_sabr::contact_manager::legacy::eto::ETOManager;
 use a_sabr::contact_manager::legacy::evl::EVLManager;
 use a_sabr::contact_manager::legacy::qd::QDManager;
-use a_sabr::contact_manager::ContactManager;
 use a_sabr::contact_plan::asabr_file_lexer::FileLexer;
 use a_sabr::contact_plan::from_asabr_lexer::ASABRContactPlan;
 use a_sabr::node_manager::none::NoManagement;
-use a_sabr::parsing::coerce_cm;
 use a_sabr::parsing::ContactMarkerMap;
-use a_sabr::routing::aliases::build_generic_router;
+use a_sabr::parsing::coerce_cm;
 use a_sabr::routing::aliases::SpsnOptions;
+use a_sabr::routing::aliases::build_generic_router;
 use a_sabr::utils::pretty_print;
 
 fn main() {
@@ -103,7 +103,9 @@ fn main() {
             .manual_enqueue(&bundle_2)
     );
     println!();
-    println!("Contact 0 has now 2 bundles in the queue (size: 2 x 20), unless we unqueue manually, the delay will be considered");
+    println!(
+        "Contact 0 has now 2 bundles in the queue (size: 2 x 20), unless we unqueue manually, the delay will be considered"
+    );
     println!();
     // We route a bundle
     let bundle_3 = Bundle {

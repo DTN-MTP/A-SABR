@@ -8,7 +8,7 @@ use crate::{
 };
 use crate::{
     node_manager::NodeManager,
-    parsing::{parse_components, DispatchParser, Lexer, ParsingState},
+    parsing::{DispatchParser, Lexer, ParsingState, parse_components},
 };
 use std::{cmp::max, collections::HashSet};
 
@@ -186,7 +186,7 @@ impl ASABRContactPlan {
                         return Err(format!(
                             "Unrecognized CP element ({})",
                             lexer.get_current_position()
-                        ))
+                        ));
                     }
                 },
             }
