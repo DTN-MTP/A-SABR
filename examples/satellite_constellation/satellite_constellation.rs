@@ -1,13 +1,13 @@
 use a_sabr::bundle::Bundle;
 use a_sabr::contact_manager::legacy::evl::EVLManager;
 use a_sabr::distance::sabr::SABR;
-use a_sabr::node_manager::none::NoManagement;
 use a_sabr::node_manager::NodeManager;
-use a_sabr::parsing::coerce_nm;
+use a_sabr::node_manager::none::NoManagement;
 use a_sabr::parsing::NodeMarkerMap;
+use a_sabr::parsing::coerce_nm;
 use a_sabr::parsing::{DispatchParser, Lexer, Parser, ParsingState, StaticMarkerMap};
-use a_sabr::pathfinding::hybrid_parenting::HybridParentingPath;
 use a_sabr::pathfinding::Pathfinding;
+use a_sabr::pathfinding::hybrid_parenting::HybridParentingPath;
 use a_sabr::types::Date;
 use a_sabr::types::Duration;
 use a_sabr::types::Token;
@@ -69,14 +69,14 @@ impl Parser<NoRetention> for NoRetention {
             ParsingState::Finished(value) => {
                 return ParsingState::Finished(NoRetention {
                     max_proc_time: value,
-                })
+                });
             }
             ParsingState::Error(msg) => return ParsingState::Error(msg),
             ParsingState::EOF => {
                 return ParsingState::Error(format!(
                     "Parsing failed ({})",
                     lexer.get_current_position()
-                ))
+                ));
             }
         }
     }

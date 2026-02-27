@@ -30,7 +30,7 @@ use crate::pathfinding::limiting_contact::first_ending::FirstEnding;
 #[cfg(feature = "contact_suppression")]
 use crate::pathfinding::node_parenting::NodeParentingPath;
 
-use super::{spsn::Spsn, Router};
+use super::{Router, spsn::Spsn};
 
 pub type SpsnHybridParenting<NM, CM> =
     Spsn<NM, CM, HybridParentingTreeExcl<NM, CM, SABR>, TreeCache<NM, CM>>;
@@ -421,5 +421,7 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
         contacts
     );
 
-    Err(ASABRError::ScheduleError("Router type is invalid! (check for typo, disabled feature, or missing options for Spsn algos)"))
+    Err(ASABRError::ScheduleError(
+        "Router type is invalid! (check for typo, disabled feature, or missing options for Spsn algos)",
+    ))
 }

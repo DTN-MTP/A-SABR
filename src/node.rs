@@ -114,7 +114,7 @@ impl Parser<NodeInfo> for NodeInfo {
                 return ParsingState::Error(format!(
                     "Parsing failed ({})",
                     lexer.get_current_position()
-                ))
+                ));
             }
         }
 
@@ -126,7 +126,7 @@ impl Parser<NodeInfo> for NodeInfo {
                 return ParsingState::Error(format!(
                     "Parsing failed ({})",
                     lexer.get_current_position()
-                ))
+                ));
             }
         }
         ParsingState::Finished(NodeInfo {

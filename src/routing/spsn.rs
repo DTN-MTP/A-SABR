@@ -13,7 +13,7 @@ use crate::{
 
 use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
-use super::{schedule_multicast, schedule_unicast, Router, RoutingOutput};
+use super::{Router, RoutingOutput, schedule_multicast, schedule_unicast};
 
 /// A structure representing the Shortest Path with Safety Nodes (SPSN) algorithm.
 ///

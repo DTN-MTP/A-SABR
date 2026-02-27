@@ -1,19 +1,19 @@
 use a_sabr::{
     contact_manager::{
+        ContactManager,
         legacy::{
             eto::ETOManager,
             evl::{EVLManager, PEVLManager},
             qd::{PQDManager, QDManager},
         },
         segmentation::seg::SegmentationManager,
-        ContactManager,
     },
     contact_plan::{
         asabr_file_lexer::FileLexer, from_asabr_lexer::ASABRContactPlan,
         from_ion_file::IONContactPlan, from_tvgutil_file::TVGUtilContactPlan,
     },
     node_manager::none::NoManagement,
-    parsing::{coerce_cm, ContactMarkerMap},
+    parsing::{ContactMarkerMap, coerce_cm},
 };
 
 fn main() {
@@ -74,19 +74,31 @@ fn main() {
         "examples/contact_plans/tvgutil_format.cp",
     )
     .unwrap();
-    println!("Tvg-util CP parsed, found {} nodes (no management) & {} contacts (queue-delay with priorities)", nodes.len(), contacts.len());
+    println!(
+        "Tvg-util CP parsed, found {} nodes (no management) & {} contacts (queue-delay with priorities)",
+        nodes.len(),
+        contacts.len()
+    );
 
     let mut mylexer = FileLexer::new("examples/contact_plans/asabr_format_static.cp").unwrap();
     let (nodes, contacts) =
         ASABRContactPlan::parse::<NoManagement, EVLManager>(&mut mylexer, None, None).unwrap();
-    println!("A-SABR CP parsed (statically for nodes & contacts), found {} nodes (no management) & {} contacts (EVL)", nodes.len(), contacts.len());
+    println!(
+        "A-SABR CP parsed (statically for nodes & contacts), found {} nodes (no management) & {} contacts (EVL)",
+        nodes.len(),
+        contacts.len()
+    );
 
     // A new lexer must be initialized
     // The CP format is shared for all legacy contact managers, no CP modification required
     let mut mylexer = FileLexer::new("examples/contact_plans/asabr_format_static.cp").unwrap();
     let (nodes, contacts) =
         ASABRContactPlan::parse::<NoManagement, QDManager>(&mut mylexer, None, None).unwrap();
-    println!("A-SABR CP parsed (statically for nodes & contacts), found {} nodes (no management) & {} contacts (queue-delay)", nodes.len(), contacts.len());
+    println!(
+        "A-SABR CP parsed (statically for nodes & contacts), found {} nodes (no management) & {} contacts (queue-delay)",
+        nodes.len(),
+        contacts.len()
+    );
 
     let mut mylexer = FileLexer::new("examples/contact_plans/asabr_format_dynamic.cp").unwrap();
     // All nodes will have the same management approach (NoManagement) but the contacts may be of various types
@@ -106,5 +118,9 @@ fn main() {
         Some(&contact_dispatch),
     )
     .unwrap();
-    println!("A-SABR CP parsed (statically for nodes, dynamically for contacts), found {} nodes (no management) & {} contacts (of various types)", nodes.len(), contacts.len());
+    println!(
+        "A-SABR CP parsed (statically for nodes, dynamically for contacts), found {} nodes (no management) & {} contacts (of various types)",
+        nodes.len(),
+        contacts.len()
+    );
 }

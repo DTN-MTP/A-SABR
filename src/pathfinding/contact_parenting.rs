@@ -17,7 +17,7 @@ use crate::{
     types::{Date, NodeID},
 };
 
-use super::{try_make_hop, PathFindingOutput, Pathfinding};
+use super::{PathFindingOutput, Pathfinding, try_make_hop};
 
 macro_rules! define_contact_graph {
     ($name:ident, $is_tree_output:tt, $with_exclusions:tt) => {

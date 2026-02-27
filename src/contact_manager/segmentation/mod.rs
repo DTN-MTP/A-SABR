@@ -209,7 +209,7 @@ pub trait BaseSegmentationManager {
     ///
     /// A new instance of the implementing type.
     fn new(rate_intervals: Vec<Segment<DataRate>>, delay_intervals: Vec<Segment<Duration>>)
-        -> Self;
+    -> Self;
 }
 
 /// Parses an interval, consisting of a start date, end date, and a value of type `T`, from the lexer.
@@ -246,7 +246,7 @@ fn parse_interval<T: std::str::FromStr>(lexer: &mut dyn Lexer) -> ParsingState<(
             return ParsingState::Error(format!(
                 "Parsing failed ({})",
                 lexer.get_current_position()
-            ))
+            ));
         }
     }
 
@@ -258,7 +258,7 @@ fn parse_interval<T: std::str::FromStr>(lexer: &mut dyn Lexer) -> ParsingState<(
             return ParsingState::Error(format!(
                 "Parsing failed ({})",
                 lexer.get_current_position()
-            ))
+            ));
         }
     }
 
@@ -270,7 +270,7 @@ fn parse_interval<T: std::str::FromStr>(lexer: &mut dyn Lexer) -> ParsingState<(
             return ParsingState::Error(format!(
                 "Parsing failed ({})",
                 lexer.get_current_position()
-            ))
+            ));
         }
     }
     ParsingState::Finished((start, end, val))
