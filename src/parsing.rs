@@ -112,7 +112,7 @@ macro_rules! implement_parser {
 implement_parser!(NodeManager);
 implement_parser!(ContactManager);
 
-/// Parses compgitonents including info and manager from the lexer.
+/// Parses components including info and manager from the lexer.
 ///
 /// # Parameters
 ///
