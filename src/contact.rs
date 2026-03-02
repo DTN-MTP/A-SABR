@@ -176,14 +176,9 @@ impl Parser<ContactInfo> for ContactInfo {
     ///
     /// * `ParsingState<ContactInfo>` - The parsing state indicating success or failure.
     fn parse(lexer: &mut dyn Lexer) -> ParsingState<ContactInfo> {
-        let tx_node: NodeID;
-        let rx_node: NodeID;
-        let start: Date;
-        let end: Date;
-
         let tx_node_state = NodeID::parse(lexer);
-        match tx_node_state {
-            ParsingState::Finished(value) => tx_node = value,
+        let tx_node: NodeID = match tx_node_state {
+            ParsingState::Finished(value) => value,
             ParsingState::Error(msg) => return ParsingState::Error(msg),
             ParsingState::EOF => {
                 return ParsingState::Error(format!(
@@ -191,11 +186,11 @@ impl Parser<ContactInfo> for ContactInfo {
                     lexer.get_current_position()
                 ));
             }
-        }
+        };
 
         let rx_node_state = NodeID::parse(lexer);
-        match rx_node_state {
-            ParsingState::Finished(value) => rx_node = value,
+        let rx_node: NodeID = match rx_node_state {
+            ParsingState::Finished(value) => value,
             ParsingState::Error(msg) => return ParsingState::Error(msg),
             ParsingState::EOF => {
                 return ParsingState::Error(format!(
@@ -203,11 +198,11 @@ impl Parser<ContactInfo> for ContactInfo {
                     lexer.get_current_position()
                 ));
             }
-        }
+        };
 
         let start_state = Date::parse(lexer);
-        match start_state {
-            ParsingState::Finished(value) => start = value,
+        let start: Date = match start_state {
+            ParsingState::Finished(value) => value,
             ParsingState::Error(msg) => return ParsingState::Error(msg),
             ParsingState::EOF => {
                 return ParsingState::Error(format!(
@@ -215,11 +210,11 @@ impl Parser<ContactInfo> for ContactInfo {
                     lexer.get_current_position()
                 ));
             }
-        }
+        };
 
         let end_state = Date::parse(lexer);
-        match end_state {
-            ParsingState::Finished(value) => end = value,
+        let end: Date = match end_state {
+            ParsingState::Finished(value) => value,
             ParsingState::Error(msg) => return ParsingState::Error(msg),
             ParsingState::EOF => {
                 return ParsingState::Error(format!(
@@ -227,7 +222,7 @@ impl Parser<ContactInfo> for ContactInfo {
                     lexer.get_current_position()
                 ));
             }
-        }
+        };
 
         ParsingState::Finished(ContactInfo::new(tx_node, rx_node, start, end))
     }
