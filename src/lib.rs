@@ -10,6 +10,8 @@ pub mod node;
 pub mod node_manager;
 /// Module containing the library primitive types.
 pub mod types;
+/// Module containing the vnode definition.
+pub mod vnode;
 
 /// Module containing the bundle definition.
 pub mod bundle;
