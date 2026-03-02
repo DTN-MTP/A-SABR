@@ -36,11 +36,10 @@ fn main() {
     contact_dispatch.add("seg", coerce_cm::<SegmentationManager>);
 
     // We parse the contact plan (A-SABR format thanks to ASABRContactPlan) and the lexer
-    let (nodes, contacts) = ASABRContactPlan::parse::<NoManagement, Box<dyn ContactManager>>(
-        &mut mylexer,
-        None,
-        Some(&contact_dispatch),
-    )
+    let ((nodes, contacts), vnode_map) = ASABRContactPlan::parse::<
+        NoManagement,
+        Box<dyn ContactManager>,
+    >(&mut mylexer, None, Some(&contact_dispatch))
     .unwrap();
 
     // We create a storage for the Paths
