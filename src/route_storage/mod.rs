@@ -18,7 +18,7 @@ use crate::{
 ///
 /// This trait defines methods for loading and storing pathfinding output
 /// related to routes in a routing system. Implementers of this trait must
-/// provide their own logic for handling route data.    node::Node
+/// provide their own logic for handling route data.
 pub trait TreeStorage<NM: NodeManager, CM: ContactManager> {
     /// Loads the pathfinding output for a specific bundle, considering excluded nodes.
     ///
@@ -26,13 +26,12 @@ pub trait TreeStorage<NM: NodeManager, CM: ContactManager> {
     ///
     /// * `bundle` - A reference to the `Bundle` containing routing information.
     /// * `curr_time` - The current time.
-    /// * `node_list` - The list of node objects.
     /// * `excluded_nodes_sorted` - A sorted vector of `NodeID`s representing nodes to exclude from pathfinding.
     ///
     /// # Returns
     ///
-    /// * `Option<Rc<RefCell<PathfindingOutput<CM>>>>` - An optional reference-counted and mutable reference
-    ///   to the `PathfindingOutput` if it exists; otherwise, returns `None`.
+    /// * `Result<Option<Rc<RefCell<PathFindingOutput<NM, CM>>>>, ASABRError>` - An optional reference-counted and mutable reference
+    ///   to the `PathFindingOutput` if it exists; otherwise, returns `None`.
     fn select(
         &self,
         bundle: &Bundle,
@@ -88,12 +87,11 @@ pub trait RouteStorage<NM: NodeManager, CM: ContactManager> {
     ///
     /// * `bundle` - A reference to the `Bundle` containing routing information.
     /// * `curr_time` - The current time.
-    /// * `node_list` - The list of node objects.
     /// * `excluded_nodes_sorted` - A sorted vector of `NodeID`s representing nodes to exclude from pathfinding.
     ///
     /// # Returns
     ///
-    /// * `Option<Route<NM, CM>>` - An optional reference-counted and mutable reference
+    /// * `Result<Option<Route<NM, CM>>, ASABRError>` - An optional reference-counted and mutable reference
     ///   to the `Route` if it exists; otherwise, returns `None`.
     fn select(
         &mut self,

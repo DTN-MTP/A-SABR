@@ -63,11 +63,12 @@ macro_rules! define_node_graph {
             /// * `current_time` - The current time used for evaluating routes.
             /// * `source` - The `NodeID` of the source node from which to begin pathfinding.
             /// * `bundle` - The `Bundle` associated with the pathfinding operation.
-            /// * `excluded_nodes` - A list of `NodeID`s to be excluded from the pathfinding.
+            /// * `excluded_nodes_sorted` - A sorted list of `NodeID`s to be excluded from the pathfinding.
             ///
             /// # Returns
             ///
-            /// * `PathfindingOutput<CM, D>` - The resulting pathfinding output, including the routes found.
+            /// * `Result<PathFindingOutput<NM, CM>, ASABRError>` - The resulting pathfinding output, including the routes found,
+            /// or an error if the operation fails.
             fn get_next(
                 &mut self,
                 current_time: Date,

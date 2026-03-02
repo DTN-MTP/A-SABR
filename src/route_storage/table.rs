@@ -8,7 +8,7 @@ use crate::{
 
 use super::{Route, RouteStorage};
 
-/// A routing table that stores the routes for each destinations.
+/// A routing table that stores the routes for each destination.
 ///
 /// `RoutingTable` stores and selects the best available routes for bundles. The table allows
 /// the storage of new routes and the selection of optimal routes based on the `Distance<NM, CM>` trait.
@@ -22,6 +22,7 @@ use super::{Route, RouteStorage};
 /// - `tables`: A vector of vectors of `Route<NM, CM>`, where each inner vector represents
 ///   routes to a specific destination node.
 /// - `_phantom_nm`: A phantom marker to associate the routing table with a `NodeManager` type.
+/// - `_phantom_distance`: A phantom marker to associate the routing table with a `Distance` type.
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct RoutingTable<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> {
     /// Routes are stored in a two-dimensional vector, grouped by destination node.
@@ -78,22 +79,21 @@ impl<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> RouteStorage<NM, 
     /// the `Distance<NM, CM>` trait.
     ///
     /// This function evaluates available routes to the bundle's destination, choosing the
-    /// route that is most favorable according to the current time, node list. Routes are
-    /// compared to find the best candidate, which is the returned.
+    /// route that is most favorable according to the current time, mutligraph. Routes are
+    /// compared to find the best candidate, which is then returned.
     ///
     /// Apply the exclusions to the node objects before calling this function.
     ///
     /// # Parameters
     /// - `bundle`: The bundle for which a route is being selected.
     /// - `curr_time`: The current time, used in route evaluation.
-    /// - `node_list`: A list of nodes, provided as `Rc<RefCell<Node<NM>>>`, used to assess
-    ///   the feasibility of the route.
+    /// - `multigraph`: A reference to the multigraph.
     /// - `_excluded_nodes_sorted`: A list of nodes to exclude from routing, although not used
     ///   explicitly in this function.
     ///
     /// # Returns
-    /// - `Some(Route<NM, CM>)` if a suitable route is found.
-    /// - `None` if no feasible route is available.
+    /// - `Result<Option<Route<NM, CM>>, ASABRError>`: An optional `Route` if a suitable route is found, 
+    /// or an error if the operation fails.
     fn select(
         &mut self,
         bundle: &Bundle,

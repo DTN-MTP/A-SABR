@@ -25,6 +25,7 @@ pub mod node_parenting;
 ///
 /// # Type Parameters
 ///
+/// * `NM` - A generic type that implements the `NodeManager` trait.
 /// * `CM` - A generic type that implements the `ContactManager` trait.
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct PathFindingOutput<NM: NodeManager, CM: ContactManager> {
@@ -41,7 +42,7 @@ pub struct PathFindingOutput<NM: NodeManager, CM: ContactManager> {
 pub type SharedPathFindingOutput<NM, CM> = Rc<RefCell<PathFindingOutput<NM, CM>>>;
 
 impl<NM: NodeManager, CM: ContactManager> PathFindingOutput<NM, CM> {
-    /// Creates a new `PathfindingOutput` instance, initializing the `by_destination` vector
+    /// Creates a new `PathFindingOutput` instance, initializing the `by_destination` vector
     /// with empty vectors for each destination node and sorting the excluded nodes.
     ///
     /// # Parameters
@@ -53,7 +54,7 @@ impl<NM: NodeManager, CM: ContactManager> PathFindingOutput<NM, CM> {
     ///
     /// # Returns
     ///
-    /// A new `PathfindingOutput` instance.
+    /// A new `PathFindingOutput` instance.
     pub fn new(
         bundle: &Bundle,
         source: SharedRouteStage<NM, CM>,
@@ -100,8 +101,7 @@ pub trait Pathfinding<NM: NodeManager, CM: ContactManager> {
     ///
     /// # Parameters
     ///
-    /// * `nodes` - A vector of `Node`s that represents the graph nodes.
-    /// * `contacts` - A vector of `Contact`s that represents the edges between nodes.
+    /// * `multigraph` - A reference-counted, mutable pointer to the multigraph containing nodes and contacts for pathfinding.
     ///
     /// # Returns
     ///
@@ -119,7 +119,8 @@ pub trait Pathfinding<NM: NodeManager, CM: ContactManager> {
     ///
     /// # Returns
     ///
-    /// A `PathfindingOutput` containing the results of the pathfinding operation.
+    /// A `Result<PathFindingOutput<NM, CM>, ASABRError>` containing the results of the pathfinding operation, 
+    /// or an error if the operation fails.
     fn get_next(
         &mut self,
         current_time: Date,

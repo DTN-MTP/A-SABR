@@ -14,7 +14,7 @@ use super::TreeStorage;
 
 /// A cache for storing pathfinding output entries, enabling efficient retrieval and management.
 ///
-/// The `Cache` struct provides a mechanism to store multiple `PathfindingOutput` instances
+/// The `Cache` struct provides a mechanism to store multiple `PathFindingOutput` instances
 /// while enforcing limits on the number of entries based on size and priority checks.
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct TreeCache<NM: NodeManager, CM: ContactManager> {
@@ -33,7 +33,7 @@ pub struct TreeCache<NM: NodeManager, CM: ContactManager> {
 }
 
 impl<NM: NodeManager, CM: ContactManager> TreeCache<NM, CM> {
-    /// Creates a new `Cache` instance with specified entry management settings.
+    /// Creates a new `TreeCache<NM, CM>` instance with specified entry management settings.
     ///
     /// # Parameters
     ///
@@ -43,7 +43,7 @@ impl<NM: NodeManager, CM: ContactManager> TreeCache<NM, CM> {
     ///
     /// # Returns
     ///
-    /// * `Self` - A new instance of `Cache`.
+    /// * `Self` - A new instance of `TreeCache<NM, CM>`.
     pub fn new(check_size: bool, check_priority: bool, max_entries: usize) -> Self {
         Self {
             check_size,
@@ -63,13 +63,12 @@ impl<NM: NodeManager, CM: ContactManager> TreeStorage<NM, CM> for TreeCache<NM, 
     ///
     /// * `bundle` - A reference to the `Bundle` containing routing information.
     /// * `curr_time` - The current time.
-    /// * `node_list` - The list of node objects.
     /// * `excluded_nodes_sorted` - A sorted vector of `NodeID`s representing nodes to exclude from pathfinding.
     ///
     /// # Returns
     ///
     /// * `(Option<Rc<RefCell<PathFindingOutput<NM, CM>>>>,Option<Vec<NodeID>>,)` - An optional reference-counted and mutable reference
-    ///   to the `PathfindingOutput` if a match is found; and the list of reached nodes if applicable (multicast).
+    ///   to the `PathFindingOutput` if a match is found; and the list of reached nodes if applicable (multicast).
     fn select(
         &self,
         bundle: &Bundle,

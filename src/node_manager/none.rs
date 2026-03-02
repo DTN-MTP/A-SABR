@@ -5,7 +5,7 @@ use crate::{bundle::Bundle, types::Date};
 
 use super::NodeManager;
 
-/// Use this manager if no node management shall be considered (with or without the node_rx, node_tx, and node_proc compilation feature).
+/// Use this manager if no node management shall be considered (with or without the node_rx, node_tx, and node_proc compilation features).
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct NoManagement {}
 

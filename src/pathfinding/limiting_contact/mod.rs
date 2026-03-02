@@ -75,18 +75,18 @@ pub fn get_next_to_suppress<NM: NodeManager, CM: ContactManager>(
 ///
 /// The generated struct will contain the following fields:
 /// * `pathfinding` - An instance of the underlying pathfinding algorithm.
-/// * `next_to_suppress` - An optional `Contact` that will be suppressed before the pathfinding stage.
+/// * `suppression_map` - A map of contacts that are suppressed before the pathfinding stage.
 ///
 /// The struct implements the `Pathfinding` trait, using the specified suppression strategy to
-/// modify its behavior when selecting the next route. The `next_to_suppress` contact is removed before
-/// tree construction, and prepare the new `next_to_suppress` contact.
+/// modify its behavior when selecting the next route. The `suppression_map` contact is removed before
+/// tree construction, and prepares the new `next_to_suppress` contact.
 #[cfg(feature = "contact_suppression")]
 #[macro_export]
 macro_rules! create_new_alternative_path_variant {
     ($struct_name:ident, $better_fn:ident) => {
         /// An alternative path finding algorithm (macro generated).
         ///
-        /// Each time a new route must generated, a contact of the last found route is suppressed.
+        /// Each time a new route is generated, a contact of the last found route is suppressed.
         #[doc = concat!("`", stringify!($struct_name), "` uses the `", stringify!($better_fn), "` function to select the next contact to suppress.")]
         /// This is macro generated check the documentation of `create_new_alternative_path_variant` for details.
         ///
@@ -95,7 +95,6 @@ macro_rules! create_new_alternative_path_variant {
         /// * `NM` - A type that implements the `NodeManager` trait.
         /// * `CM` - A type that implements the `ContactManager` trait.
         /// * `D` - A type that implements the `Distance<NM, CM>` trait.
-        /// * `P` - A type that implements the `Pathfinding<NM, CM>` trait.
         pub struct $struct_name<
             NM: crate::node_manager::NodeManager,
             CM: ContactManager,
@@ -151,7 +150,7 @@ macro_rules! create_new_alternative_path_variant {
             ///
             /// # Returns
             ///
-            /// * `PathfindingOutput<CM>` - The resulting pathfinding output, including the routes found.
+            /// * `Result<PathFindingOutput<NM, CM>, ASABRError>` - The resulting pathfinding output, including the routes found.
             fn get_next(
                 &mut self,
                 current_time: crate::types::Date,
