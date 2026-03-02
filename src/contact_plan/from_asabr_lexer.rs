@@ -5,12 +5,16 @@ use crate::{
     node::{Node, NodeInfo},
     parsing::{Parser, StaticMarkerMap},
     types::{NodeID, NodeName},
+    vnode::VirtualNodeInfo,
 };
 use crate::{
     node_manager::NodeManager,
     parsing::{DispatchParser, Lexer, ParsingState, parse_components},
 };
-use std::{cmp::max, collections::HashSet};
+use std::{
+    cmp::max,
+    collections::{HashMap, HashSet},
+};
 
 /// `ContactPlan` is responsible for managing and validating the parsing of contacts and nodes
 /// in a network configuration. It tracks known node IDs and names to ensure uniqueness,
@@ -109,9 +113,10 @@ impl ASABRContactPlan {
         lexer: &mut dyn Lexer,
         node_marker_map: Option<&StaticMarkerMap<NM>>,
         contact_marker_map: Option<&StaticMarkerMap<CM>>,
-    ) -> Result<ContactPlan<NM, NM, CM>, String> {
+    ) -> Result<(ContactPlan<NM, NM, CM>, HashMap<NodeID, Vec<NodeID>>), String> {
         let mut contacts: Vec<Contact<NM, CM>> = Vec::new();
         let mut nodes: Vec<Node<NM>> = Vec::new();
+        let mut vnode_map: HashMap<NodeID, Vec<NodeID>> = HashMap::new();
 
         let mut known_node_ids: HashSet<NodeID> = HashSet::new();
         let mut known_node_names: HashSet<NodeName> = HashSet::new();
@@ -182,6 +187,20 @@ impl ASABRContactPlan {
                             }
                         }
                     }
+                    "vnode" => {
+                        let vnode = parse_components::<VirtualNodeInfo, NM>(lexer, node_marker_map);
+                        match vnode {
+                            ParsingState::EOF => {
+                                break;
+                            }
+                            ParsingState::Error(msg) => {
+                                return Err(msg);
+                            }
+                            ParsingState::Finished((info, _)) => {
+                                vnode_map.insert(info.vid, info.rids);
+                            }
+                        }
+                    }
                     _ => {
                         return Err(format!(
                             "Unrecognized CP element ({})",
@@ -203,6 +222,6 @@ impl ASABRContactPlan {
         if nodes.len() - 1 != max_node_id_in_contacts {
             return Err("Some node declarations are missing".to_string());
         }
-        Ok((nodes, contacts))
+        Ok(((nodes, contacts), vnode_map))
     }
 }
