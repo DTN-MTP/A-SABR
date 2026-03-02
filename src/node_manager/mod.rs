@@ -19,7 +19,7 @@ macro_rules! define_node_manager {
             ///
             /// # Parameters
             /// - `at_time`: The time at which the dry-run process simulation should start.
-            /// - `bundle`: A reference to the `Bundle` to be processed.
+            /// - `bundle`: A mutable reference to the `Bundle` to be processed.
             ///
             /// # Returns
             /// - A `Date` indicating the estimated completion time for processing the bundle.
@@ -64,7 +64,7 @@ macro_rules! define_node_manager {
             ///
             /// # Parameters
             /// - `at_time`: The time at which the processing should start.
-            /// - `bundle`: A reference to the `Bundle` to be processed.
+            /// - `bundle`: A mutable reference to the `Bundle` to be processed.
             ///
             /// # Returns
             /// - A `Date` indicating the completion time for the processing task.
