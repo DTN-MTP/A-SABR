@@ -103,12 +103,9 @@ impl Parser<NodeInfo> for NodeInfo {
     /// * `ParsingState<NodeInfo>` - The parsing state, which can be either finished with the parsed node info,
     ///   an error, or an EOF state.
     fn parse(lexer: &mut dyn Lexer) -> ParsingState<NodeInfo> {
-        let id: NodeID;
-        let name: NodeName;
-
         let id_state = NodeID::parse(lexer);
-        match id_state {
-            ParsingState::Finished(value) => id = value,
+        let id: NodeID = match id_state {
+            ParsingState::Finished(value) => value,
             ParsingState::Error(msg) => return ParsingState::Error(msg),
             ParsingState::EOF => {
                 return ParsingState::Error(format!(
@@ -116,11 +113,11 @@ impl Parser<NodeInfo> for NodeInfo {
                     lexer.get_current_position()
                 ));
             }
-        }
+        };
 
         let name_state = NodeName::parse(lexer);
-        match name_state {
-            ParsingState::Finished(value) => name = value,
+        let name: NodeName = match name_state {
+            ParsingState::Finished(value) => value,
             ParsingState::Error(msg) => return ParsingState::Error(msg),
             ParsingState::EOF => {
                 return ParsingState::Error(format!(
@@ -128,7 +125,8 @@ impl Parser<NodeInfo> for NodeInfo {
                     lexer.get_current_position()
                 ));
             }
-        }
+        };
+
         ParsingState::Finished(NodeInfo {
             id,
             name,
