@@ -62,6 +62,7 @@ where
 /// This type is designed to derive easily a PathFindingOutput from this work area.
 ///
 /// # Type Parameters
+/// - `NM`: A type implementing the `NodeManager` trait.
 /// - `CM`: A type implementing the `ContactManager` trait, which handles contacts for routing.
 struct HybridParentingWorkArea<NM: NodeManager, CM: ContactManager> {
     /// The bundle associated with this work area.
@@ -225,7 +226,7 @@ macro_rules! define_mpt {
     ($name:ident, $is_tree_output:tt, $with_exclusions:tt) => {
         /// A multipath tracking (SPSN v2) implementation of Dijkstra algorithm.
         ///
-        /// Use this implementation for optimized pahtfinding precision.
+        /// Use this implementation for optimized pathfinding precision.
         ///
         /// # Type Parameters
         ///
@@ -272,11 +273,12 @@ macro_rules! define_mpt {
             /// * `current_time` - The current time used for evaluating routes.
             /// * `source` - The `NodeID` of the source node from which to begin pathfinding.
             /// * `bundle` - The `Bundle` associated with the pathfinding operation.
-            /// * `excluded_nodes` - A list of `NodeID`s to be excluded from the pathfinding.
+            /// * `excluded_nodes_sorted` - A sorted list of `NodeID`s to be excluded from the pathfinding.
             ///
             /// # Returns
             ///
-            /// * `PathfindingOutput<CM, D>` - The resulting pathfinding output, including the routes found.
+            /// * `<ResultPathFindingOutput<NM, CM>, ASABRError>` - The resulting pathfinding output, including the routes found,
+            /// or an error if the operation fails.
             fn get_next(
                 &mut self,
                 current_time: Date,
