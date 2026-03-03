@@ -4,8 +4,9 @@ use crate::{
     bundle::Bundle,
     contact::ContactInfo,
     contact_manager::{
-        segmentation::{BaseSegmentationManager, Segment},
         ContactManager, ContactManagerTxData,
+        segmentation::{BaseSegmentationManager, Segment},
+
     },
     parsing::{Lexer, Parser, ParsingState},
     types::{DataRate, Date, Duration, Priority},
