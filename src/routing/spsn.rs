@@ -25,7 +25,7 @@ use super::{Router, RoutingOutput, schedule_multicast, schedule_unicast};
 ///   network's nodes and their interactions.
 /// - `CM`: A type that implements the `ContactManager` trait, handling contact points and
 ///   communication schedules within the network.
-/// - `P`: A type that implements the `Pathfinding<NM, CM>` trait
+/// - `P`: A type that implements the `Pathfinding<NM, CM>` trait, responsible for computing optimal paths.
 pub struct Spsn<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: TreeStorage<NM, CM>>
 {
     /// A reference-counted storage for routing data, allowing the retrieval and storage of
@@ -70,7 +70,7 @@ impl<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: TreeStorage
 impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>>
     Spsn<NM, CM, P, S>
 {
-    /// Creates a new `SPSN` instance with the specified parameters.
+    /// Creates a new `Spsn` instance with the specified parameters.
     ///
     /// # Parameters
     ///
@@ -81,7 +81,7 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
     ///
     /// # Returns
     ///
-    /// * `Self` - A new instance of the `SPSN` struct.
+    /// * `Self` - A new instance of the `Spsn` struct.
     pub fn new(
         nodes: Vec<Node<NM>>,
         contacts: Vec<Contact<NM, CM>>,
@@ -112,8 +112,8 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
     /// - `excluded_nodes`: A list of nodes to exclude from the unicast path.
     ///
     /// # Returns
-    /// An `Option<RoutingOutput<NM, CM>>` containing the routing result, or `None` if routing fails or
-    /// is aborted.
+    /// An `Result<Option<RoutingOutput<NM, CM>>, ASABRError>` containing the routing result, or `None` if routing fails or
+    /// is aborted, or an error if the operation fails.
     fn route_unicast(
         &mut self,
         source: NodeID,
@@ -177,8 +177,8 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
     /// - `excluded_nodes`: A list of nodes to exclude from the multicast paths.
     ///
     /// # Returns
-    /// An `Option<RoutingOutput<NM, CM>>` containing the multicast routing result, or `None` if
-    /// routing fails.
+    /// An `Result<Option<RoutingOutput<NM, CM>>, ASABRError>` containing the multicast routing result, or `None` if
+    /// routing fails, or an error if the operation fails.
     pub fn route_multicast(
         &mut self,
         source: NodeID,

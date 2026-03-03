@@ -31,7 +31,7 @@ pub trait Router<NM: NodeManager, CM: ContactManager> {
     /// depending on the number of destinations.
     ///
     /// The `route` function checks the number of destinations in `bundle`. If there is only one
-    /// destination.
+    /// destination, unicast routing is perfomed, otherwise the multicast routing is used.
     ///
     /// # Parameters
     /// - `source`: The source node ID initiating the routing operation.
@@ -40,8 +40,8 @@ pub trait Router<NM: NodeManager, CM: ContactManager> {
     /// - `excluded_nodes`: A list of nodes to exclude from the routing paths.
     ///
     /// # Returns
-    /// An `Option<RoutingOutput<NM, CM>>`, where `Some(RoutingOutput)` contains the routing details if
-    /// successful, and `None` if routing fails or encounters exclusions.
+    /// An `Result<Option<RoutingOutput<NM, CM>>, ASABRError>`, where `Some(RoutingOutput)` contains the routing details if
+    /// successful, and `None` if no route is found, or an error if the operation fails.
     fn route(
         &mut self,
         source: NodeID,
@@ -54,7 +54,7 @@ pub trait Router<NM: NodeManager, CM: ContactManager> {
 /// A struct that represents the output of a routing operation.
 ///
 /// The `RoutingOutput` struct is used to store the results of routing calculations,
-/// specifically the first hops for each destination and the associated nodes that are reachable via this the hop (e.g. for multicast).
+/// specifically the first hops for each destination and the associated nodes that are reachable via this hop (e.g. for multicast).
 ///
 /// # Fields
 ///
@@ -211,16 +211,14 @@ fn update_multicast<NM: NodeManager, CM: ContactManager>(
 ///
 /// # Parameters
 ///
-/// * `source` - The ID of the source node initiating the route.
 /// * `bundle` - The current bundle containing routing information.
 /// * `curr_time` - The current date/time for the routing operation.
-/// * `tree_ref` - A reference to the pathfinding output.
-/// * `dry_run_to_fill_targets` - Set this boolean to true if the tree is fresh (i.e. the dry run
-///   from selection did not occur).
-///
+/// * `tree` - A reference to the pathfinding output.
+/// * `targets_opt` - An optional list of target node IDs. If `None`,
+/// the function will perform a dry run to determine reachable targets.
 /// # Returns
 ///
-/// * `RoutingOutput<NM, CM>` - The routing output.
+/// * `Result<RoutingOutput<NM, CM>, ASABRError>` - The routing output, or an error if the operation fails.
 fn schedule_multicast<NM: NodeManager, CM: ContactManager>(
     bundle: &Bundle,
     curr_time: Date,
@@ -288,10 +286,10 @@ pub fn dry_run_unicast_path<NM: NodeManager, CM: ContactManager>(
 /// - `at_time`: The starting time for the dry run pathfinding.
 /// - `tree`: An `Rc<RefCell<PathFindingOutput<NM, CM>>>` containing the multicast tree structure
 ///   with route stages mapped by destination.
-/// - `node_list`: A list of nodes (`Node<NM>`) in the network, used in the pathfinding process.
+/// - `with_exclusions`: A boolean flag indicating whether to consider excluded nodes during the dry run pathfinding.
 ///
 /// # Returns
-/// Returns an `Option<SharedRouteStage<NM, CM>>` containing the route stage to the
+/// Returns an `Result<Option<SharedRouteStage<NM, CM>>, ASABRError>` containing the route stage to the
 /// destination if a valid path is found, or `None` if no path is available.
 pub fn dry_run_unicast_tree<NM: NodeManager, CM: ContactManager>(
     bundle: &Bundle,
@@ -388,12 +386,12 @@ fn update_unicast<NM: NodeManager, CM: ContactManager>(
 /// - `curr_time`: The current time, used as the starting time for scheduling.
 /// - `tree`: An `Rc<RefCell<PathFindingOutput<NM, CM>>>`, representing the multicast tree structure,
 ///   which holds route stages by destination.
-/// - `node_list`: A list of nodes (`Node<NM>`) in the network.
 /// - `init_tree`: A boolean flag indicating whether to initialize the tree for routing to the
 ///   destination node.
 ///
 /// # Returns
-/// Returns a `RoutingOutput<NM, CM>` containing the scheduled routing details.
+/// Returns a `Result<RoutingOutput<NM, CM>, ASABRError> ` containing the scheduled routing details,
+/// or an error if the operation fails.
 fn schedule_unicast<NM: NodeManager, CM: ContactManager>(
     bundle: &Bundle,
     curr_time: Date,
@@ -419,10 +417,10 @@ fn schedule_unicast<NM: NodeManager, CM: ContactManager>(
 /// - `bundle`: The `Bundle` to route, containing the destination node(s).
 /// - `curr_time`: The current time, used as the starting time for scheduling.
 /// - `source_route`: The starting `RouteStage` for unicast pathfinding.
-/// - `node_list`: A list of nodes (`Node<NM>`) in the network.
 ///
 /// # Returns
-/// Returns a `RoutingOutput<NM, CM>` containing the scheduled routing details.
+/// Returns a `Result<RoutingOutput<NM, CM>, ASABRError>` containing the scheduled routing details,
+/// or an error if the operation fails.
 fn schedule_unicast_path<NM: NodeManager, CM: ContactManager>(
     bundle: &Bundle,
     curr_time: Date,
