@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 
 use crate::parsing::{Lexer, ParsingState};
 
@@ -34,6 +34,9 @@ impl FromStr for VirtualNodeElement {
         Err("Error while parsing VirtualNodeElement".into())
     }
 }
+
+/// Represents a HashMap with virtual node IDs as keys and real node ID lists as values
+pub type VirtualNodeMap = HashMap<NodeID, Vec<NodeID>>;
 
 /// Represents the name of a node.
 pub type NodeName = String;
