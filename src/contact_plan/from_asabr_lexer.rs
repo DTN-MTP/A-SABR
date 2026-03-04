@@ -4,7 +4,8 @@ use crate::{
     contact_plan::ContactPlan,
     node::{Node, NodeInfo},
     parsing::{Parser, StaticMarkerMap},
-    types::{NodeID, NodeName},
+    types::{NodeID, NodeIDMap, NodeName},
+    vnode::VirtualNodeInfo,
 };
 use crate::{
     node_manager::NodeManager,
@@ -32,11 +33,25 @@ impl ASABRContactPlan {
     fn add_contact<NM: NodeManager, CM: ContactManager>(
         contact: Contact<NM, CM>,
         contacts: &mut Vec<Contact<NM, CM>>,
+        vnode_map: &NodeIDMap,
         max_node_id_in_contacts: &mut usize,
-    ) {
+    ) -> Result<(), String> {
+        if vnode_map.contains_key(&contact.info.rx_node) {
+            return Err(format!(
+                "Contact Rx node ({}) cannot be a virtual node",
+                contact.info.rx_node
+            ));
+        } else if vnode_map.contains_key(&contact.info.tx_node) {
+            return Err(format!(
+                "Contact Tx node ({}) cannot be a virtual node",
+                contact.info.tx_node
+            ));
+        }
+
         let value = max(contact.get_tx_node(), contact.get_rx_node());
         *max_node_id_in_contacts = max(*max_node_id_in_contacts, value.into());
         contacts.push(contact);
+        Ok(())
     }
 
     /// Adds a node to the node list, ensuring that the node ID and node name are unique.
@@ -78,6 +93,66 @@ impl ASABRContactPlan {
         Ok(())
     }
 
+    /// Adds a vnode to the vnode map, performing checks such as bounds on on the vnode IDs.
+    /// Returns an error if the checks do not pass.
+    ///
+    /// # Parameters
+    ///
+    /// * `vnode` - The `Node` to be added to the plan, constructed from VirtualNodeInfo.
+    /// * `vnode_map` - A mutable reference to a NodeIDMap HashMap, where the new vid and rids will be stored.
+    /// * `rids` - The vector of NodeIDs to be mapped to this virtual node.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), String>` - Returns `Ok(())` if the node was successfully added, or an error message
+    ///   if any of the error control checks fail.
+    fn add_vnode(
+        vnode_info: VirtualNodeInfo,
+        vnode_map: &mut NodeIDMap,
+        known_node_ids: &HashSet<NodeID>,
+        max_node_id_in_nodes: &mut usize,
+    ) -> Result<(), String> {
+        // Error control checks
+        // 1. A vnode ID must come after all the real node IDs it references.
+
+        // `max_node_id_in_nodes` is #nodes + #vnodes including the current one.
+        // `vnode_map.len()` hasn't been updated yet so it excludes the current one.
+        // Thus:
+        let max_real_node_id = (*max_node_id_in_nodes - 1) - vnode_map.len();
+
+        if usize::from(vnode_info.vid) <= max_real_node_id {
+            return Err(format!(
+                "Virtual node ID is in the range of its real node IDs (vid {} <= {})",
+                vnode_info.vid, max_real_node_id
+            ));
+        }
+
+        // 2. A vnode's rids mut be in range and must not be duplicates.
+        let mut known_rids: HashSet<NodeID> = HashSet::new();
+        for rid in &vnode_info.rids {
+            if usize::from(*rid) > max_real_node_id {
+                return Err(format!(
+                    "Node ID out of range ({rid} > {max_real_node_id}) in virtual node definition"
+                ));
+            }
+            if !known_node_ids.contains(rid) {
+                return Err(format!(
+                    "Node ID referenced in in virtual node definition does not exist ({rid})"
+                ));
+            }
+            if known_rids.contains(rid) {
+                return Err(format!(
+                    "Node ID duplicate ({rid}) in virtual node definition"
+                ));
+            }
+            known_rids.insert(*rid);
+        }
+
+        vnode_map.insert(vnode_info.vid, vnode_info.rids);
+
+        Ok(())
+    }
+
     /// Parses nodes and contacts from a lexer, while ensuring node ID and name uniqueness
     /// and consistency between node definitions and contacts.
     ///
@@ -109,10 +184,12 @@ impl ASABRContactPlan {
         lexer: &mut dyn Lexer,
         node_marker_map: Option<&StaticMarkerMap<NM>>,
         contact_marker_map: Option<&StaticMarkerMap<CM>>,
-    ) -> Result<ContactPlan<NM, NM, CM>, String> {
+    ) -> Result<(ContactPlan<NM, NM, CM>, NodeIDMap), String> {
         let mut contacts: Vec<Contact<NM, CM>> = Vec::new();
         let mut nodes: Vec<Node<NM>> = Vec::new();
+        let mut vnode_map: NodeIDMap = NodeIDMap::new();
 
+        // These include nodes and vnodes
         let mut known_node_ids: HashSet<NodeID> = HashSet::new();
         let mut known_node_names: HashSet<NodeName> = HashSet::new();
         let mut max_node_id_in_contacts: usize = 0;
@@ -150,8 +227,9 @@ impl ASABRContactPlan {
                                 Self::add_contact(
                                     contact,
                                     &mut contacts,
+                                    &vnode_map,
                                     &mut max_node_id_in_contacts,
-                                );
+                                )?;
                             }
                         }
                     }
@@ -182,6 +260,54 @@ impl ASABRContactPlan {
                             }
                         }
                     }
+                    "vnode" => {
+                        let vnode = parse_components::<VirtualNodeInfo, NM>(lexer, node_marker_map);
+                        match vnode {
+                            ParsingState::EOF => {
+                                break;
+                            }
+                            ParsingState::Error(msg) => {
+                                return Err(msg);
+                            }
+                            ParsingState::Finished((info, manager)) => {
+                                // A vnode is not only a mapping to a list of NodeIDs in a vnode_map, it is also a real node in the graph.
+                                // Thus here we instantiate a Node object from the VirtualNodeInfo
+                                let node_info = NodeInfo {
+                                    id: info.vid,
+                                    name: info.name.clone(),
+                                    excluded: false,
+                                };
+
+                                let Some(vnode) = Node::try_new(node_info, manager) else {
+                                    return Err(format!(
+                                        "Malformed node ({})",
+                                        lexer.get_current_position()
+                                    ));
+                                };
+
+                                // Add the vnode to the nodes list, returning on error.
+                                // This also updates max_node_id_in_nodes, known_node_ids and
+                                // known_node_names.
+                                Self::add_node(
+                                    vnode,
+                                    &mut nodes,
+                                    &mut max_node_id_in_nodes,
+                                    &mut known_node_ids,
+                                    &mut known_node_names,
+                                )?;
+
+                                // Add the vnode to the vnode_map, returning on error.
+                                // add_vnode must come after add_node, as it relies on previous
+                                // checks and updates to the nodes list.
+                                Self::add_vnode(
+                                    info,
+                                    &mut vnode_map,
+                                    &known_node_ids,
+                                    &mut max_node_id_in_nodes,
+                                )?;
+                            }
+                        }
+                    }
                     _ => {
                         return Err(format!(
                             "Unrecognized CP element ({})",
@@ -191,7 +317,7 @@ impl ASABRContactPlan {
                 },
             }
         }
-        if max_node_id_in_contacts != max_node_id_in_nodes {
+        if vnode_map.is_empty() && (max_node_id_in_contacts != max_node_id_in_nodes) {
             return Err(
                 "The max node numbers for the contact and node definitions do not match"
                     .to_string(),
@@ -200,9 +326,9 @@ impl ASABRContactPlan {
         if nodes.is_empty() {
             return Err("Nodes must be declared".to_string());
         }
-        if nodes.len() - 1 != max_node_id_in_contacts {
+        if nodes.len() - 1 != max_node_id_in_nodes {
             return Err("Some node declarations are missing".to_string());
         }
-        Ok((nodes, contacts))
+        Ok(((nodes, contacts), vnode_map))
     }
 }

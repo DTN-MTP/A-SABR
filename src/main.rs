@@ -36,7 +36,7 @@ fn main() {
     contact_dispatch.add("seg", coerce_cm::<SegmentationManager>);
 
     // We parse the contact plan (A-SABR format thanks to ASABRContactPlan) and the lexer
-    let (nodes, contacts) = ASABRContactPlan::parse::<NoManagement, Box<dyn ContactManager>>(
+    let ((nodes, contacts), _) = ASABRContactPlan::parse::<NoManagement, Box<dyn ContactManager>>(
         &mut mylexer,
         None,
         Some(&contact_dispatch),

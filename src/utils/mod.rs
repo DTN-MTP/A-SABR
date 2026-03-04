@@ -25,8 +25,8 @@ pub fn init_pathfinding<
             .unwrap();
 
     P::new(Rc::new(RefCell::new(Multigraph::new(
-        nodes_n_contacts.0,
-        nodes_n_contacts.1,
+        nodes_n_contacts.0.0,
+        nodes_n_contacts.0.1,
     ))))
 }
 
