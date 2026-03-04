@@ -81,7 +81,7 @@ fn main() {
     );
 
     let mut mylexer = FileLexer::new("examples/contact_plans/asabr_format_static.cp").unwrap();
-    let (nodes, contacts) =
+    let ((nodes, contacts), _) =
         ASABRContactPlan::parse::<NoManagement, EVLManager>(&mut mylexer, None, None).unwrap();
     println!(
         "A-SABR CP parsed (statically for nodes & contacts), found {} nodes (no management) & {} contacts (EVL)",
@@ -92,7 +92,7 @@ fn main() {
     // A new lexer must be initialized
     // The CP format is shared for all legacy contact managers, no CP modification required
     let mut mylexer = FileLexer::new("examples/contact_plans/asabr_format_static.cp").unwrap();
-    let (nodes, contacts) =
+    let ((nodes, contacts), _) =
         ASABRContactPlan::parse::<NoManagement, QDManager>(&mut mylexer, None, None).unwrap();
     println!(
         "A-SABR CP parsed (statically for nodes & contacts), found {} nodes (no management) & {} contacts (queue-delay)",
@@ -112,7 +112,7 @@ fn main() {
 
     // The manager type should be Box<dyn ContactManager>> (heap allocated, dynamically dispatched)
     // Replace None with a dispatching map for the contact_marker_map argument
-    let (nodes, contacts) = ASABRContactPlan::parse::<NoManagement, Box<dyn ContactManager>>(
+    let ((nodes, contacts), _) = ASABRContactPlan::parse::<NoManagement, Box<dyn ContactManager>>(
         &mut mylexer,
         None,
         Some(&contact_dispatch),
