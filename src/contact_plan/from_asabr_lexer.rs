@@ -58,7 +58,7 @@ impl ASABRContactPlan {
     fn add_node<NM: NodeManager>(
         node: Node<NM>,
         nodes: &mut Vec<Node<NM>>,
-        max_node_in_in_nodes: &mut usize,
+        max_node_id_in_nodes: &mut usize,
         known_node_ids: &mut HashSet<NodeID>,
         known_node_names: &mut HashSet<NodeName>,
     ) -> Result<(), String> {
@@ -71,8 +71,7 @@ impl ASABRContactPlan {
         if known_node_names.contains(&node_name) {
             return Err(format!("Two nodes have the same name ({node_name})"));
         }
-        let value = max(node.get_node_id(), node.get_node_id());
-        *max_node_in_in_nodes = max(*max_node_in_in_nodes, value.into());
+        *max_node_id_in_nodes = max(*max_node_id_in_nodes, node_id.into());
         known_node_ids.insert(node_id);
         known_node_names.insert(node_name);
         nodes.push(node);
@@ -117,7 +116,7 @@ impl ASABRContactPlan {
         let mut known_node_ids: HashSet<NodeID> = HashSet::new();
         let mut known_node_names: HashSet<NodeName> = HashSet::new();
         let mut max_node_id_in_contacts: usize = 0;
-        let mut max_node_in_in_nodes: usize = 0;
+        let mut max_node_id_in_nodes: usize = 0;
 
         loop {
             let res = lexer.consume_next_token();
@@ -176,7 +175,7 @@ impl ASABRContactPlan {
                                 Self::add_node(
                                     node,
                                     &mut nodes,
-                                    &mut max_node_in_in_nodes,
+                                    &mut max_node_id_in_nodes,
                                     &mut known_node_ids,
                                     &mut known_node_names,
                                 )?;
@@ -192,7 +191,7 @@ impl ASABRContactPlan {
                 },
             }
         }
-        if max_node_id_in_contacts != max_node_in_in_nodes {
+        if max_node_id_in_contacts != max_node_id_in_nodes {
             return Err(
                 "The max node numbers for the contact and node definitions do not match"
                     .to_string(),
