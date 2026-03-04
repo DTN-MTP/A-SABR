@@ -26,7 +26,7 @@ fn main() {
     let mut mylexer = FileLexer::new("examples/eto_management/contact_plan_1.cp").unwrap();
 
     // We parse the contact plan (A-SABR format thanks to ASABRContactPlan) and the lexer
-    let (nodes, contacts) = ASABRContactPlan::parse::<NoManagement, Box<dyn ContactManager>>(
+    let ((nodes, contacts), _) = ASABRContactPlan::parse::<NoManagement, Box<dyn ContactManager>>(
         &mut mylexer,
         None,
         Some(&contact_dispatch),
