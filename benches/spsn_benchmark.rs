@@ -75,16 +75,16 @@ pub fn benchmark(c: &mut Criterion) {
         group.bench_function(router_type, |b| {
             b.iter_batched(
                 || {
-                    let (nodes, contacts) = TVGUtilContactPlan::parse::<
-                        NoManagement,
-                        SegmentationManager,
-                    >(ptvg_filepath)
-                    .unwrap();
+                    let contact_plan =
+                        TVGUtilContactPlan::parse::<NoManagement, SegmentationManager>(
+                            ptvg_filepath,
+                        )
+                        .unwrap();
 
                     let router = match build_generic_router(
                         router_type,
-                        nodes,
-                        contacts,
+                        contact_plan.nodes,
+                        contact_plan.contacts,
                         Some(spsn_opts.clone()),
                     ) {
                         Ok(rter) => rter,

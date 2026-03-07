@@ -36,17 +36,21 @@ fn main() {
     contact_dispatch.add("seg", coerce_cm::<SegmentationManager>);
 
     // We parse the contact plan (A-SABR format thanks to ASABRContactPlan) and the lexer
-    let ((nodes, contacts), vnode_map) = ASABRContactPlan::parse::<
-        NoManagement,
-        Box<dyn ContactManager>,
-    >(&mut mylexer, None, Some(&contact_dispatch))
+    let contact_plan = ASABRContactPlan::parse::<NoManagement, Box<dyn ContactManager>>(
+        &mut mylexer,
+        None,
+        Some(&contact_dispatch),
+    )
     .unwrap();
 
     // We create a storage for the Paths
     let table = Rc::new(RefCell::new(TreeCache::new(true, false, 10)));
     // We initialize the routing algorithm with the storage and the contacts/nodes created thanks to the parser
     let mut spsn = SpsnHybridParenting::<NoManagement, Box<dyn ContactManager>>::new(
-        nodes, contacts, table, false,
+        contact_plan.nodes,
+        contact_plan.contacts,
+        table,
+        false,
     );
 
     // We will route a bundle

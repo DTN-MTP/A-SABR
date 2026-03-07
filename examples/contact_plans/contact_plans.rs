@@ -18,86 +18,86 @@ use a_sabr::{
 
 fn main() {
     // ION, with contact segmentation
-    let (nodes, contacts) = IONContactPlan::parse::<NoManagement, SegmentationManager>(
+    let contact_plan = IONContactPlan::parse::<NoManagement, SegmentationManager>(
         "examples/contact_plans/ion_format.cp",
     )
     .unwrap();
     println!(
         "ION CP parsed, found {} nodes (no management) & {} contacts (segmentation)",
-        nodes.len(),
-        contacts.len()
+        contact_plan.nodes.len(),
+        contact_plan.contacts.len()
     );
     // ION, with EVL
-    let (nodes, contacts) =
+    let contact_plan =
         IONContactPlan::parse::<NoManagement, EVLManager>("examples/contact_plans/ion_format.cp")
             .unwrap();
     println!(
         "ION CP parsed, found {} nodes (no management) & {} contacts (EVL)",
-        nodes.len(),
-        contacts.len()
+        contact_plan.nodes.len(),
+        contact_plan.contacts.len()
     );
 
     // ION, with EVL + priorities
-    let (nodes, contacts) =
+    let contact_plan =
         IONContactPlan::parse::<NoManagement, PEVLManager>("examples/contact_plans/ion_format.cp")
             .unwrap();
     println!(
         "ION CP parsed, found {} nodes (no management) & {} contacts (EVL with priorities)",
-        nodes.len(),
-        contacts.len()
+        contact_plan.nodes.len(),
+        contact_plan.contacts.len()
     );
 
     // tvg-util, with contact segmentation
-    let (nodes, contacts) = TVGUtilContactPlan::parse::<NoManagement, SegmentationManager>(
+    let contact_plan = TVGUtilContactPlan::parse::<NoManagement, SegmentationManager>(
         "examples/contact_plans/tvgutil_format.cp",
     )
     .unwrap();
     println!(
         "Tvg-util CP parsed, found {} nodes (no management) & {} contacts (segmentation)",
-        nodes.len(),
-        contacts.len()
+        contact_plan.nodes.len(),
+        contact_plan.contacts.len()
     );
 
     // tvg-util, with EVL
-    let (nodes, contacts) = TVGUtilContactPlan::parse::<NoManagement, EVLManager>(
+    let contact_plan = TVGUtilContactPlan::parse::<NoManagement, EVLManager>(
         "examples/contact_plans/tvgutil_format.cp",
     )
     .unwrap();
     println!(
         "Tvg-util CP parsed, found {} nodes (no management) & {} contacts (EVL)",
-        nodes.len(),
-        contacts.len()
+        contact_plan.nodes.len(),
+        contact_plan.contacts.len()
     );
 
     // tvg-util, with QD + priorities
-    let (nodes, contacts) = TVGUtilContactPlan::parse::<NoManagement, PQDManager>(
+    let contact_plan = TVGUtilContactPlan::parse::<NoManagement, PQDManager>(
         "examples/contact_plans/tvgutil_format.cp",
     )
     .unwrap();
     println!(
         "Tvg-util CP parsed, found {} nodes (no management) & {} contacts (queue-delay with priorities)",
-        nodes.len(),
-        contacts.len()
+        contact_plan.nodes.len(),
+        contact_plan.contacts.len()
     );
 
     let mut mylexer = FileLexer::new("examples/contact_plans/asabr_format_static.cp").unwrap();
-    let ((nodes, contacts), _) =
+    let contact_plan =
         ASABRContactPlan::parse::<NoManagement, EVLManager>(&mut mylexer, None, None).unwrap();
     println!(
         "A-SABR CP parsed (statically for nodes & contacts), found {} nodes (no management) & {} contacts (EVL)",
-        nodes.len(),
-        contacts.len()
+        contact_plan.nodes.len(),
+        contact_plan.contacts.len()
     );
 
     // A new lexer must be initialized
     // The CP format is shared for all legacy contact managers, no CP modification required
     let mut mylexer = FileLexer::new("examples/contact_plans/asabr_format_static.cp").unwrap();
-    let ((nodes, contacts), _) =
+    let contact_plan =
         ASABRContactPlan::parse::<NoManagement, QDManager>(&mut mylexer, None, None).unwrap();
     println!(
         "A-SABR CP parsed (statically for nodes & contacts), found {} nodes (no management) & {} contacts (queue-delay)",
-        nodes.len(),
-        contacts.len()
+        contact_plan.nodes.len(),
+        contact_plan.contacts.len()
     );
 
     let mut mylexer = FileLexer::new("examples/contact_plans/asabr_format_dynamic.cp").unwrap();
@@ -112,7 +112,7 @@ fn main() {
 
     // The manager type should be Box<dyn ContactManager>> (heap allocated, dynamically dispatched)
     // Replace None with a dispatching map for the contact_marker_map argument
-    let ((nodes, contacts), _) = ASABRContactPlan::parse::<NoManagement, Box<dyn ContactManager>>(
+    let contact_plan = ASABRContactPlan::parse::<NoManagement, Box<dyn ContactManager>>(
         &mut mylexer,
         None,
         Some(&contact_dispatch),
@@ -120,7 +120,7 @@ fn main() {
     .unwrap();
     println!(
         "A-SABR CP parsed (statically for nodes, dynamically for contacts), found {} nodes (no management) & {} contacts (of various types)",
-        nodes.len(),
-        contacts.len()
+        contact_plan.nodes.len(),
+        contact_plan.contacts.len()
     );
 }
