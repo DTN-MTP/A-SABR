@@ -266,6 +266,6 @@ impl IONContactPlan {
             ))?;
         }
 
-        Ok((nodes, contacts))
+        Ok(ContactPlan::new(nodes, contacts, None)?)
     }
 }
