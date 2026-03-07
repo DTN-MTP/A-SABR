@@ -20,17 +20,17 @@ fn main() {
         }
     };
 
-    let (nodes, contacts) = match ASABRContactPlan::parse::<NoManagement, SegmentationManager>(
+    let contact_plan = match ASABRContactPlan::parse::<NoManagement, SegmentationManager>(
         &mut my_lexer,
         None,
         None,
     ) {
-        Ok((nodes, contacts)) => (nodes, contacts),
+        Ok(contact_plan) => contact_plan,
         Err(err) => {
             println!("{}", err);
             return;
         }
     };
 
-    println!("CP:\n{:#?}", (&nodes, &contacts));
+    println!("CP:\n{:#?}", (&contact_plan.nodes, &contact_plan.contacts));
 }

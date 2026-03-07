@@ -26,7 +26,7 @@ fn main() {
     let mut mylexer = FileLexer::new("examples/eto_management/contact_plan_1.cp").unwrap();
 
     // We parse the contact plan (A-SABR format thanks to ASABRContactPlan) and the lexer
-    let ((nodes, contacts), _) = ASABRContactPlan::parse::<NoManagement, Box<dyn ContactManager>>(
+    let contact_plan = ASABRContactPlan::parse::<NoManagement, Box<dyn ContactManager>>(
         &mut mylexer,
         None,
         Some(&contact_dispatch),
@@ -36,8 +36,8 @@ fn main() {
     // Let's use the build helper for convenience
     let mut router = build_generic_router::<NoManagement, Box<dyn ContactManager>>(
         "SpsnHybridParenting",
-        nodes,
-        contacts,
+        contact_plan.nodes,
+        contact_plan.contacts,
         Some(SpsnOptions {
             check_priority: false,
             check_size: true,

@@ -4,7 +4,7 @@ use crate::{
     contact_plan::ContactPlan,
     node::{Node, NodeInfo},
     parsing::{Parser, StaticMarkerMap},
-    types::{NodeID, NodeIDMap, NodeName},
+    types::{NodeID, NodeIDMap, NodeName, VirtualNodeMap},
     vnode::VirtualNodeInfo,
 };
 use crate::{
@@ -184,7 +184,7 @@ impl ASABRContactPlan {
         lexer: &mut dyn Lexer,
         node_marker_map: Option<&StaticMarkerMap<NM>>,
         contact_marker_map: Option<&StaticMarkerMap<CM>>,
-    ) -> Result<(ContactPlan<NM, NM, CM>, NodeIDMap), String> {
+    ) -> Result<ContactPlan<NM, NM, CM>, String> {
         let mut contacts: Vec<Contact<NM, CM>> = Vec::new();
         let mut nodes: Vec<Node<NM>> = Vec::new();
         let mut vnode_map: NodeIDMap = NodeIDMap::new();
@@ -329,6 +329,8 @@ impl ASABRContactPlan {
         if nodes.len() - 1 != max_node_id_in_nodes {
             return Err("Some node declarations are missing".to_string());
         }
-        Ok(((nodes, contacts), vnode_map))
+
+        ContactPlan::new(nodes, contacts, Some(VirtualNodeMap::new(vnode_map)))
+            .map_err(|_| "Failed to create contact plan".to_string())
     }
 }
