@@ -41,14 +41,14 @@ jobs:
         run: |
           curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
           
-          $HOME/.cargo/bin/cargo-binstall cargo-tarpaulin -y
+          cargo binstall cargo-tarpaulin -y --force
 
-          $HOME/.cargo/bin/cargo-tarpaulin --ignore-tests --out Html
+          cargo tarpaulin --ignore-tests --out Html --out Xml
 
       - name: Upload code coverage report
         if: ${{ !env.ACT }}
         uses: actions/upload-artifact@v4
         with:
           name: code-coverage-report
-          path: tarpaulin.html
+          path: tarpaulin-report.html
           retention-days: 7
