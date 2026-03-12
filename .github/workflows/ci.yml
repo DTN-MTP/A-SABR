@@ -11,9 +11,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check-and-tests:
+  fmt:
+    name: Check formatting with Rustfmt
     runs-on: ubuntu-latest
-
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
@@ -21,34 +21,59 @@ jobs:
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          components:  rustfmt, clippy
+          components: rustfmt
 
-      - name: Cache Rust dependencies
-        uses: swatinem/rust-cache@v2
+      
+      - run: cargo fmt --all -- --check
+  
+  clippy:
+    name: Linting with Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
 
-      - name: Check formatting with Rustfmt
-        run: cargo fmt --all -- --check
-        continue-on-error: true
-              
-      - name: Check linting with Clippy
-        run: cargo clippy --all-targets --all-features 
-
-      - name: Run tests
-        run: cargo test --lib --bins --tests --verbose
-
-      - name: Code coverage (Tarpaulin)
-        if: ${{ !env.ACT }}
-        run: |
-          curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
-          
-          cargo binstall cargo-tarpaulin -y --force
-
-          cargo tarpaulin --ignore-tests --out Html --out Xml
-
-      - name: Upload code coverage report
-        if: ${{ !env.ACT }}
-        uses: actions/upload-artifact@v4
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          name: code-coverage-report
-          path: tarpaulin-report.html
-          retention-days: 7
+          components: clippy
+      
+      - uses: swatinem/rust-cache@v2
+      - run: cargo clippy --all-targets --all-features -- -D warnings
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+      - run: cargo test --lib --bins --tests --verbose
+  
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: tests
+    steps:
+        - uses: actions/checkout@v4
+        - uses: dtolnay/rust-toolchain@stable
+        - uses: swatinem/rust-cache@v2
+        
+        - name: Install tarpaulin
+          if: ${{ !env.ACT }}
+          uses: taiki-e/install-action@cargo-tarpaulin
+
+        - name: Generate coverage report
+          if: ${{ !env.ACT }}
+          run: cargo tarpaulin --ignore-tests --out Html --out Xml
+
+        - name: Upload report
+          if: ${{ !env.ACT }}
+          uses: actions/upload-artifact@v4
+          with:
+            name: code-coverage-report
+            path: tarpaulin-report.html
+            retention-days: 7
