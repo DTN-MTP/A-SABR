@@ -119,7 +119,7 @@ pub trait Pathfinding<NM: NodeManager, CM: ContactManager> {
     ///
     /// # Returns
     ///
-    /// A `Result<PathFindingOutput<NM, CM>, ASABRError>` containing the results of the pathfinding operation, 
+    /// A `Result<PathFindingOutput<NM, CM>, ASABRError>` containing the results of the pathfinding operation,
     /// or an error if the operation fails.
     fn get_next(
         &mut self,
