@@ -177,7 +177,7 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
     /// # Parameters
     ///
     /// * `exclusions: &[NodeID]` - A sorted list of node IDs to exclude.
-    /// 
+    ///
     /// # Returns
     /// - `Ok(())`: If all exclusions were applied successfully.
     /// - Err(ASABRError)`: If a node cannot be mutably borrowed.
