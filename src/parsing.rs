@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use crate::{contact_manager::ContactManager, node_manager::NodeManager};
 
@@ -9,6 +9,64 @@ pub type NodeDispatcher = fn(&mut dyn Lexer) -> ParsingState<Box<dyn NodeManager
 
 pub type StaticMarkerMap<'a, M> = Dispatcher<'a, StaticDispatcher<M>>;
 pub type StaticDispatcher<M> = fn(&mut dyn Lexer) -> ParsingState<M>;
+
+impl<T: FromStr> Parser<Vec<T>> for Vec<T> {
+    fn parse(lexer: &mut dyn Lexer) -> ParsingState<Vec<T>> {
+        let mut items = Vec::new();
+        let mut started = false;
+
+        let try_push = |s: &str, items: &mut Vec<T>| -> bool {
+            if s.is_empty() {
+                return true;
+            }
+            match s.parse::<T>() {
+                Ok(v) => {
+                    items.push(v);
+                    true
+                }
+                Err(_) => false,
+            }
+        };
+
+        loop {
+            let token = match lexer.consume_next_token() {
+                ParsingState::Finished(t) => t,
+                ParsingState::EOF => return ParsingState::EOF,
+                ParsingState::Error(e) => return ParsingState::Error(e),
+            };
+            let token = token.trim();
+
+            if !started {
+                if !token.starts_with('[') {
+                    return ParsingState::Error(format!(
+                        "Parsing failed, expected '[' ({})",
+                        lexer.get_current_position()
+                    ));
+                }
+                started = true;
+            }
+
+            let token = token.trim_start_matches('[').trim();
+            let closes = token.ends_with(']');
+            let inner = if closes {
+                token.trim_end_matches(']').trim()
+            } else {
+                token
+            };
+
+            if !try_push(inner, &mut items) {
+                return ParsingState::Error(format!(
+                    "Parsing failed ({})",
+                    lexer.get_current_position()
+                ));
+            }
+
+            if closes {
+                return ParsingState::Finished(items);
+            }
+        }
+    }
+}
 
 /// Wrapper object to a marker -> coercion function map for contacts or nodes versions (T)
 ///
