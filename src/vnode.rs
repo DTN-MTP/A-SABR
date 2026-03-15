@@ -1,6 +1,6 @@
 use crate::{
     parsing::{Lexer, Parser, ParsingState},
-    types::{NodeID, NodeName, Token, VirtualNodeElement},
+    types::{NodeID, NodeName, Token},
 };
 
 /// Represents information about a vnode in the network.
@@ -53,17 +53,9 @@ impl Parser<VirtualNodeInfo> for VirtualNodeInfo {
             }
         };
 
-        let start_delimiter_state = VirtualNodeElement::parse(lexer);
-        match start_delimiter_state {
-            ParsingState::Finished(value) => match value {
-                VirtualNodeElement::StartDelimiter(_) => {}
-                _ => {
-                    return ParsingState::Error(format!(
-                        "Parsing vnode rid start delimiter failed ({})",
-                        lexer.get_current_position()
-                    ));
-                }
-            },
+        let rids_state = Vec::parse(lexer);
+        let rids: Vec<NodeID> = match rids_state {
+            ParsingState::Finished(value) => value,
             ParsingState::Error(msg) => return ParsingState::Error(msg),
             ParsingState::EOF => {
                 return ParsingState::Error(format!(
@@ -72,37 +64,6 @@ impl Parser<VirtualNodeInfo> for VirtualNodeInfo {
                 ));
             }
         };
-
-        // Parse a list of <real NodeID> <rid> <rid> ... <end delimiter>
-        let mut rids: Vec<NodeID> = Vec::new();
-
-        loop {
-            let vnode_elt_state = VirtualNodeElement::parse(lexer);
-
-            match vnode_elt_state {
-                ParsingState::Finished(vnode_elt) => match vnode_elt {
-                    VirtualNodeElement::EndDelimiter(_) => {
-                        break;
-                    }
-                    VirtualNodeElement::NodeID(rid) => {
-                        rids.push(rid);
-                    }
-                    _ => {
-                        return ParsingState::Error(format!(
-                            "Parsing vnode rid end delimiter failed ({})",
-                            lexer.get_current_position()
-                        ));
-                    }
-                },
-                ParsingState::Error(msg) => return ParsingState::Error(msg),
-                ParsingState::EOF => {
-                    return ParsingState::Error(format!(
-                        "Parsing failed ({})",
-                        lexer.get_current_position()
-                    ));
-                }
-            }
-        }
 
         ParsingState::Finished(VirtualNodeInfo { vid, name, rids })
     }
