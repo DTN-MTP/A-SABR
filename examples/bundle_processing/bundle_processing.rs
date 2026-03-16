@@ -27,7 +27,7 @@ impl NodeManager for Compressing {
             bundle.size *= 0.75;
             earliest_tx_time += 2.0;
         }
-        return earliest_tx_time;
+        earliest_tx_time
     }
 
     #[cfg(feature = "node_proc")]
@@ -37,7 +37,7 @@ impl NodeManager for Compressing {
             bundle.size *= 0.75;
             earliest_tx_time += 2.0;
         }
-        return earliest_tx_time;
+        earliest_tx_time
     }
 
     // The following 4 implementations are provided just to make the rust_analyzer happy
@@ -75,17 +75,12 @@ impl Parser<Compressing> for Compressing {
     fn parse(lexer: &mut dyn Lexer) -> ParsingState<Compressing> {
         let max_priority_state = <Priority as Token<Priority>>::parse(lexer);
         match max_priority_state {
-            ParsingState::Finished(value) => {
-                return ParsingState::Finished(Compressing {
-                    max_priority: value,
-                });
-            }
-            ParsingState::Error(msg) => return ParsingState::Error(msg),
+            ParsingState::Finished(value) => ParsingState::Finished(Compressing {
+                max_priority: value,
+            }),
+            ParsingState::Error(msg) => ParsingState::Error(msg),
             ParsingState::EOF => {
-                return ParsingState::Error(format!(
-                    "Parsing failed ({})",
-                    lexer.get_current_position()
-                ));
+                ParsingState::Error(format!("Parsing failed ({})", lexer.get_current_position()))
             }
         }
     }
@@ -105,18 +100,17 @@ fn edge_case_example<NM: NodeManager + Parser<NM> + DispatchParser<NM>>(
     };
 
     let mut mpt_graph = init_pathfinding::<NM, EVLManager, HybridParentingPath<NM, EVLManager, SABR>>(
-        &cp_path,
+        cp_path,
         node_marker_map,
         None,
     );
 
-    println!("");
     println!(
-        "Running with contact plan location={}, destination node=3, and bundle priority={} ",
+        "\nRunning with contact plan location={}, destination node=3, and bundle priority={} ",
         cp_path, bundle_priority
     );
 
-    let res = mpt_graph.get_next(0.0, 0, &bundle, &vec![]).unwrap();
+    let res = mpt_graph.get_next(0.0, 0, &bundle, &[]).unwrap();
 
     match res.by_destination[3].clone() {
         Some(route) => pretty_print(route),

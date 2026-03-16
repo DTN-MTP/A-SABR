@@ -88,7 +88,7 @@ macro_rules! define_contact_graph {
             /// # Returns
             ///
             /// * `<ResultPathFindingOutput<NM, CM>, ASABRError>` - The resulting pathfinding output, including the routes found,
-            /// or an error if the operation fails.
+            ///   or an error if the operation fails.
             fn get_next(
                 &mut self,
                 current_time: Date,

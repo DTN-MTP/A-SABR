@@ -113,7 +113,7 @@ impl<NM: NodeManager, CM: ContactManager> HybridParentingWorkArea<NM, CM> {
     /// # Returns
     /// A `PathFindingOutput<NM, CM>` containing the bundle, source route stage, excluded nodes,
     /// and selected routes by destination.
-    pub fn to_pathfinding_output(self) -> PathFindingOutput<NM, CM> {
+    pub fn into_pathfinding_output(self) -> PathFindingOutput<NM, CM> {
         let mut options = Vec::new();
 
         for routes in &self.by_destination {
@@ -278,7 +278,7 @@ macro_rules! define_mpt {
             /// # Returns
             ///
             /// * `<ResultPathFindingOutput<NM, CM>, ASABRError>` - The resulting pathfinding output, including the routes found,
-            /// or an error if the operation fails.
+            ///   or an error if the operation fails.
             fn get_next(
                 &mut self,
                 current_time: Date,
@@ -356,7 +356,7 @@ macro_rules! define_mpt {
                     v.truncate(1);
                 }
 
-                return Ok(tree.to_pathfinding_output());
+                return Ok(tree.into_pathfinding_output());
             }
 
             /// Get a shared pointer to the multigraph.

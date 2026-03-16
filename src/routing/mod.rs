@@ -139,6 +139,9 @@ pub fn dry_run_multicast<NM: NodeManager, CM: ContactManager>(
     Ok(reached_destinations)
 }
 
+type FirstHopPtr = Option<usize>;
+type Destinations = Vec<NodeID>;
+
 fn update_multicast<NM: NodeManager, CM: ContactManager>(
     _bundle: &Bundle,
     at_time: Date,
@@ -146,7 +149,7 @@ fn update_multicast<NM: NodeManager, CM: ContactManager>(
     source_route: SharedRouteStage<NM, CM>,
 ) -> Result<RoutingOutput<NM, CM>, ASABRError> {
     let mut first_hops_map: HashMap<usize, FirstHopsVec<NM, CM>> = HashMap::new();
-    let mut accumulator: Vec<(SharedRouteStage<NM, CM>, Option<usize>, Date, Vec<u16>)> =
+    let mut accumulator: Vec<(SharedRouteStage<NM, CM>, FirstHopPtr, Date, Destinations)> =
         vec![(source_route, None, at_time, reachable_after_dry_run)];
     #[cfg(not(feature = "node_proc"))]
     let bundle_to_consider = _bundle;
@@ -215,7 +218,7 @@ fn update_multicast<NM: NodeManager, CM: ContactManager>(
 /// * `curr_time` - The current date/time for the routing operation.
 /// * `tree` - A reference to the pathfinding output.
 /// * `targets_opt` - An optional list of target node IDs. If `None`,
-/// the function will perform a dry run to determine reachable targets.
+///   the function will perform a dry run to determine reachable targets.
 /// # Returns
 ///
 /// * `Result<RoutingOutput<NM, CM>, ASABRError>` - The routing output, or an error if the operation fails.

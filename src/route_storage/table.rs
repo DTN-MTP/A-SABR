@@ -93,7 +93,7 @@ impl<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> RouteStorage<NM, 
     ///
     /// # Returns
     /// - `Result<Option<Route<NM, CM>>, ASABRError>`: An optional `Route` if a suitable route is found,
-    /// or an error if the operation fails.
+    ///   or an error if the operation fails.
     fn select(
         &mut self,
         bundle: &Bundle,

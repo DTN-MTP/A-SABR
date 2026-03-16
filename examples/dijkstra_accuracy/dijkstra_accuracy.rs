@@ -26,38 +26,36 @@ fn edge_case_example(cp_path: &str, dest: NodeID) {
         NoManagement,
         EVLManager,
         NodeParentingPath<NoManagement, EVLManager, SABR>,
-    >(&cp_path, None, None);
+    >(cp_path, None, None);
 
     #[cfg(feature = "contact_work_area")]
     let mut contact_graph = init_pathfinding::<
         NoManagement,
         EVLManager,
         ContactParentingPath<NoManagement, EVLManager, SABR>,
-    >(&cp_path, None, None);
+    >(cp_path, None, None);
     let mut mpt_graph = init_pathfinding::<
         NoManagement,
         EVLManager,
         HybridParentingPath<NoManagement, EVLManager, SABR>,
-    >(&cp_path, None, None);
+    >(cp_path, None, None);
 
-    println!("");
     println!(
-        "Running with contact plan location={}, and destination node={} ",
+        "\nRunning with contact plan location={}, and destination node={} ",
         cp_path, dest
     );
-    println!("");
-    let res = node_graph.get_next(0.0, 0, &bundle, &vec![]).unwrap();
-    print!("With NodeParentingPath pathfinding. ");
+    let res = node_graph.get_next(0.0, 0, &bundle, &[]).unwrap();
+    print!("\nWith NodeParentingPath pathfinding. ");
     pretty_print(res.by_destination[dest as usize].clone().unwrap());
 
     #[cfg(feature = "contact_work_area")]
     {
-        let res = contact_graph.get_next(0.0, 0, &bundle, &vec![]).unwrap();
+        let res = contact_graph.get_next(0.0, 0, &bundle, &[]).unwrap();
         print!("With ContactParentingPath pathfinding. ");
         pretty_print(res.by_destination[dest as usize].clone().unwrap());
     }
 
-    let res = mpt_graph.get_next(0.0, 0, &bundle, &vec![]).unwrap();
+    let res = mpt_graph.get_next(0.0, 0, &bundle, &[]).unwrap();
     print!("With HybridParentingPath pathfinding. ");
     pretty_print(res.by_destination[dest as usize].clone().unwrap());
 }
