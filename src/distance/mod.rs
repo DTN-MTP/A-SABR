@@ -12,7 +12,7 @@ pub mod sabr;
 /// # Type Parameters
 /// - `NM`: A type that implements the `NodeManager` trait.
 /// - `CM`: A type that implements the `ContactManager` trait, representing the contact management
-///         system used to manage and compare routes.
+///   system used to manage and compare routes.
 pub trait Distance<NM, CM>
 where
     Self: Sized,

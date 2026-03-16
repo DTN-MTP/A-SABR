@@ -81,7 +81,7 @@ pub fn benchmark(c: &mut Criterion) {
                         )
                         .unwrap();
 
-                    let router = match build_generic_router(
+                    match build_generic_router(
                         router_type,
                         contact_plan.nodes,
                         contact_plan.contacts,
@@ -89,8 +89,7 @@ pub fn benchmark(c: &mut Criterion) {
                     ) {
                         Ok(rter) => rter,
                         Err(err) => panic!("{}", err),
-                    };
-                    router
+                    }
                 },
                 |mut router| {
                     let _ = black_box(router.route(
