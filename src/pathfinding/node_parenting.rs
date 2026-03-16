@@ -357,7 +357,7 @@ mod tests {
     }
 
     #[test]
-    fn test_two_paths_to_c_1_hop() {
+    fn test_two_paths_to_c() {
         let mg = five_contact_graph_test();
 
         let mut algo_hop= NodeParentingTreeExcl::<NoManagement, EVLManager, Hop>::new(mg.clone());

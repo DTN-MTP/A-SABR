@@ -498,20 +498,18 @@ mod tests {
         let bundle = make_bundle(2, 1, 1.0, 2000.0);
         let excluded = vec![1];
 
-        // With Hop
-        let res = algo_hop
+        let res_hop = algo_hop
             .get_next(0.0, 0, &bundle, &excluded[..])
             .expect("Hop : Routing Failed !");
         assert!(
-            res.by_destination[1].is_none(),
+            res_hop.by_destination[1].is_none(),
             "Hop : B should be excluded"
         );
         assert!(
-            res.by_destination[2].is_none(),
+            res_hop.by_destination[2].is_none(),
             "Hop : C should not be accessible without B"
         );
 
-        // With SABR
         let res_sabr = algo_sabr
             .get_next(0.0, 0, &bundle, &excluded[..])
             .expect("SABR : Routing Failed !");
@@ -553,7 +551,7 @@ mod tests {
     }
 
     #[test]
-    fn test_two_paths_to_c_1_hop() {
+    fn test_two_paths_to_c() {
         let mg = five_contact_graph_test();
 
         let mut algo_hop = HybridParentingTreeExcl::<NoManagement, EVLManager, Hop>::new(mg.clone());
@@ -572,7 +570,6 @@ mod tests {
             .expect("SABR : Routing Failed !");
 
         assert_time_hop(&res_sabr, 2, 0.13, 2, "SABR");
-
     }
 
     #[test]
@@ -595,7 +592,6 @@ mod tests {
             .expect("Routing Failed !");
 
         assert_time_hop(&res_sabr, 3, 30.0, 2, "SABR");
-
     }
 
     #[test]
@@ -619,6 +615,5 @@ mod tests {
             .expect("Routing Failed !");
 
         assert_time_hop(&res_sabr, 4, 50.0, 3, "SABR");
-
     }
 }
