@@ -180,3 +180,245 @@ macro_rules! define_node_graph {
 define_node_graph!(NodeParentingTreeExcl, true, true);
 define_node_graph!(NodeParentingPath, false, false);
 define_node_graph!(NodeParentingPathExcl, false, true);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bundle::Bundle;
+    use crate::contact::Contact;
+    use crate::contact::ContactInfo;
+    use crate::contact_manager::legacy::evl::EVLManager;
+    use crate::distance::hop::Hop;
+    use crate::distance::sabr::SABR;
+    use crate::multigraph::Multigraph;
+    use crate::node::Node;
+    use crate::node::NodeInfo;
+    use crate::node_manager::none::NoManagement;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    fn make_node(id: u16, name: &str) -> Node<NoManagement> {
+        Node::try_new(
+            NodeInfo { id, name: name.into(), excluded: false },
+            NoManagement {},
+        ).unwrap()
+    }
+
+    fn make_contact(tx: u16, rx: u16, start: f64, end: f64, rate: f64, delay: f64) -> Contact<NoManagement, EVLManager> {
+        Contact::try_new(
+            ContactInfo::new(tx, rx, start, end),
+            EVLManager::new(rate, delay),
+        ).expect(&format!("Contact failed"))
+    }
+
+    fn make_bundle(dest: NodeID, priority: i8, size: f64, expiration: f64) -> Bundle {
+        Bundle { source: 0, destinations: vec![dest], priority, size, expiration }
+    }
+
+        fn assert_time_hop(res: &PathFindingOutput<NoManagement, EVLManager>, dest: usize, expected_time: f64, expected_hop: u16, distance: &str){
+        let r = res.by_destination[dest]
+            .as_ref()
+            .unwrap_or_else(|| panic!("{distance} : No route found to node {dest}"))
+            .borrow();
+        assert_eq!(r.at_time, expected_time, "{distance} : Arrival time should be {expected_time}");
+        assert_eq!(r.hop_count, expected_hop, "{distance} : Should be {expected_hop} hops");
+    }
+
+    fn unit_graph_test() -> Rc<RefCell<Multigraph<NoManagement, EVLManager>>> {
+        Rc::new(RefCell::new(Multigraph::new(
+            vec![make_node(0, "A"), make_node(1, "B"), make_node(2, "C")],
+            vec![
+                make_contact(0, 1, 0.0, 2000.0, 100.0, 1.0),
+                make_contact(1, 2, 0.0, 2000.0, 100.0, 1.0),
+            ],
+        )))
+    }
+
+    fn five_contact_graph_test() -> Rc<RefCell<Multigraph<NoManagement, EVLManager>>> {
+        Rc::new(RefCell::new(Multigraph::new(
+            vec![make_node(0, "A"), make_node(1, "B"), make_node(2, "C"), make_node(3, "D")],
+            vec![
+                make_contact(0, 1, 0.0, 2000.0, 100.0, 0.01),
+                make_contact(1, 2, 0.0, 2000.0, 100.0, 1.0),
+                make_contact(0, 3, 0.0, 2000.0, 100.0, 0.1),
+                make_contact(3, 2, 0.0, 2000.0, 100.0, 0.01),
+                make_contact(0, 2, 0.0, 2000.0, 100.0, 10.0),
+            ],
+        )))
+    }
+
+    fn exemple_1_graph() -> Rc<RefCell<Multigraph<NoManagement, EVLManager>>> {
+        Rc::new(RefCell::new(Multigraph::new(
+            vec![make_node(0, "source"), make_node(1, "from_C0"), make_node(2, "from_C2_C1"), make_node(3, "from_C3")],
+            vec![
+                make_contact(0, 1, 0.0,  10.0, 1.0, 0.0),
+                make_contact(0, 2, 25.0, 35.0, 1.0, 0.0),
+                make_contact(1, 2, 10.0, 20.0, 1.0, 0.0),
+                make_contact(2, 3, 30.0, 40.0, 1.0, 0.0),
+            ],
+        )))
+    }
+
+    fn exemple_2_graph() -> Rc<RefCell<Multigraph<NoManagement, EVLManager>>> {
+        Rc::new(RefCell::new(Multigraph::new(
+            vec![make_node(0, "source"), make_node(1, "from_C0"), make_node(2, "from_C2_C1"), make_node(3, "from_C3"), make_node(4, "from_C4")],
+            vec![
+                make_contact(0, 1, 0.0,  10.0, 1.0, 0.0),
+                make_contact(0, 2, 25.0, 35.0, 1.0, 0.0),
+                make_contact(1, 2, 10.0, 20.0, 1.0, 0.0),
+                make_contact(2, 3, 20.0, 40.0, 1.0, 0.0),
+                make_contact(3, 4, 50.0, 60.0, 1.0, 0.0),
+            ],
+        )))
+    }
+
+    #[test]
+    fn test_a_to_c_tree() {
+        let mg = unit_graph_test();
+
+        let mut algo_hop = NodeParentingTreeExcl::<NoManagement, EVLManager, Hop>::new(mg.clone());
+        let mut algo_sabr = NodeParentingTreeExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
+
+        let bundle = make_bundle(2, 1, 1.0, 2000.0);
+
+        let res_hop = algo_hop
+            .get_next(0.0, 0, &bundle, &[][..])
+            .expect("Hop : Routing Failed !");
+
+        assert_time_hop(&res_hop, 2, 2.02, 2, "Hop");
+
+        let res_sabr = algo_sabr
+            .get_next(0.0, 0, &bundle, &[][..])
+            .expect("SABR : Routing Failed !");
+
+        assert_time_hop(&res_sabr, 2, 2.02, 2, "SABR");
+    }
+
+    #[test]
+    fn test_a_to_c_tree_excluded() {
+        let mg = unit_graph_test();
+
+        let mut algo_hop = NodeParentingTreeExcl::<NoManagement, EVLManager, Hop>::new(mg.clone());
+        let mut algo_sabr = NodeParentingTreeExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
+
+        let bundle = make_bundle(2, 1, 1.0, 2000.0);
+        let excluded = vec![1];
+
+        let res_hop = algo_hop
+            .get_next(0.0, 0, &bundle, &excluded[..])
+            .expect("Hop : Routing Failed !");
+        assert!(
+            res_hop.by_destination[1].is_none(),
+            "Hop : B should be excluded"
+        );
+        assert!(
+            res_hop.by_destination[2].is_none(),
+            "Hop : C should not be accessible without B"
+        );
+
+        let res_sabr = algo_sabr
+            .get_next(0.0, 0, &bundle, &excluded[..])
+            .expect("SABR : Routing Failed !");
+        assert!(
+            res_sabr.by_destination[1].is_none(),
+            "SABR : B should be excluded"
+        );
+        assert!(
+            res_sabr.by_destination[2].is_none(),
+            "SABR : C should not be accessible without B"
+        );
+    }
+
+    #[test]
+    fn test_a_to_c_path_excl() {
+        let mg = unit_graph_test();
+
+        let mut algo_hop = NodeParentingPathExcl::<NoManagement, EVLManager, Hop>::new(mg.clone());
+        let mut algo_sabr = NodeParentingPathExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
+
+        let bundle = make_bundle(2, 1, 1.0, 2000.0);
+        let excluded = vec![1];
+
+        let res_hop = algo_hop
+            .get_next(0.0, 0, &bundle, &excluded[..])
+            .expect("Hop : Routing Failed !");
+        assert!(
+            res_hop.by_destination[2].is_none(),
+            "Hop : C should not be accessible without B"
+        );
+
+        let res_sabr = algo_sabr
+            .get_next(0.0, 0, &bundle, &excluded[..])
+            .expect("SABR : Routing Failed !");
+        assert!(
+            res_sabr.by_destination[2].is_none(),
+            "SABR : C should not be accessible without B"
+        );
+    }
+
+    #[test]
+    fn test_two_paths_to_c_1_hop() {
+        let mg = five_contact_graph_test();
+
+        let mut algo_hop= NodeParentingTreeExcl::<NoManagement, EVLManager, Hop>::new(mg.clone());
+        let mut algo_sabr= NodeParentingTreeExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
+
+        let bundle = make_bundle(2, 1, 1.0, 2000.0);
+
+        let res_hop = algo_hop
+            .get_next(0.0, 0, &bundle, &[][..])
+            .expect("Hop : Routing Failed !");
+
+        assert_time_hop(&res_hop, 2, 10.01, 1, "Hop");
+
+        let res_sabr = algo_sabr
+            .get_next(0.0, 0, &bundle, &[][..])
+            .expect("SABR : Routing Failed !");
+
+        assert_time_hop(&res_sabr, 2, 0.13, 2, "SABR");
+    }
+
+    #[test]
+    fn test_exemple_1() {
+        let mg = exemple_1_graph();
+
+        let mut algo_hop = NodeParentingPath::<NoManagement, EVLManager, Hop>::new(mg.clone());
+        let mut algo_sabr = NodeParentingPath::<NoManagement, EVLManager, SABR>::new(mg.clone());
+
+        let bundle = make_bundle(3, 0, 0.0, 1000.0);
+
+        let res_hop = algo_hop
+            .get_next(0.0, 0, &bundle, &[][..])
+            .expect("Routing Failed !");
+
+        assert_time_hop(&res_hop, 3, 30.0, 2, "Hop");
+
+        let res_sabr = algo_sabr
+            .get_next(0.0, 0, &bundle, &[][..])
+            .expect("Routing Failed !");
+
+        assert_time_hop(&res_sabr, 3, 30.0, 3, "SABR");
+    }
+
+    #[test]
+    fn test_exemple_2() {
+        let mg = exemple_2_graph();
+
+        let mut algo_hop = NodeParentingPath::<NoManagement, EVLManager, Hop>::new(mg.clone());
+        let mut algo_sabr = NodeParentingPath::<NoManagement, EVLManager, SABR>::new(mg.clone());
+
+        let bundle = make_bundle(4, 0, 0.0, 1000.0);
+
+        let res_hop = algo_hop
+            .get_next(0.0, 0, &bundle, &[][..])
+            .expect("Routing Failed !");
+
+        assert_time_hop(&res_hop, 4, 50.0, 3, "Hop");
+
+        let res_sabr = algo_sabr
+            .get_next(0.0, 0, &bundle, &[][..])
+            .expect("Routing Failed !");
+
+        assert_time_hop(&res_sabr, 4, 50.0, 4, "SABR");
+    }
+}
