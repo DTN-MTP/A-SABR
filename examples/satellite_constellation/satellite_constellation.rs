@@ -21,7 +21,7 @@ struct NoRetention {
 impl NodeManager for NoRetention {
     #[cfg(feature = "node_tx")]
     fn dry_run_tx(&self, waiting_since: Date, start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        return start - waiting_since < self.max_proc_time;
+        start - waiting_since < self.max_proc_time
     }
 
     #[cfg(feature = "node_tx")]
@@ -32,7 +32,7 @@ impl NodeManager for NoRetention {
         _end: Date,
         _bundle: &Bundle,
     ) -> bool {
-        return start - waiting_since < self.max_proc_time;
+        start - waiting_since < self.max_proc_time
     }
 
     // This manager only needs the node_tx feature
@@ -66,17 +66,12 @@ impl Parser<NoRetention> for NoRetention {
         let max = <Duration as Token<Duration>>::parse(lexer);
         // treat success/error cases
         match max {
-            ParsingState::Finished(value) => {
-                return ParsingState::Finished(NoRetention {
-                    max_proc_time: value,
-                });
-            }
-            ParsingState::Error(msg) => return ParsingState::Error(msg),
+            ParsingState::Finished(value) => ParsingState::Finished(NoRetention {
+                max_proc_time: value,
+            }),
+            ParsingState::Error(msg) => ParsingState::Error(msg),
             ParsingState::EOF => {
-                return ParsingState::Error(format!(
-                    "Parsing failed ({})",
-                    lexer.get_current_position()
-                ));
+                ParsingState::Error(format!("Parsing failed ({})", lexer.get_current_position()))
             }
         }
     }
@@ -95,18 +90,17 @@ fn edge_case_example<NM: NodeManager + Parser<NM> + DispatchParser<NM>>(
     };
 
     let mut mpt_graph = init_pathfinding::<NM, EVLManager, HybridParentingPath<NM, EVLManager, SABR>>(
-        &cp_path,
+        cp_path,
         node_marker_map,
         None,
     );
 
-    println!("");
     println!(
-        "Running with contact plan location={}, and destination node=2 ",
+        "\nRunning with contact plan location={}, and destination node=2 ",
         cp_path
     );
 
-    let res = mpt_graph.get_next(0.0, 0, &bundle, &vec![]).unwrap();
+    let res = mpt_graph.get_next(0.0, 0, &bundle, &[]).unwrap();
 
     match res.by_destination[2].clone() {
         Some(route) => pretty_print(route),

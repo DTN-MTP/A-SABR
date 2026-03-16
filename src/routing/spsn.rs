@@ -190,15 +190,14 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
             self.route_storage
                 .borrow()
                 .select(bundle, curr_time, excluded_nodes)?
+            && bundle.destinations.len() == reachable_nodes.len()
         {
-            if bundle.destinations.len() == reachable_nodes.len() {
-                return Ok(Some(schedule_multicast(
-                    bundle,
-                    curr_time,
-                    tree,
-                    Some(reachable_nodes),
-                )?));
-            }
+            return Ok(Some(schedule_multicast(
+                bundle,
+                curr_time,
+                tree,
+                Some(reachable_nodes),
+            )?));
         }
 
         let new_tree = self

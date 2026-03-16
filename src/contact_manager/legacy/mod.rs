@@ -21,13 +21,13 @@ macro_rules! generate_struct_management {
         #[cfg_attr(feature = "debug", derive(Debug))]
         pub struct $manager_name {
             /// The data transmission rate.
-            rate: crate::types::DataRate,
+            rate: $crate::types::DataRate,
             /// The transmission delay.
-            delay: crate::types::Duration,
+            delay: $crate::types::Duration,
             /// The volume scheduled for this contact, or the queue size.
-            queue_size: crate::types::Volume,
+            queue_size: $crate::types::Volume,
             /// The total volume at initialization.
-            original_volume: crate::types::Volume,
+            original_volume: $crate::types::Volume,
         }
         impl $manager_name {
             #[doc = concat!( "Creates a new `", stringify!($manager_name),"`  with specified average rate and delay.")]
@@ -40,7 +40,7 @@ macro_rules! generate_struct_management {
             /// # Returns
             ///
             #[doc = concat!( " A new instance of  `", stringify!($manager_name),"`.")]
-            pub fn new(rate: crate::types::DataRate, delay: crate::types::Duration) -> Self {
+            pub fn new(rate: $crate::types::DataRate, delay: $crate::types::Duration) -> Self {
                 Self {
                     rate,
                     delay,
@@ -49,25 +49,25 @@ macro_rules! generate_struct_management {
                 }
             }
             #[inline(always)]
-            fn get_queue_size(&self, _bundle: &crate::bundle::Bundle) -> crate::types::Volume {
+            fn get_queue_size(&self, _bundle: &$crate::bundle::Bundle) -> $crate::types::Volume {
                     self.queue_size
             }
            #[inline(always)]
-            fn enqueue(&mut self, bundle: &crate::bundle::Bundle)  {
+            fn enqueue(&mut self, bundle: &$crate::bundle::Bundle)  {
                  self.queue_size += bundle.size;
             }
             #[allow(dead_code)]
             #[inline(always)]
-            fn dequeue(&mut self, bundle: &crate::bundle::Bundle)  {
+            fn dequeue(&mut self, bundle: &$crate::bundle::Bundle)  {
                 self.queue_size -= bundle.size;
             }
             #[inline(always)]
-            fn get_budget(&self, _bundle: &crate::bundle::Bundle) -> crate::types::Volume  {
+            fn get_budget(&self, _bundle: &$crate::bundle::Bundle) -> $crate::types::Volume  {
                return self.original_volume;
             }
             #[inline(always)]
-            fn build_parsing_output(rate: crate::types::DataRate, delay: crate::types::Duration, _lexer: &mut dyn crate::parsing::Lexer) -> crate::parsing::ParsingState<Self>{
-                return crate::parsing::ParsingState::Finished($manager_name::new(rate, delay));
+            fn build_parsing_output(rate: $crate::types::DataRate, delay: $crate::types::Duration, _lexer: &mut dyn $crate::parsing::Lexer) -> $crate::parsing::ParsingState<Self>{
+                return $crate::parsing::ParsingState::Finished($manager_name::new(rate, delay));
             }
         }
     };
@@ -76,13 +76,13 @@ macro_rules! generate_struct_management {
         #[cfg_attr(feature = "debug", derive(Debug))]
         pub struct $manager_name {
             /// The data transmission rate.
-            rate: crate::types::DataRate,
+            rate: $crate::types::DataRate,
             /// The transmission delay.
-            delay: crate::types::Duration,
+            delay: $crate::types::Duration,
             /// The volume scheduled for this contact for each priority.
-            queue_size: [crate::types::Volume; $prio_count],
+            queue_size: [$crate::types::Volume; $prio_count],
             /// The total volume at initialization.
-            original_volume: crate::types::Volume,
+            original_volume: $crate::types::Volume,
         }
 
         impl $manager_name {
@@ -96,7 +96,7 @@ macro_rules! generate_struct_management {
             /// # Returns
             ///
              #[doc = concat!( " A new instance of  `", stringify!($manager_name),"`.")]
-            pub fn new(rate: crate::types::DataRate, delay: crate::types::Duration) -> Self {
+            pub fn new(rate: $crate::types::DataRate, delay: $crate::types::Duration) -> Self {
                 Self {
                     rate,
                     delay,
@@ -106,29 +106,29 @@ macro_rules! generate_struct_management {
             }
 
             #[inline(always)]
-            fn get_queue_size(&self, bundle: &crate::bundle::Bundle) -> crate::types::Volume {
+            fn get_queue_size(&self, bundle: &$crate::bundle::Bundle) -> $crate::types::Volume {
                     self.queue_size[bundle.priority as usize]
             }
             #[inline(always)]
-            fn enqueue(&mut self, bundle: &crate::bundle::Bundle)  {
+            fn enqueue(&mut self, bundle: &$crate::bundle::Bundle)  {
                 for prio in 0..bundle.priority as usize + 1 {
                     self.queue_size[prio] += bundle.size;
                 }
             }
             #[allow(dead_code)]
             #[inline(always)]
-            fn dequeue(&mut self, bundle: &crate::bundle::Bundle)  {
+            fn dequeue(&mut self, bundle: &$crate::bundle::Bundle)  {
                 for prio in 0..bundle.priority as usize + 1 {
                     self.queue_size[prio] -= bundle.size;
                 }
             }
             #[inline(always)]
-            fn get_budget(&self, _bundle: &crate::bundle::Bundle) -> crate::types::Volume  {
+            fn get_budget(&self, _bundle: &$crate::bundle::Bundle) -> $crate::types::Volume  {
                return self.original_volume;
             }
             #[inline(always)]
-            fn build_parsing_output(rate: crate::types::DataRate, delay: crate::types::Duration, _lexer: &mut dyn crate::parsing::Lexer) -> crate::parsing::ParsingState<Self>{
-                return crate::parsing::ParsingState::Finished($manager_name::new(rate, delay));
+            fn build_parsing_output(rate: $crate::types::DataRate, delay: $crate::types::Duration, _lexer: &mut dyn $crate::parsing::Lexer) -> $crate::parsing::ParsingState<Self>{
+                return $crate::parsing::ParsingState::Finished($manager_name::new(rate, delay));
             }
         }
     };
@@ -138,15 +138,15 @@ macro_rules! generate_struct_management {
         #[cfg_attr(feature = "debug", derive(Debug))]
         pub struct $manager_name {
             /// The data transmission rate.
-            rate: crate::types::DataRate,
+            rate: $crate::types::DataRate,
             /// The transmission delay.
-            delay: crate::types::Duration,
+            delay: $crate::types::Duration,
             /// The volume scheduled for this contact for each priority.
-            queue_size: [crate::types::Volume; $prio_count],
+            queue_size: [$crate::types::Volume; $prio_count],
             /// The budget for each priority.
-            budgets: [crate::types::Volume; $prio_count],
+            budgets: [$crate::types::Volume; $prio_count],
             /// The total volume at initialization.
-            original_volume: crate::types::Volume,
+            original_volume: $crate::types::Volume,
         }
 
         impl $manager_name {
@@ -161,7 +161,7 @@ macro_rules! generate_struct_management {
             /// # Returns
             ///
              #[doc = concat!( " A new instance of  `", stringify!($manager_name),"`.")]
-            pub fn new(rate: crate::types::DataRate, delay: crate::types::Duration, budgets: [crate::types::Volume; $prio_count] ) -> Self {
+            pub fn new(rate: $crate::types::DataRate, delay: $crate::types::Duration, budgets: [$crate::types::Volume; $prio_count] ) -> Self {
                 Self {
                     rate,
                     delay,
@@ -172,37 +172,37 @@ macro_rules! generate_struct_management {
             }
 
             #[inline(always)]
-            fn get_queue_size(&self, bundle: &crate::bundle::Bundle) -> crate::types::Volume {
+            fn get_queue_size(&self, bundle: &$crate::bundle::Bundle) -> $crate::types::Volume {
                     self.queue_size[bundle.priority as usize]
             }
             #[inline(always)]
-            fn enqueue(&mut self, bundle: &crate::bundle::Bundle)  {
+            fn enqueue(&mut self, bundle: &$crate::bundle::Bundle)  {
                 for prio in 0..bundle.priority as usize + 1 {
                     self.queue_size[prio] += bundle.size;
                 }
             }
             #[allow(dead_code)]
             #[inline(always)]
-            fn dequeue(&mut self, bundle: &crate::bundle::Bundle)  {
+            fn dequeue(&mut self, bundle: &$crate::bundle::Bundle)  {
                 for prio in 0..bundle.priority as usize + 1 {
                     self.queue_size[prio] -= bundle.size;
                 }
             }
             #[inline(always)]
-            fn get_budget(&self, bundle: &crate::bundle::Bundle) -> crate::types::Volume  {
+            fn get_budget(&self, bundle: &$crate::bundle::Bundle) -> $crate::types::Volume  {
                return self.budgets[bundle.priority as usize];
             }
             #[inline(always)]
-            fn build_parsing_output(rate: crate::types::DataRate, delay: crate::types::Duration, lexer: &mut dyn crate::parsing::Lexer) -> crate::parsing::ParsingState<Self>{
+            fn build_parsing_output(rate: $crate::types::DataRate, delay: $crate::types::Duration, lexer: &mut dyn $crate::parsing::Lexer) -> $crate::parsing::ParsingState<Self>{
                 let mut budgets = [0.0; 3];
                 for i in 0..$prio_count {
 
-                    let budget_state = <crate::types::Volume as crate::types::Token<crate::types::Volume>>::parse(lexer);
+                    let budget_state = <$crate::types::Volume as $crate::types::Token<$crate::types::Volume>>::parse(lexer);
                     match budget_state {
-                        crate::parsing::ParsingState::Finished(value) => budgets[i] = value,
-                        crate::parsing::ParsingState::Error(msg) => return crate::parsing::ParsingState::Error(msg),
-                        crate::parsing::ParsingState::EOF => {
-                            return crate::parsing::ParsingState::Error(format!(
+                        $crate::parsing::ParsingState::Finished(value) => budgets[i] = value,
+                        $crate::parsing::ParsingState::Error(msg) => return $crate::parsing::ParsingState::Error(msg),
+                        $crate::parsing::ParsingState::EOF => {
+                            return $crate::parsing::ParsingState::Error(format!(
                                 "Parsing failed ({})",
                                 lexer.get_current_position()
                             ))
@@ -210,7 +210,7 @@ macro_rules! generate_struct_management {
                     }
                 }
 
-                return crate::parsing::ParsingState::Finished($manager_name::new(rate, delay, budgets));
+                return $crate::parsing::ParsingState::Finished($manager_name::new(rate, delay, budgets));
             }
         }
     };
@@ -222,11 +222,11 @@ macro_rules! generate_struct_management {
 #[macro_export]
 macro_rules! generate_manual_enqueue {
     (false) => {
-        fn manual_enqueue(&mut self, bundle: &crate::bundle::Bundle) -> bool {
+        fn manual_enqueue(&mut self, bundle: &$crate::bundle::Bundle) -> bool {
             self.enqueue(bundle);
             true
         }
-        fn manual_dequeue(&mut self, bundle: &crate::bundle::Bundle) -> bool {
+        fn manual_dequeue(&mut self, bundle: &$crate::bundle::Bundle) -> bool {
             self.dequeue(bundle);
             true
         }
@@ -255,11 +255,11 @@ macro_rules! generate_prio_volume_manager {
 
     ($manager_name:ident, $add_delay:tt, $auto_update:tt, $prio_count:tt, $with_budget:tt)  => {
 
-        crate::generate_struct_management!($manager_name, $prio_count, $with_budget);
+        $crate::generate_struct_management!($manager_name, $prio_count, $with_budget);
 
-        impl crate::contact_manager::ContactManager for $manager_name {
+        impl $crate::contact_manager::ContactManager for $manager_name {
             #[cfg(feature = "manual_queueing")]
-            crate::generate_manual_enqueue!($auto_update);
+            $crate::generate_manual_enqueue!($auto_update);
 
             /// Simulates the transmission of a bundle based on the contact data and available free intervals.
             ///
@@ -276,10 +276,10 @@ macro_rules! generate_prio_volume_manager {
             /// Optionally returns `ContactManagerTxData` with transmission start and end times, or `None` if the bundle can't be transmitted.
             fn dry_run_tx(
                 &self,
-                contact_data: &crate::contact::ContactInfo,
-                at_time: crate::types::Date,
-                bundle: &crate::bundle::Bundle,
-            ) -> Option<crate::contact_manager::ContactManagerTxData> {
+                contact_data: &$crate::contact::ContactInfo,
+                at_time: $crate::types::Date,
+                bundle: &$crate::bundle::Bundle,
+            ) -> Option<$crate::contact_manager::ContactManagerTxData> {
 
                 // This function call should be expanded at compile time
                 let queue_size = self.get_queue_size(&bundle);
@@ -308,7 +308,7 @@ macro_rules! generate_prio_volume_manager {
                 if tx_end > contact_data.end {
                     return None;
                 }
-                Some(crate::contact_manager::ContactManagerTxData {
+                Some($crate::contact_manager::ContactManagerTxData {
                     tx_start,
                     tx_end,
                     delay: self.delay,
@@ -332,10 +332,10 @@ macro_rules! generate_prio_volume_manager {
             /// Optionally returns `ContactManagerTxData` with transmission start and end times, or `None` if the bundle can't be transmitted.
             fn schedule_tx(
                 &mut self,
-                contact_data: &crate::contact_manager::ContactInfo,
-                at_time: crate::types::Date,
-                bundle: &crate::bundle::Bundle,
-            ) -> Option<crate::contact_manager::ContactManagerTxData> {
+                contact_data: &$crate::contact_manager::ContactInfo,
+                at_time: $crate::types::Date,
+                bundle: &$crate::bundle::Bundle,
+            ) -> Option<$crate::contact_manager::ContactManagerTxData> {
                 let data = self.dry_run_tx(contact_data, at_time, bundle)?;
                 // Conditionally update queue size based on $auto_update
                 // Can overflow with overbooking
@@ -354,7 +354,7 @@ macro_rules! generate_prio_volume_manager {
             /// # Returns
             ///
             /// Returns `true` if initialization is successful, or `false` if there are gaps in the intervals.
-            fn try_init(&mut self, contact_data: &crate::contact::ContactInfo) -> bool {
+            fn try_init(&mut self, contact_data: &$crate::contact::ContactInfo) -> bool {
                 self.original_volume = (contact_data.end - contact_data.start) * self.rate;
                 true
             }
@@ -365,16 +365,16 @@ macro_rules! generate_prio_volume_manager {
             ///
             /// A `Volume` representing the original volume.
             #[cfg(feature = "first_depleted")]
-            fn get_original_volume(&self) -> crate::types::Volume {
+            fn get_original_volume(&self) -> $crate::types::Volume {
                 self.original_volume
             }
         }
 
         /// Implements the DispatchParser to allow dynamic parsing.
-        impl crate::parsing::DispatchParser<$manager_name> for $manager_name {}
+        impl $crate::parsing::DispatchParser<$manager_name> for $manager_name {}
 
         #[doc = concat!("Implements the `Parser` trait for ", stringify!($manager_name),"`, allowing the manager to be parsed from a lexer.")]
-        impl crate::parsing::Parser<$manager_name> for $manager_name {
+        impl $crate::parsing::Parser<$manager_name> for $manager_name {
             #[doc = concat!("Parses a `", stringify!($manager_name),"` from the lexer, extracting the rate and delay intervals.")]
             ///
             /// # Arguments
@@ -386,29 +386,29 @@ macro_rules! generate_prio_volume_manager {
             ///
             /// Returns a `ParsingState` indicating whether parsing was successful (`Finished`) or encountered an error (`Error`).
             fn parse(
-                lexer: &mut dyn crate::parsing::Lexer,
-            ) -> crate::parsing::ParsingState<$manager_name> {
-                let delay: crate::types::Duration;
-                let rate: crate::types::DataRate;
+                lexer: &mut dyn $crate::parsing::Lexer,
+            ) -> $crate::parsing::ParsingState<$manager_name> {
+                let delay: $crate::types::Duration;
+                let rate: $crate::types::DataRate;
 
-                let rate_state = <crate::types::DataRate as crate::types::Token<crate::types::DataRate>>::parse(lexer);
+                let rate_state = <$crate::types::DataRate as $crate::types::Token<$crate::types::DataRate>>::parse(lexer);
                 match rate_state {
-                    crate::parsing::ParsingState::Finished(value) => rate = value,
-                    crate::parsing::ParsingState::Error(msg) => return crate::parsing::ParsingState::Error(msg),
-                    crate::parsing::ParsingState::EOF => {
-                        return crate::parsing::ParsingState::Error(format!(
+                    $crate::parsing::ParsingState::Finished(value) => rate = value,
+                    $crate::parsing::ParsingState::Error(msg) => return $crate::parsing::ParsingState::Error(msg),
+                    $crate::parsing::ParsingState::EOF => {
+                        return $crate::parsing::ParsingState::Error(format!(
                             "Parsing failed ({})",
                             lexer.get_current_position()
                         ))
                     }
                 }
 
-                let delay_state = <crate::types::Duration as crate::types::Token<crate::types::Duration>>::parse(lexer);
+                let delay_state = <$crate::types::Duration as $crate::types::Token<$crate::types::Duration>>::parse(lexer);
                 match delay_state {
-                    crate::parsing::ParsingState::Finished(value) => delay = value,
-                    crate::parsing::ParsingState::Error(msg) => return crate::parsing::ParsingState::Error(msg),
-                    crate::parsing::ParsingState::EOF => {
-                        return crate::parsing::ParsingState::Error(format!(
+                    $crate::parsing::ParsingState::Finished(value) => delay = value,
+                    $crate::parsing::ParsingState::Error(msg) => return $crate::parsing::ParsingState::Error(msg),
+                    $crate::parsing::ParsingState::EOF => {
+                        return $crate::parsing::ParsingState::Error(format!(
                             "Parsing failed ({})",
                             lexer.get_current_position()
                         ))

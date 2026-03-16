@@ -67,7 +67,7 @@ impl<NM: NodeManager, CM: ContactManager> TreeStorage<NM, CM> for TreeCache<NM, 
     ///
     /// # Returns
     ///
-    /// * `(Option<Rc<RefCell<PathFindingOutput<NM, CM>>>>,Option<Vec<NodeID>>,)` - An optional reference-counted and mutable reference
+    /// * `(Option<Rc<RefCell<PathFindingOutput<NM, CM>>>>, Option<Vec<NodeID>>)` - An optional reference-counted and mutable reference
     ///   to the `PathFindingOutput` if a match is found; and the list of reached nodes if applicable (multicast).
     fn select(
         &self,

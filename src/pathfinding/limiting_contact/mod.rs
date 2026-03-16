@@ -96,9 +96,9 @@ macro_rules! create_new_alternative_path_variant {
         /// * `CM` - A type that implements the `ContactManager` trait.
         /// * `D` - A type that implements the `Distance<NM, CM>` trait.
         pub struct $struct_name<
-            NM: crate::node_manager::NodeManager,
+            NM: $crate::node_manager::NodeManager,
             CM: ContactManager,
-            P: crate::pathfinding::Pathfinding<NM, CM>,
+            P: $crate::pathfinding::Pathfinding<NM, CM>,
         > {
             /// The underlying pathfinding algorithm used to find individual paths.
             pathfinding: P,
@@ -111,10 +111,10 @@ macro_rules! create_new_alternative_path_variant {
         }
 
         impl<
-                NM: crate::node_manager::NodeManager,
+                NM: $crate::node_manager::NodeManager,
                 CM: ContactManager,
-                P: crate::pathfinding::Pathfinding<NM, CM>,
-            > crate::pathfinding::Pathfinding<NM, CM> for $struct_name<NM, CM, P>
+                P: $crate::pathfinding::Pathfinding<NM, CM>,
+            > $crate::pathfinding::Pathfinding<NM, CM> for $struct_name<NM, CM, P>
         {
             #[doc = concat!("Constructs a new `", stringify!($struct_name), "` instance with the provided nodes and contacts.")]
             ///
@@ -128,7 +128,7 @@ macro_rules! create_new_alternative_path_variant {
             ///
             #[doc = concat!("* `Self` - A new instance of `", stringify!($struct_name), "`.")]
             fn new(
-                multigraph: std::rc::Rc<std::cell::RefCell<crate::multigraph::Multigraph<NM, CM>>>
+                multigraph: std::rc::Rc<std::cell::RefCell<$crate::multigraph::Multigraph<NM, CM>>>
             ) -> Self {
                 let node_count = multigraph.borrow().get_node_count();
                 Self {
@@ -153,11 +153,11 @@ macro_rules! create_new_alternative_path_variant {
             /// * `Result<PathFindingOutput<NM, CM>, ASABRError>` - The resulting pathfinding output, including the routes found.
             fn get_next(
                 &mut self,
-                current_time: crate::types::Date,
-                source: crate::types::NodeID,
-                bundle: &crate::bundle::Bundle,
-                excluded_nodes_sorted: &[crate::types::NodeID],
-            ) -> Result<crate::pathfinding::PathFindingOutput<NM, CM>, crate::errors::ASABRError> {
+                current_time: $crate::types::Date,
+                source: $crate::types::NodeID,
+                bundle: &$crate::bundle::Bundle,
+                excluded_nodes_sorted: &[$crate::types::NodeID],
+            ) -> Result<$crate::pathfinding::PathFindingOutput<NM, CM>, $crate::errors::ASABRError> {
 
                 let contacts = &mut self.suppression_map[bundle.destinations[0] as usize];
                 let mut i = 0;
@@ -182,7 +182,7 @@ macro_rules! create_new_alternative_path_variant {
                     .get_next(current_time, source, bundle, excluded_nodes_sorted)?;
 
                 if let Some(route) = tree.by_destination[bundle.destinations[0] as usize].clone() {
-                    if let Some(contact) = crate::pathfinding::limiting_contact::get_next_to_suppress(route, $better_fn) {
+                    if let Some(contact) = $crate::pathfinding::limiting_contact::get_next_to_suppress(route, $better_fn) {
                         self.suppression_map[bundle.destinations[0] as usize].push(contact);
                     }
                 }
@@ -198,7 +198,7 @@ macro_rules! create_new_alternative_path_variant {
             /// # Returns
             ///
             /// * A shared pointer to the multigraph.
-            fn get_multigraph(&self) -> std::rc::Rc<std::cell::RefCell<crate::multigraph::Multigraph<NM, CM>>> {
+            fn get_multigraph(&self) -> std::rc::Rc<std::cell::RefCell<$crate::multigraph::Multigraph<NM, CM>>> {
                 return self.pathfinding.get_multigraph();
             }
         }

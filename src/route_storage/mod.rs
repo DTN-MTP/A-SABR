@@ -14,6 +14,8 @@ use crate::{
     types::{Date, NodeID, Priority, Volume},
 };
 
+type ReachableNodes = Option<Vec<NodeID>>;
+
 /// A trait for managing tree storage and retrieval.
 ///
 /// This trait defines methods for loading and storing pathfinding output
@@ -30,14 +32,14 @@ pub trait TreeStorage<NM: NodeManager, CM: ContactManager> {
     ///
     /// # Returns
     ///
-    /// * `Result<Option<Rc<RefCell<PathFindingOutput<NM, CM>>>>, ASABRError>` - An optional reference-counted and mutable reference
+    /// * `Result<(Option<Rc<RefCell<PathFindingOutput<NM, CM>>>>, Option<Vec<NodeID>>), ASABRError>` - An optional reference-counted and mutable reference
     ///   to the `PathFindingOutput` if it exists; otherwise, returns `None`.
     fn select(
         &self,
         bundle: &Bundle,
         curr_time: Date,
         excluded_nodes_sorted: &[NodeID],
-    ) -> Result<(Option<SharedPathFindingOutput<NM, CM>>, Option<Vec<NodeID>>), ASABRError>;
+    ) -> Result<(Option<SharedPathFindingOutput<NM, CM>>, ReachableNodes), ASABRError>;
 
     /// Stores the pathfinding output tree for future use.
     ///
@@ -150,10 +152,10 @@ impl Guard {
         let mut unreachable_count: usize = 0;
 
         for dest in &bundle.destinations {
-            if let Some(limit) = self.known_limits.get(&(*dest, priority)) {
-                if bundle.size < *limit {
-                    unreachable_count += 1;
-                }
+            if let Some(limit) = self.known_limits.get(&(*dest, priority))
+                && bundle.size < *limit
+            {
+                unreachable_count += 1;
             }
         }
         unreachable_count == bundle.destinations.len()
@@ -174,10 +176,10 @@ impl Guard {
         } else {
             0
         };
-        if let Some(val) = self.known_limits.get(&(dest, priority)) {
-            if val <= &bundle.size {
-                return;
-            }
+        if let Some(val) = self.known_limits.get(&(dest, priority))
+            && val <= &bundle.size
+        {
+            return;
         }
         self.known_limits.insert((dest, priority), bundle.size);
     }

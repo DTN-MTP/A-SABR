@@ -235,13 +235,11 @@ pub trait BaseSegmentationManager {
 /// - `Error(msg)` if there is an error during parsing.
 /// - `EOF` if an unexpected end-of-file is encountered during parsing.
 fn parse_interval<T: std::str::FromStr>(lexer: &mut dyn Lexer) -> ParsingState<(Date, Date, T)> {
-    let start: Date;
-    let end: Date;
     let val: T;
 
     let start_state = Date::parse(lexer);
-    match start_state {
-        ParsingState::Finished(value) => start = value,
+    let start: Date = match start_state {
+        ParsingState::Finished(value) => value,
         ParsingState::Error(msg) => return ParsingState::Error(msg),
         ParsingState::EOF => {
             return ParsingState::Error(format!(
@@ -249,11 +247,11 @@ fn parse_interval<T: std::str::FromStr>(lexer: &mut dyn Lexer) -> ParsingState<(
                 lexer.get_current_position()
             ));
         }
-    }
+    };
 
     let end_state = Date::parse(lexer);
-    match end_state {
-        ParsingState::Finished(value) => end = value,
+    let end: Date = match end_state {
+        ParsingState::Finished(value) => value,
         ParsingState::Error(msg) => return ParsingState::Error(msg),
         ParsingState::EOF => {
             return ParsingState::Error(format!(
@@ -261,7 +259,7 @@ fn parse_interval<T: std::str::FromStr>(lexer: &mut dyn Lexer) -> ParsingState<(
                 lexer.get_current_position()
             ));
         }
-    }
+    };
 
     let val_state = T::parse(lexer);
     match val_state {
