@@ -1,0 +1,8 @@
+[book]
+language = "en"
+src = "src"
+title = "A-SABR documentation"
+
+[output.html]
+default-theme = "rust"
+preferred-dark-theme = "rust"
