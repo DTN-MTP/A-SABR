@@ -1,11 +1,10 @@
 use crate::parsing::{DispatchParser, Lexer, Parser, ParsingState};
 
-#[cfg(any(feature = "node_proc", feature = "node_tx", feature = "node_rx"))]
 use crate::{bundle::Bundle, types::Date};
 
 use super::NodeManager;
 
-/// Use this manager if no node management shall be considered (with or without the node_rx, node_tx, and node_proc compilation features).
+/// Use this manager if no node management shall be considered (with or without the node_proc compilation feature).
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct NoManagement {}
 
@@ -15,11 +14,9 @@ impl NodeManager for NoManagement {
     fn dry_run_process(&self, at_time: Date, _bundle: &mut Bundle) -> Date {
         at_time
     }
-    #[cfg(feature = "node_tx")]
     fn dry_run_tx(&self, _waiting_since: Date, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
         true
     }
-    #[cfg(feature = "node_rx")]
     fn dry_run_rx(&self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
         true
     }
@@ -27,7 +24,6 @@ impl NodeManager for NoManagement {
     fn schedule_process(&self, at_time: Date, _bundle: &mut Bundle) -> Date {
         at_time
     }
-    #[cfg(feature = "node_tx")]
     fn schedule_tx(
         &mut self,
         _waiting_since: Date,
@@ -37,7 +33,6 @@ impl NodeManager for NoManagement {
     ) -> bool {
         true
     }
-    #[cfg(feature = "node_rx")]
     fn schedule_rx(&mut self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
         true
     }

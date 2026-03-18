@@ -153,7 +153,7 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
     /// Schedules the transmission of a `bundle` through a network using the provided node list.
     ///
     /// This function schedules the transmission by interacting with the contact manager and the nodes
-    /// in the `node_list`. If node management is enabled (features node_rx, node_tx, and node_proc),
+    /// in the `node_list`. If node management is enabled (feature node_proc),
     /// the nodes will be queried for their transmission and reception schedules. The function will return `true`
     /// if the scheduling is successful and the bundle is scheduled, or `false` if any failure occurs.
     ///
@@ -180,10 +180,7 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
         #[cfg(not(feature = "node_proc"))]
         let bundle_to_consider = bundle;
 
-        #[allow(unused_mut)]
-        #[cfg(any(feature = "node_tx", feature = "node_proc"))]
         let mut tx_node = via.tx_node.try_borrow_mut()?;
-        #[cfg(feature = "node_rx")]
         let mut rx_node = via.rx_node.try_borrow_mut()?;
 
         #[cfg(feature = "node_proc")]
@@ -201,7 +198,6 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
             return Err(ASABRError::ScheduleError("Faulty dry run"));
         };
 
-        #[cfg(feature = "node_tx")]
         if !tx_node
             .manager
             .schedule_tx(sending_time, res.tx_start, res.tx_end, &bundle_to_consider)
@@ -214,7 +210,6 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
         if arrival_time > bundle_to_consider.expiration {
             return Err(ASABRError::ScheduleError("Faulty dry run"));
         }
-        #[cfg(feature = "node_rx")]
         if !rx_node
             .manager
             .schedule_rx(res.rx_start, res.rx_end, &bundle_to_consider)
@@ -277,9 +272,7 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
         #[cfg(not(feature = "node_proc"))]
         let bundle_to_consider = bundle;
 
-        #[cfg(any(feature = "node_tx", feature = "node_proc"))]
         let tx_node = via.tx_node.try_borrow_mut()?;
-        #[cfg(feature = "node_rx")]
         let rx_node = via.rx_node.try_borrow_mut()?;
         #[cfg(feature = "node_proc")]
         let sending_time = tx_node
@@ -297,7 +290,6 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
             return Ok(false);
         };
 
-        #[cfg(feature = "node_tx")]
         if !tx_node
             .manager
             .dry_run_tx(sending_time, res.tx_start, res.tx_end, &bundle_to_consider)
@@ -310,7 +302,6 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
         if arrival_time > bundle_to_consider.expiration {
             return Ok(false);
         }
-        #[cfg(feature = "node_rx")]
         if !rx_node
             .manager
             .dry_run_rx(res.rx_start, res.rx_end, &bundle_to_consider)

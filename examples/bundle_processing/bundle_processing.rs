@@ -9,7 +9,6 @@ use a_sabr::parsing::{DispatchParser, Lexer, Parser, ParsingState};
 use a_sabr::parsing::{NodeMarkerMap, StaticMarkerMap};
 use a_sabr::pathfinding::Pathfinding;
 use a_sabr::pathfinding::hybrid_parenting::HybridParentingPath;
-#[cfg(any(feature = "node_rx", feature = "node_proc", feature = "node_rx"))]
 use a_sabr::types::Date;
 use a_sabr::types::Priority;
 use a_sabr::types::Token;
@@ -42,12 +41,10 @@ impl NodeManager for Compressing {
     }
 
     // The following 4 implementations are provided just to make the rust_analyzer happy
-    #[cfg(feature = "node_tx")]
     fn dry_run_tx(&self, _waiting_since: Date, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        panic!("Please disable the 'node_tx' and 'node_rx' features.");
+        panic!("Please do not call this method.");
     }
 
-    #[cfg(feature = "node_tx")]
     fn schedule_tx(
         &mut self,
         _waiting_since: Date,
@@ -55,16 +52,14 @@ impl NodeManager for Compressing {
         _end: Date,
         _bundle: &Bundle,
     ) -> bool {
-        panic!("Please disable the 'node_tx' and 'node_rx' features.");
+        panic!("Please do not call this method.");
     }
 
-    #[cfg(feature = "node_rx")]
     fn dry_run_rx(&self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        panic!("Please disable the 'node_tx' and 'node_rx' features.");
+        panic!("Please do not call this method.");
     }
-    #[cfg(feature = "node_rx")]
     fn schedule_rx(&mut self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        panic!("Please disable the 'node_tx' and 'node_rx' features.");
+        panic!("Please do not call this method.");
     }
 }
 
