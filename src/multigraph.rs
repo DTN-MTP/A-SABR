@@ -4,6 +4,7 @@ use std::rc::Rc;
 use super::node::Node;
 use crate::contact::Contact;
 use crate::contact_manager::ContactManager;
+use crate::contact_plan::ContactPlan;
 use crate::errors::ASABRError;
 use crate::node_manager::NodeManager;
 use crate::types::*;
@@ -91,29 +92,30 @@ pub struct Multigraph<NM: NodeManager, CM: ContactManager> {
 }
 
 impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
-    /// Creates a new `Multigraph` from a list of nodes and a contact plan.
+    /// Creates a new `Multigraph` from a contact plan.
     ///
     /// Note: For Dijkstra, we need fast access for the senders. To this end, the index
     /// in the "senders" Vec matches the  transmitter NodeID. There is a small memory
-    /// overhead if some nodes are not transmitters in the contact plan. Regarding the
+    /// overhead if some nodes are not transmitters in the contacts. Regarding the
     /// receivers, only fast iteration is required. The indices of the senders[tx_id].receivers
     /// Vec do not match the receivers NodeID, and no entry exists if a node never receives.
     ///
     /// # Parameters
     ///
-    /// * `nodes` - A vector of nodes to be included in the multigraph.
-    /// * `contact_plan` - A vector of contacts that define the connections between nodes.
+    /// * `ContactPlan` - A contact plan of nodes, contacts and a vnode map, and associated management information.
     ///
     /// # Returns
     ///
     /// * `Self` - A new instance of `Multigraph`.
-    pub fn new(mut nodes: Vec<Node<NM>>, mut contact_plan: Vec<Contact<NM, CM>>) -> Self {
-        // the contact plan might not be sorted
+    pub fn new(contact_plan: ContactPlan<NM, NM, CM>) -> Self {
+        let mut nodes = contact_plan.nodes;
+        let mut contacts = contact_plan.contacts;
+        // the contacts might not be sorted
         // having a sorted list of contacts allow easy multigraph creation
         let node_count = nodes.len();
         let mut senders: Vec<Sender<NM, CM>> = Vec::with_capacity(node_count);
 
-        contact_plan.sort_unstable();
+        contacts.sort_unstable();
         nodes.sort_unstable();
 
         let mut all_refs = Vec::with_capacity(node_count);
@@ -129,13 +131,13 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
             all_refs.push(node_ref)
         }
 
-        while let Some(last_contact) = contact_plan.last() {
+        while let Some(last_contact) = contacts.last() {
             let tx_id = last_contact.get_tx_node();
             let rx_id = last_contact.get_rx_node();
 
             let mut contact_count_to_drain = 0;
 
-            for contact in contact_plan.iter().rev() {
+            for contact in contacts.iter().rev() {
                 if contact.get_rx_node() != rx_id as NodeID
                     || contact.get_tx_node() != tx_id as NodeID
                 {
@@ -144,9 +146,9 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
                 contact_count_to_drain += 1;
             }
 
-            let first_to_drain = contact_plan.len() - contact_count_to_drain;
+            let first_to_drain = contacts.len() - contact_count_to_drain;
             let mut contacts_to_receiver = Vec::with_capacity(contact_count_to_drain);
-            let drain = contact_plan.drain(first_to_drain..);
+            let drain = contacts.drain(first_to_drain..);
 
             for contact in drain {
                 contacts_to_receiver.push(Rc::new(RefCell::new(contact)));

@@ -36,8 +36,7 @@ fn main() {
     // Let's use the build helper for convenience
     let mut router = build_generic_router::<NoManagement, Box<dyn ContactManager>>(
         "SpsnHybridParenting",
-        contact_plan.nodes,
-        contact_plan.contacts,
+        contact_plan,
         Some(SpsnOptions {
             check_priority: false,
             check_size: true,
