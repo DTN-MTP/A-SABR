@@ -50,7 +50,6 @@ fn main() {
 }
 ```
 
-
 ### Dynamic allocation
 
 All variables and structures are in the call stack by default. Heap allocation is implemented with templated types.
@@ -98,27 +97,32 @@ fn main () {
 
 Relaxing this constraint in A-SABR requires two things:
 
-1.  A support for one of those types:
+1. A support for one of those types:
+
     ```rust
     Contact<&mut dyn ContactManager>
     Contact<Rc<RefCell<dyn ContactManager>>>
     // A-SABR uses the following one:
     Contact<Box<dyn ContactManager>>
     ```
-2.  A parsing technique and/or a contact plan format that allow to detect which manager is being parsed.
+
+2. A parsing technique and/or a contact plan format that allow to detect which manager is being parsed.
 
     A-SABR requires both for the simple reason that different managing techniques may have the same format. Indeed, in the exercise *0-asabr-static-parsing*, we could switch the template type from `EVLManager` to `QDManager` or `ETOManager` without modification of the contact plan file.
 
 #### Manager type markers
 
 To parse dynamically the contact plan will slightly change to add a **marker**:
+
 ```bash
 # Static parsing
 ["contact"|"node"][base members][manager members]
 # Dynamic parsing
 ["contact"|"node"][base members][marker][manager members]
 ```
+
 In the following example, the **marker** type is used to distinguish between different contact manager implementations, `eto`, `evl`, and `qd` are the markers of `ETOManager`, `EVLManager`, and `QDManager`, respectively:
+
 ```
 contact 0 1 60 7260 eto 10000 10
 contact 1 2 60 7260 evl 15000 15

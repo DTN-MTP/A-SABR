@@ -3,6 +3,7 @@
 ### Run the example
 
 This example requires the `manual_queueing` feature:
+
 ```bash
 cargo run --example eto_management --features manual_queueing
 ```

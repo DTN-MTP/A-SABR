@@ -3,6 +3,7 @@
 ### Run the example
 
 This example requires the `node_proc` feature:
+
 ```bash
 cargo run --example bundle_processing --features node_proc
 ```
