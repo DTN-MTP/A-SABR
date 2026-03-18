@@ -60,7 +60,6 @@ fn main() {
 }
 ```
 
-
 ## Nodes and Contacts in A-SABR
 
 #### Nodes

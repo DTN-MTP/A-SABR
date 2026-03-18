@@ -30,5 +30,6 @@ cargo run --example <exercise-name>
 ```
 
 Each exercise is contained in a folder that includes a <exercise-name>.rs file, which you can modify to complete the exercise. An exercise folder may also include:
+
 - README.md to provides context or instructions for the exercise.
 - Additional supporting files, such as data or configuration files.

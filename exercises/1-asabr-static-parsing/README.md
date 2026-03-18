@@ -41,19 +41,25 @@ pub struct Contact<CM: ContactManager> {
 ## Parsing logic for the static case
 
 An element entry in the the A-SABR format is of the form:
+
 ```
 ["contact"|"node"][base members][manager members]
 ```
+
 For a Contact, the base part expects the members `<from> <to> <start> <end>`, and the EVLManager expects the members`<rate> <delay>`. Consequently, the A-SABR parser will expect for a Contact managed with EVL (type `Contact<EVLManager>`) the following format:
+
 ```
 # contact <from> <to> <start> <end> <rate> <delay>
 contact 0 1 60 7260 10000 10
 ```
+
 The base part of a Node expects `<id> <name>`, and the dummy `NoManagement` techniques expects **no members**. A `Node<NoManagement>` will have the following format:
+
 ```
 # node <id> <name>
 node 0 node1
 ```
+
 *Note: the `NoManagement` technique shows no overhead. Even if the associated method calls are not be removed after compiler optimizations, those calls would still be absent unless features from the library are enabled at compile time.*
 
 The parser knows which **manager** types to expect thanks to the templating of the **parse** function:
@@ -61,6 +67,7 @@ The parser knows which **manager** types to expect thanks to the templating of t
 ```rust
 ASABRContactPlan::parse::<NM, CM>(...);
 ```
+
 For `IONContactPlan` and `TVGUtilContactPlan`
 
 *Note: For `IONContactPlan` and `TVGUtilContactPlan` the templating served a slightly different machinery: ION and TVG do not rely on the A-SABR parser(s). Raw contacts are parsed, and templating is used to specify the target type for conversion.*
