@@ -1,6 +1,6 @@
 use crate::bundle::Bundle;
 use crate::contact::Contact;
-use crate::contact_manager::ContactManager;
+use crate::contact_manager::{ContactManager, ContactManagerTxData};
 use crate::errors::ASABRError;
 use crate::node::Node;
 use crate::node_manager::NodeManager;
@@ -8,6 +8,103 @@ use crate::types::{Date, Duration, HopCount, NodeID};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+
+/// Controls whether `eval_hop` simulates or commits a transmission.
+pub(crate) enum HopMode {
+    DryRun,
+    Schedule,
+}
+
+/// The outcome of a successful `eval_hop` call.
+pub(crate) struct HopResult {
+    pub tx_data: ContactManagerTxData,
+    #[cfg(feature = "node_proc")]
+    pub bundle: Bundle,
+}
+
+/// Core hop-evaluation pipeline shared by `dry_run`, `schedule`, and `try_make_hop`.
+///
+/// When `mode` is `HopMode::DryRun`  all checks are simulated (`dry_run_*` methods).
+/// When `mode` is `HopMode::Schedule` resources are actually reserved (`schedule_*` methods).
+///
+/// Returns `None` if the hop is infeasible for any reason.
+pub(crate) fn eval_hop<NM: NodeManager, CM: ContactManager>(
+    contact: &mut Contact<NM, CM>,
+    _tx_node: &mut Node<NM>,
+    _rx_node: &mut Node<NM>,
+    at_time: Date,
+    bundle: &Bundle,
+    mode: HopMode,
+) -> Option<HopResult> {
+    let commit = matches!(mode, HopMode::Schedule);
+    let info = contact.info;
+
+    #[cfg(feature = "node_proc")]
+    let mut bundle_to_consider = bundle.clone();
+    #[cfg(not(feature = "node_proc"))]
+    let bundle_to_consider = bundle;
+
+    #[cfg(feature = "node_proc")]
+    let sending_time = if commit {
+        _tx_node.manager.schedule_process(at_time, &mut bundle_to_consider)
+    } else {
+        _tx_node.manager.dry_run_process(at_time, &mut bundle_to_consider)
+    };
+    #[cfg(not(feature = "node_proc"))]
+    let sending_time = at_time;
+
+    let res = if commit {
+        contact.manager.schedule_tx(&info, sending_time, &bundle_to_consider)
+    } else {
+        contact.manager.dry_run_tx(&info, sending_time, &bundle_to_consider)
+    }?;
+
+    #[cfg(feature = "node_tx")]
+    {
+        let ok = if commit {
+            _tx_node
+                .manager
+                .schedule_tx(sending_time, res.tx_start, res.tx_end, &bundle_to_consider)
+        } else {
+            _tx_node
+                .manager
+                .dry_run_tx(sending_time, res.tx_start, res.tx_end, &bundle_to_consider)
+        };
+        if !ok {
+            return None;
+        }
+    }
+
+    if res.arrival > bundle_to_consider.expiration {
+        return None;
+    }
+
+    #[cfg(feature = "node_rx")]
+    {
+        let ok = if commit {
+            _rx_node.manager.schedule_rx(
+                res.tx_start + res.delay,
+                res.tx_end + res.delay,
+                &bundle_to_consider,
+            )
+        } else {
+            _rx_node.manager.dry_run_rx(
+                res.tx_start + res.delay,
+                res.tx_end + res.delay,
+                &bundle_to_consider,
+            )
+        };
+        if !ok {
+            return None;
+        }
+    }
+
+    Some(HopResult {
+        tx_data: res,
+        #[cfg(feature = "node_proc")]
+        bundle: bundle_to_consider,
+    })
+}
 
 /// Represents an intermediate hop in a route, typically used for multi-hop communication or routing.
 ///
@@ -171,62 +268,25 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
             return Err(ASABRError::ScheduleError("No via hop for"));
         };
 
-        let mut contact_borrowed = via.contact.try_borrow_mut()?;
-        let info = contact_borrowed.info;
-
-        // If bundle processing is enabled, a mutable bundle copy is required to be attached to the RouteStage.
-        #[cfg(feature = "node_proc")]
-        let mut bundle_to_consider = bundle.clone();
-        #[cfg(not(feature = "node_proc"))]
-        let bundle_to_consider = bundle;
-
-        #[allow(unused_mut)]
-        #[cfg(any(feature = "node_tx", feature = "node_proc"))]
+        let mut contact = via.contact.try_borrow_mut()?;
         let mut tx_node = via.tx_node.try_borrow_mut()?;
-        #[cfg(feature = "node_rx")]
         let mut rx_node = via.rx_node.try_borrow_mut()?;
 
-        #[cfg(feature = "node_proc")]
-        let sending_time = tx_node
-            .manager
-            .schedule_process(at_time, &mut bundle_to_consider);
-        #[cfg(not(feature = "node_proc"))]
-        let sending_time = at_time;
-
-        let Some(res) =
-            contact_borrowed
-                .manager
-                .schedule_tx(&info, sending_time, &bundle_to_consider)
-        else {
+        let Some(result) = eval_hop(
+            &mut contact,
+            &mut tx_node,
+            &mut rx_node,
+            at_time,
+            bundle,
+            HopMode::Schedule,
+        ) else {
             return Err(ASABRError::ScheduleError("Faulty dry run"));
         };
 
-        #[cfg(feature = "node_tx")]
-        if !tx_node
-            .manager
-            .schedule_tx(sending_time, res.tx_start, res.tx_end, &bundle_to_consider)
-        {
-            return Err(ASABRError::ScheduleError("Faulty dry run"));
-        }
-
-        let arrival_time = res.tx_end + res.delay;
-
-        if arrival_time > bundle_to_consider.expiration {
-            return Err(ASABRError::ScheduleError("Faulty dry run"));
-        }
-        #[cfg(feature = "node_rx")]
-        if !rx_node.manager.schedule_rx(
-            res.tx_start + res.delay,
-            res.tx_end + res.delay,
-            &bundle_to_consider,
-        ) {
-            return Err(ASABRError::ScheduleError("Faulty dry run"));
-        }
-
-        self.at_time = arrival_time;
+        self.at_time = result.tx_data.arrival;
         #[cfg(feature = "node_proc")]
         {
-            self.bundle = bundle_to_consider;
+            self.bundle = result.bundle;
         }
         Ok(())
     }
@@ -260,70 +320,29 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
             return Ok(false);
         };
 
-        let contact_borrowed = via.contact.try_borrow_mut()?;
-        let info = contact_borrowed.info;
-
-        if with_exclusions {
-            {
-                let node = via.rx_node.borrow();
-                if node.info.excluded {
-                    return Ok(false);
-                }
-            }
+        if with_exclusions && via.rx_node.borrow().info.excluded {
+            return Ok(false);
         }
 
-        // If bundle processing is enabled, a mutable bundle copy is required to be attached to the RouteStage.
-        #[cfg(feature = "node_proc")]
-        let mut bundle_to_consider = bundle.clone();
-        #[cfg(not(feature = "node_proc"))]
-        let bundle_to_consider = bundle;
+        let mut contact = via.contact.try_borrow_mut()?;
+        let mut tx_node = via.tx_node.try_borrow_mut()?;
+        let mut rx_node = via.rx_node.try_borrow_mut()?;
 
-        #[cfg(any(feature = "node_tx", feature = "node_proc"))]
-        let tx_node = via.tx_node.try_borrow_mut()?;
-        #[cfg(feature = "node_rx")]
-        let rx_node = via.rx_node.try_borrow_mut()?;
-        #[cfg(feature = "node_proc")]
-        let sending_time = tx_node
-            .manager
-            .dry_run_process(at_time, &mut bundle_to_consider);
-
-        #[cfg(not(feature = "node_proc"))]
-        let sending_time = at_time;
-
-        let Some(res) =
-            contact_borrowed
-                .manager
-                .dry_run_tx(&info, sending_time, &bundle_to_consider)
-        else {
+        let Some(result) = eval_hop(
+            &mut contact,
+            &mut tx_node,
+            &mut rx_node,
+            at_time,
+            bundle,
+            HopMode::DryRun,
+        ) else {
             return Ok(false);
         };
 
-        #[cfg(feature = "node_tx")]
-        if !tx_node
-            .manager
-            .dry_run_tx(sending_time, res.tx_start, res.tx_end, &bundle_to_consider)
-        {
-            return Ok(false);
-        }
-
-        let arrival_time = res.tx_end + res.delay;
-
-        if arrival_time > bundle_to_consider.expiration {
-            return Ok(false);
-        }
-        #[cfg(feature = "node_rx")]
-        if !rx_node.manager.dry_run_rx(
-            res.tx_start + res.delay,
-            res.tx_end + res.delay,
-            &bundle_to_consider,
-        ) {
-            return Ok(false);
-        }
-
-        self.at_time = arrival_time;
+        self.at_time = result.tx_data.arrival;
         #[cfg(feature = "node_proc")]
         {
-            self.bundle = bundle_to_consider;
+            self.bundle = result.bundle;
         }
         Ok(true)
     }

@@ -1,12 +1,11 @@
 use crate::bundle::Bundle;
 use crate::contact::Contact;
-use crate::contact_manager::{ContactManager, ContactManagerTxData};
+use crate::contact_manager::ContactManager;
 use crate::errors::ASABRError;
 use crate::multigraph::Multigraph;
 use crate::node::Node;
 use crate::node_manager::NodeManager;
-use crate::route_stage::ViaHop;
-use crate::route_stage::{RouteStage, SharedRouteStage};
+use crate::route_stage::{eval_hop, HopMode, HopResult, RouteStage, SharedRouteStage, ViaHop};
 use crate::types::{Date, NodeID};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -160,94 +159,76 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
     tx_node: &Rc<RefCell<Node<NM>>>,
     rx_node: &Rc<RefCell<Node<NM>>>,
 ) -> Option<RouteStage<NM, CM>> {
-    let mut index = 0;
-    let mut final_data = ContactManagerTxData {
-        tx_start: 0.0,
-        tx_end: 0.0,
-        delay: 0.0,
-        expiration: 0.0,
-        arrival: Date::MAX,
-    };
-
-    // If bundle processing is enabled, a mutable bundle copy is required to be attached to the RouteStage.
-    #[cfg(feature = "node_proc")]
-    let mut bundle_to_consider = sndr_route.borrow().bundle.clone();
-    #[cfg(not(feature = "node_proc"))]
-    let bundle_to_consider = _bundle;
+    let mut best_arrival = Date::MAX;
+    let mut best_index = 0;
+    let mut best_result: Option<HopResult> = None;
 
     let sndr_route_borrowed = sndr_route.borrow();
 
+    // Base bundle: post-processing state stored in the route stage (node_proc), or the
+    // original bundle otherwise.
+    #[cfg(feature = "node_proc")]
+    let base_bundle = &sndr_route_borrowed.bundle;
+    #[cfg(not(feature = "node_proc"))]
+    let base_bundle = _bundle;
+
     for (idx, contact) in contacts.iter().enumerate().skip(first_contact_index) {
-        let contact_borrowed = contact.borrow();
-
-        #[cfg(feature = "contact_suppression")]
-        if contact_borrowed.suppressed {
-            continue;
-        }
-
-        if contact_borrowed.info.start > final_data.arrival {
-            break;
-        }
-
-        #[cfg(feature = "node_proc")]
-        let sending_time = tx_node
-            .borrow()
-            .manager
-            .dry_run_process(sndr_route_borrowed.at_time, &mut bundle_to_consider);
-        #[cfg(not(feature = "node_proc"))]
-        let sending_time = sndr_route_borrowed.at_time;
-
-        if let Some(hop) = contact_borrowed.manager.dry_run_tx(
-            &contact_borrowed.info,
-            sending_time,
-            &bundle_to_consider,
-        ) {
-            #[cfg(feature = "node_tx")]
-            if !tx_node.borrow().manager.dry_run_tx(
-                sending_time,
-                hop.tx_start,
-                hop.tx_end,
-                &bundle_to_consider,
-            ) {
+        // Pre-flight checks on an immutable borrow before taking the mutable one.
+        {
+            let contact_b = contact.borrow();
+            #[cfg(feature = "contact_suppression")]
+            if contact_b.suppressed {
                 continue;
             }
+            if contact_b.info.start > best_arrival {
+                break;
+            }
+        }
 
-            if hop.tx_end + hop.delay < final_data.arrival {
-                #[cfg(feature = "node_rx")]
-                if !rx_node.borrow().manager.dry_run_rx(
-                    hop.tx_start + hop.delay,
-                    hop.tx_end + hop.delay,
-                    _bundle,
-                ) {
-                    continue;
-                }
+        let mut contact_b = contact.borrow_mut();
+        let mut tx_b = tx_node.borrow_mut();
+        let mut rx_b = rx_node.borrow_mut();
 
-                final_data = hop;
-                index = idx;
+        if let Some(result) = eval_hop(
+            &mut contact_b,
+            &mut tx_b,
+            &mut rx_b,
+            sndr_route_borrowed.at_time,
+            base_bundle,
+            HopMode::DryRun,
+        ) {
+            if result.tx_data.arrival < best_arrival {
+                best_arrival = result.tx_data.arrival;
+                best_index = idx;
+                best_result = Some(result);
             }
         }
     }
 
-    if final_data.arrival < Date::MAX {
-        let seleted_contact = &contacts[index];
+    if let Some(hop_result) = best_result {
+        // Extract fields before any partial move of hop_result.
+        let arrival = hop_result.tx_data.arrival;
+        let delay = hop_result.tx_data.delay;
+        let expiration = hop_result.tx_data.expiration;
+
+        let selected_contact = &contacts[best_index];
         let mut route_proposition: RouteStage<NM, CM> = RouteStage::new(
-            final_data.arrival,
-            seleted_contact.borrow().get_rx_node(),
+            arrival,
+            selected_contact.borrow().get_rx_node(),
             Some(ViaHop {
-                contact: seleted_contact.clone(),
+                contact: selected_contact.clone(),
                 parent_route: sndr_route.clone(),
                 tx_node: tx_node.clone(),
                 rx_node: rx_node.clone(),
             }),
             #[cfg(feature = "node_proc")]
-            bundle_to_consider,
+            hop_result.bundle,
         );
 
         route_proposition.hop_count = sndr_route_borrowed.hop_count + 1;
-        route_proposition.cumulative_delay =
-            sndr_route_borrowed.cumulative_delay + final_data.delay;
+        route_proposition.cumulative_delay = sndr_route_borrowed.cumulative_delay + delay;
         route_proposition.expiration = Date::min(
-            final_data.expiration - sndr_route_borrowed.cumulative_delay,
+            expiration - sndr_route_borrowed.cumulative_delay,
             sndr_route_borrowed.expiration,
         );
 
