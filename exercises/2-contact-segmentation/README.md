@@ -44,4 +44,3 @@ contact 0 5 60 7260
 ```
 
 *Note: A-SABR currently requires node IDs to be within the range [0, node_count - 1]. This constraint might be lifted in future versions.*
-
