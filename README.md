@@ -2,26 +2,17 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Rust](https://img.shields.io/badge/rust-1.82%2B-orange.svg)](https://www.rust-lang.org)
 
-
-Current version is a beta release (contact olivier.de-jonckere@lirmm.fr for more information). See source documentation [here](https://dtn-mtp.github.io/A-SABR/).
+Current version is a beta release (contact <olivier.de-jonckere@lirmm.fr> for more information). See source documentation [here](https://dtn-mtp.github.io/A-SABR/).
 
 ## Description
 
 The A-SABR project provides a framework to instantiate routing algorithms from research activities up to operational contexts. This project was developed after the experience gathered from CGR at the Jet Propulsion Laboratory and the scalability research around Schedule-Aware Bundle Routing (SABR)'s scalability with SPSN at the University of Dresden.
 
-
-
 **For researchers:** this framework aims to allow further routing algorithm development and benchmarking with a level of quality as close as possible to operational requirements.
-
-
 
 **For operators:** built in Rust, the framework aims to reach the new recommendations regarding the use of memory-safe languages for future space missions. A-SABR uses polymorphism for composition and enforces the best performance whenever possible (by templating) and dynamic modularity if necessary (with dynamic dispatch), to compose its routing algorithms. Either directly compiled with the wanted component, or used as an inspiration to derive the future routing algorithm, A-SABR aims to accelerate the adoption of SABR in future operational activities.
 
-
-
 **Built for flexibility and extensibility:** A-SABR is designed to exchange and add easily the building blocks of a routing algorithm. In some cases, variability can be desirable at runtime, in this case, multiple building block variations of the same type can be used simultaneously. For example, the earliest-transmission opportunity feature of SABR is applicable to the first hops, while the queue-delay feature takes over for the other hops.
-
-
 
 The exchangeable building blocks are :
 
@@ -38,9 +29,6 @@ The exchangeable building blocks are :
 - Distance calculation (e.g. SABR distance)
 
 - Routing algorithms mainframes (e.g. CGR, SPSN)
-
-
-
 
 ## Mainframes and pathfinding
 
@@ -78,6 +66,7 @@ The Cgr based algorithms create single destination routes and do not consider th
 The VolCgr based algorithms replace the alternative pathfinding approach with volume (and priority) aware search.
 
 The algorithms are based on 3 pathfinding techniques (each of them declined in single-destination and shortest-path tree variants) :
+
 - NodeParenting (or NodeGraph): Dijkstra with node to node tracking. Implementation mapping to the theoretical framework where nodes are vertices.
 - ContactParenting (or ContactGraph): Dijkstra with contact to contact tracking, as in CGR. Implementation mapping to the theoretical framework where contacts are vertices.
 - HybridParenting : Dijkstra with contact to contact tracking, tracking of multiple paths to individual node instead of direct overriding, and node based filtering.
@@ -100,7 +89,6 @@ This project includes several example programs demonstrating key features:
 - **ETO Management**: Explore [`examples/eto_management/`](examples/eto_management/) for managing Earliest Transmission Opportunity in the context of the library.
 
 - **Satellite Constellation**: The satellite constellation example can be found in [`examples/satellite_constellation/`](examples/satellite_constellation/) to see how to implement a new resource management approach, to disable retention on nodes.
-
 
 ## Contact plans
 
@@ -128,8 +116,6 @@ The first 9 approaches are similar enough to be generated with a unique macro. A
 | PQDManager                                    | 3                       | no                      |
 | PBQDManager                                   | 3                       | yes                     |
 
-
-
 - [P|PB]EVLmanager (Effective Volume Limit): tracking of the residual volume of the contacts.
 
 - [P|PB]ETOmanager (Earliest Transmission Opportunity, for first hop contacts only): tracking of the transmission queue with a neighboring node. `IMPORTANT:` Real queue access would require huge coupling with the BPA, instead, manual queueing/dequeueing should be performed.
@@ -137,6 +123,7 @@ The first 9 approaches are similar enough to be generated with a unique macro. A
 - [P|PB]QDManager (Queue Delay, an ETO variant for the next hops): tracking of the residual volume of the contacts, adds a delay for the earliest transmission opportunity from the contact start time depending on the booked volume (alternative to ETOManager for contacts that do not present the local node as transmitter).
 
 The contact plan format will change for the budgeted versions.
+
 ```
 # A-SABR CP Format for EVL/ETO/QD with or without priority (with marker if dynamic)
 contact <from> <to> <start> <end> [marker] <rate> <delay>
@@ -144,6 +131,7 @@ contact <from> <to> <start> <end> [marker] <rate> <delay>
 # A-SABR CP Format for EVL/ETO/QD with priority (3 levels) **and** budget (with marker if dynamic)
 contact <from> <to> <start> <end> [marker] <rate> <delay> <bugdet_1> <bugdet_2> <bugdet_3>
 ```
+
 #### Contact Segmentation
 
 The SegmentationManager tracks accurately the interval of bandwidth availability & utilization. It is suitable for any contact and can replace EVL, ETO and QD. When replacing ETO for segmentation, the performance is highly dependent on the contact plan accuracy, where ETO can be reactive to inaccuracies. In opposition to other approaches, a single logical contact can show different rates on different sub-intervals, where the physical contact would be split in 2 logical contacts for the legacy approaches. If a physical contact is split in two, a large bundle cannot overlap the two logical contacts during pathfinding/selection.
@@ -158,6 +146,7 @@ delay <start> <end> <delay>
 ```
 
 ## References
+
 - EVL (Effective Volume Limit) : Blue Book, “Schedule-aware bundle routing,” Consultative Committee for Space Data Systems, 2019.
 - ETO (Earliest Transmission Opportunity) : N. Bezirgiannidis, C. Caini, D. P. Montenero, M. Ruggieri, and V. Tsaoussidis, “Contact graph routing enhancements for delay tolerant space communications,” in 2014 7th advanced satellite multimedia systems conference and the 13th signal processing for space communications workshop (ASMS/SPSC). IEEE, 2014, pp. 17–23.
 - Queue-delay : C. Caini, G. M. De Cola, and L. Persampieri, “Schedule-aware bundle routing: Analysis and enhancements,” International Journal of Satellite Communications and Networking, vol. 39, no. 3, pp. 237–249, 2021.

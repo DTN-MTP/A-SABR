@@ -3,6 +3,7 @@
 ### Run the example
 
 This example requires the `node_tx` feature:
+
 ```bash
 cargo run --example satellite_constellation --features node_tx
 ```

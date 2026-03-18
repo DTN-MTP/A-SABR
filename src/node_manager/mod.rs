@@ -1,4 +1,3 @@
-#[cfg(any(feature = "node_proc", feature = "node_tx", feature = "node_rx"))]
 use crate::{bundle::Bundle, types::Date};
 
 pub mod none;
@@ -24,7 +23,9 @@ macro_rules! define_node_manager {
             /// # Returns
             /// - A `Date` indicating the estimated completion time for processing the bundle.
             #[cfg(feature = "node_proc")]
-            fn dry_run_process(&self, at_time: Date, bundle: &mut Bundle) -> Date;
+            fn dry_run_process(&self, at_time: Date, _bundle: &mut Bundle) -> Date {
+                at_time
+            }
 
             /// Simulates transmitting a `Bundle` within a specified time window.
             ///
@@ -39,8 +40,9 @@ macro_rules! define_node_manager {
             ///
             /// # Returns
             /// - `true` if the bundle can be transmitted within the time window, `false` otherwise.
-            #[cfg(feature = "node_tx")]
-            fn dry_run_tx(&self, waiting_since: Date, start: Date, end: Date, bundle: &Bundle) -> bool;
+            fn dry_run_tx(&self, _waiting_since: Date, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
+                true
+            }
 
             /// Simulates receiving a `Bundle` within a specified time window.
             ///
@@ -54,8 +56,9 @@ macro_rules! define_node_manager {
             ///
             /// # Returns
             /// - `true` if the bundle can be received within the time window, `false` otherwise.
-            #[cfg(feature = "node_rx")]
-            fn dry_run_rx(&self, start: Date, end: Date, bundle: &Bundle) -> bool;
+            fn dry_run_rx(&self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
+                true
+            }
 
             /// Schedules the processing of a `Bundle` at a specified time.
             ///
@@ -69,7 +72,9 @@ macro_rules! define_node_manager {
             /// # Returns
             /// - A `Date` indicating the completion time for the processing task.
             #[cfg(feature = "node_proc")]
-            fn schedule_process(&self, at_time: Date, bundle: &mut Bundle) -> Date;
+            fn schedule_process(&self, at_time: Date, _bundle: &mut Bundle) -> Date {
+                at_time
+            }
 
             /// Schedules the transmission of a `Bundle` within a specified time window.
             ///
@@ -84,9 +89,10 @@ macro_rules! define_node_manager {
             ///
             /// # Returns
             /// - `true` if the transmission is successfully scheduled within the window, `false` otherwise.
-            #[cfg(feature = "node_tx")]
-            fn schedule_tx(&mut self, waiting_since: Date, start: Date, end: Date, bundle: &Bundle)
-                -> bool;
+            fn schedule_tx(&mut self, _waiting_since: Date, _start: Date, _end: Date, _bundle: &Bundle)
+                -> bool {
+                true
+            }
 
             /// Schedules the reception of a `Bundle` within a specified time window.
             ///
@@ -100,8 +106,9 @@ macro_rules! define_node_manager {
             ///
             /// # Returns
             /// - `true` if the reception is successfully scheduled within the window, `false` otherwise.
-            #[cfg(feature = "node_rx")]
-            fn schedule_rx(&mut self, start: Date, end: Date, bundle: &Bundle) -> bool;
+            fn schedule_rx(&mut self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
+                true
+            }
         }
 
         /// Implementation of `NodeManager` for boxed types that implement `NodeManager`.
@@ -112,12 +119,10 @@ macro_rules! define_node_manager {
                 (**self).dry_run_process(at_time, bundle)
             }
             /// Delegates the dry_run method to the boxed object.
-            #[cfg(feature = "node_tx")]
             fn dry_run_tx(&self, waiting_since: Date, start: Date, end: Date, bundle: &Bundle) -> bool {
                 (**self).dry_run_tx(waiting_since, start, end, bundle)
             }
             /// Delegates the dry_run method to the boxed object.
-            #[cfg(feature = "node_rx")]
             fn dry_run_rx(&self, start: Date, end: Date, bundle: &Bundle) -> bool {
                 (**self).dry_run_rx(start, end, bundle)
             }
@@ -127,7 +132,6 @@ macro_rules! define_node_manager {
                 (**self).schedule_process(at_time, bundle)
             }
             /// Delegates the schedule method to the boxed object.
-            #[cfg(feature = "node_tx")]
             fn schedule_tx(
                 &mut self,
                 waiting_since: Date,
@@ -138,7 +142,6 @@ macro_rules! define_node_manager {
                 (**self).dry_run_tx(waiting_since, start, end, bundle)
             }
             /// Delegates the schedule method to the boxed object.
-            #[cfg(feature = "node_rx")]
             fn schedule_rx(&mut self, start: Date, end: Date, bundle: &Bundle) -> bool {
                 (**self).dry_run_rx(start, end, bundle)
             }
@@ -152,12 +155,10 @@ macro_rules! define_node_manager {
                 (**self).dry_run_process(at_time, bundle)
             }
             /// Delegates the dry_run method to the boxed object.
-            #[cfg(feature = "node_tx")]
             fn dry_run_tx(&self, waiting_since: Date, start: Date, end: Date, bundle: &Bundle) -> bool {
                 (**self).dry_run_tx(waiting_since, start, end, bundle)
             }
             /// Delegates the dry_run method to the boxed object.
-            #[cfg(feature = "node_rx")]
             fn dry_run_rx(&self, start: Date, end: Date, bundle: &Bundle) -> bool {
                 (**self).dry_run_rx(start, end, bundle)
             }
@@ -167,7 +168,6 @@ macro_rules! define_node_manager {
                 (**self).schedule_process(at_time, bundle)
             }
             /// Delegates the schedule method to the boxed object.
-            #[cfg(feature = "node_tx")]
             fn schedule_tx(
                 &mut self,
                 waiting_since: Date,
@@ -178,7 +178,6 @@ macro_rules! define_node_manager {
                 (**self).dry_run_tx(waiting_since, start, end, bundle)
             }
             /// Delegates the schedule method to the boxed object.
-            #[cfg(feature = "node_rx")]
             fn schedule_rx(&mut self, start: Date, end: Date, bundle: &Bundle) -> bool {
                 (**self).dry_run_rx(start, end, bundle)
             }
