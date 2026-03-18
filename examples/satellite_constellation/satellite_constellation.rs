@@ -32,24 +32,6 @@ impl NodeManager for NoRetention {
     ) -> bool {
         start - waiting_since < self.max_proc_time
     }
-
-    // Those guards allow compilation even with the --all-features option
-    #[cfg(feature = "node_proc")]
-    fn dry_run_process(&self, _at_time: Date, _bundle: &mut Bundle) -> Date {
-        panic!("Please do not use this method.");
-    }
-
-    #[cfg(feature = "node_proc")]
-    fn schedule_process(&self, _at_time: Date, _bundle: &mut Bundle) -> Date {
-        panic!("Please do not use this method.");
-    }
-
-    fn dry_run_rx(&self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        panic!("Please do not use this method.");
-    }
-    fn schedule_rx(&mut self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        panic!("Please do not use this method.");
-    }
 }
 
 /// Implements the DispatchParser to allow dynamic parsing.

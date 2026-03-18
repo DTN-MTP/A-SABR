@@ -38,28 +38,6 @@ impl NodeManager for Compressing {
         }
         earliest_tx_time
     }
-
-    // The following 4 implementations are provided just to make the rust_analyzer happy
-    fn dry_run_tx(&self, _waiting_since: Date, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        panic!("Please do not call this method.");
-    }
-
-    fn schedule_tx(
-        &mut self,
-        _waiting_since: Date,
-        _start: Date,
-        _end: Date,
-        _bundle: &Bundle,
-    ) -> bool {
-        panic!("Please do not call this method.");
-    }
-
-    fn dry_run_rx(&self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        panic!("Please do not call this method.");
-    }
-    fn schedule_rx(&mut self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        panic!("Please do not call this method.");
-    }
 }
 
 /// Implements the DispatchParser to allow dynamic parsing.
