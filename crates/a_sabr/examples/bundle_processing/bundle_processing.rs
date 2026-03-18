@@ -4,6 +4,7 @@ use a_sabr::distance::sabr::SABR;
 use a_sabr::errors::ASABRError;
 use a_sabr::node_manager::NodeManager;
 use a_sabr::node_manager::none::NoManagement;
+use a_sabr::node_manager::{NodeRx, NodeTx};
 use a_sabr::parsing::coerce_nm;
 use a_sabr::parsing::{DispatchParser, Lexer, Parser, ParsingState};
 use a_sabr::parsing::{NodeMarkerMap, StaticMarkerMap};
@@ -13,8 +14,10 @@ use a_sabr::types::Date;
 use a_sabr::types::Priority;
 use a_sabr::types::Token;
 use a_sabr::utils::{init_pathfinding, pretty_print};
+use a_sabr_macros::{DefaultNodeRx, DefaultNodeTx};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(DefaultNodeRx, DefaultNodeTx)]
 struct Compressing {
     max_priority: Priority,
 }
@@ -38,28 +41,6 @@ impl NodeManager for Compressing {
             earliest_tx_time += 2.0;
         }
         earliest_tx_time
-    }
-
-    // The following 4 implementations are provided just to make the rust_analyzer happy
-    fn dry_run_tx(&self, _waiting_since: Date, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        panic!("Please do not call this method.");
-    }
-
-    fn schedule_tx(
-        &mut self,
-        _waiting_since: Date,
-        _start: Date,
-        _end: Date,
-        _bundle: &Bundle,
-    ) -> bool {
-        panic!("Please do not call this method.");
-    }
-
-    fn dry_run_rx(&self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        panic!("Please do not call this method.");
-    }
-    fn schedule_rx(&mut self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        panic!("Please do not call this method.");
     }
 }
 

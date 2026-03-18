@@ -43,27 +43,6 @@ impl NodeManager for NoRetention {
     ) -> bool {
        return start - waiting_since < self.max_proc_time;
     }
-
-    // This manager only needs the node_tx feature
-    // Those guards allow compilation even with the --all-features option
-    #[cfg(feature = "node_proc")]
-    fn dry_run_process(&self, _at_time: Date, _bundle: &mut Bundle) -> Date {
-        panic!("Please disable the 'node_proc' and 'node_rx' features.");
-    }
-
-    #[cfg(feature = "node_proc")]
-    fn schedule_process(&self, _at_time: Date, _bundle: &mut Bundle) -> Date {
-        panic!("Please disable the 'node_proc' and 'node_rx' features.");
-    }
-
-    #[cfg(feature = "node_rx")]
-    fn dry_run_rx(&self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        panic!("Please disable the 'node_proc' and 'node_rx' features.");
-    }
-    #[cfg(feature = "node_rx")]
-    fn schedule_rx(&mut self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        panic!("Please disable the 'node_proc' and 'node_rx' features.");
-    }
 }
 ```
 
