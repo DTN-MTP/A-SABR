@@ -6,3 +6,4 @@ cp_examples
 debug/
 release/
 Cargo.lock
+.gdb_history
