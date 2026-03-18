@@ -24,10 +24,7 @@ pub fn init_pathfinding<
         ASABRContactPlan::parse::<NM, CM>(&mut mylexer, node_marker_map, contact_marker_map)
             .unwrap();
 
-    P::new(Rc::new(RefCell::new(Multigraph::new(
-        nodes_n_contacts.nodes,
-        nodes_n_contacts.contacts,
-    ))))
+    P::new(Rc::new(RefCell::new(Multigraph::new(nodes_n_contacts))))
 }
 
 pub fn pretty_print<NM: NodeManager, CM: ContactManager>(route: SharedRouteStage<NM, CM>) {

@@ -47,8 +47,7 @@ fn main() {
     let table = Rc::new(RefCell::new(TreeCache::new(true, false, 10)));
     // We initialize the routing algorithm with the storage and the contacts/nodes created thanks to the parser
     let mut spsn = SpsnHybridParenting::<NoManagement, Box<dyn ContactManager>>::new(
-        contact_plan.nodes,
-        contact_plan.contacts,
+        contact_plan,
         table,
         false,
     );

@@ -81,12 +81,7 @@ pub fn benchmark(c: &mut Criterion) {
                         )
                         .unwrap();
 
-                    match build_generic_router(
-                        router_type,
-                        contact_plan.nodes,
-                        contact_plan.contacts,
-                        Some(spsn_opts.clone()),
-                    ) {
+                    match build_generic_router(router_type, contact_plan, Some(spsn_opts.clone())) {
                         Ok(rter) => rter,
                         Err(err) => panic!("{}", err),
                     }

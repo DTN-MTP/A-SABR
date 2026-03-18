@@ -14,6 +14,7 @@ contact 1 2 60 7260 evl 15000 15
 contact 2 3 60 7260 evl 20000 20
 contact 3 4 60 7260 qd 25000 25
 contact 4 5 60 7260 qd 30000 30
+contact 4 0 60 7260 qd 30000 30
 
 # A segmented contact after the marker, the parser expects a sequence of delay/rate intervals:
 # delay <start> <end> <delay>
