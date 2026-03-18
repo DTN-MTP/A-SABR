@@ -8,6 +8,7 @@ use a_sabr::{
         segmentation::seg::SegmentationManager,
     },
     contact_plan::{asabr_file_lexer::FileLexer, from_asabr_lexer::ASABRContactPlan},
+    errors::ASABRError,
     node_manager::none::NoManagement,
     parsing::{ContactMarkerMap, coerce_cm},
     route_storage::cache::TreeCache,
@@ -15,7 +16,7 @@ use a_sabr::{
     utils::pretty_print,
 };
 
-fn main() {
+fn main() -> Result<(), ASABRError> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
         eprintln!("Usage: {} <cp_file>", args[0]);
@@ -50,7 +51,7 @@ fn main() {
         contact_plan,
         table,
         false,
-    );
+    )?;
 
     // We will route a bundle
     let b = Bundle {
@@ -71,4 +72,6 @@ fn main() {
             }
         }
     }
+
+    Ok(())
 }

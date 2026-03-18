@@ -85,15 +85,15 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
         contact_plan: ContactPlan<NM, NM, CM>,
         route_storage: Rc<RefCell<S>>,
         with_priorities: bool,
-    ) -> Self {
-        Self {
-            pathfinding: P::new(Rc::new(RefCell::new(Multigraph::new(contact_plan)))),
+    ) -> Result<Self, ASABRError> {
+        Ok(Self {
+            pathfinding: P::new(Rc::new(RefCell::new(Multigraph::new(contact_plan)?))),
             route_storage: route_storage.clone(),
             unicast_guard: Guard::new(with_priorities),
             // for compilation
             _phantom_nm: PhantomData,
             _phantom_cm: PhantomData,
-        }
+        })
     }
 
     /// Routes a bundle to a single destination node using unicast routing.

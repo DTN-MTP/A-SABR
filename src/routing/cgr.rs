@@ -52,14 +52,17 @@ impl<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: RouteStorag
 impl<S: RouteStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>>
     Cgr<NM, CM, P, S>
 {
-    pub fn new(contact_plan: ContactPlan<NM, NM, CM>, route_storage: Rc<RefCell<S>>) -> Self {
-        Self {
-            pathfinding: P::new(Rc::new(RefCell::new(Multigraph::new(contact_plan)))),
+    pub fn new(
+        contact_plan: ContactPlan<NM, NM, CM>,
+        route_storage: Rc<RefCell<S>>,
+    ) -> Result<Self, ASABRError> {
+        Ok(Self {
+            pathfinding: P::new(Rc::new(RefCell::new(Multigraph::new(contact_plan)?))),
             route_storage: route_storage.clone(),
             // for compilation
             _phantom_nm: PhantomData,
             _phantom_cm: PhantomData,
-        }
+        })
     }
 
     fn route_unicast(

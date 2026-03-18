@@ -1,6 +1,7 @@
 use a_sabr::bundle::Bundle;
 use a_sabr::contact_manager::legacy::evl::EVLManager;
 use a_sabr::distance::sabr::SABR;
+use a_sabr::errors::ASABRError;
 use a_sabr::node_manager::NodeManager;
 use a_sabr::node_manager::none::NoManagement;
 use a_sabr::parsing::NodeMarkerMap;
@@ -80,7 +81,7 @@ impl Parser<NoRetention> for NoRetention {
 fn edge_case_example<NM: NodeManager + Parser<NM> + DispatchParser<NM>>(
     cp_path: &str,
     node_marker_map: Option<&StaticMarkerMap<NM>>,
-) {
+) -> Result<(), ASABRError> {
     let bundle = Bundle {
         source: 0,
         destinations: vec![2],
@@ -89,11 +90,11 @@ fn edge_case_example<NM: NodeManager + Parser<NM> + DispatchParser<NM>>(
         expiration: 1000.0,
     };
 
-    let mut mpt_graph = init_pathfinding::<NM, EVLManager, HybridParentingPath<NM, EVLManager, SABR>>(
-        cp_path,
-        node_marker_map,
-        None,
-    );
+    let mut mpt_graph = init_pathfinding::<
+        NM,
+        EVLManager,
+        HybridParentingPath<NM, EVLManager, SABR>,
+    >(cp_path, node_marker_map, None)?;
 
     println!(
         "\nRunning with contact plan location={}, and destination node=2 ",
@@ -106,9 +107,11 @@ fn edge_case_example<NM: NodeManager + Parser<NM> + DispatchParser<NM>>(
         Some(route) => pretty_print(route),
         _ => println!("No route found to node 2."),
     }
+
+    Ok(())
 }
 
-fn main() {
+fn main() -> Result<(), ASABRError> {
     #[cfg(not(feature = "node_tx"))]
     panic!("Please enable the 'node_tx' feature.");
 
@@ -116,11 +119,13 @@ fn main() {
     node_dispatch.add("noret", coerce_nm::<NoRetention>);
     node_dispatch.add("none", coerce_nm::<NoManagement>);
 
-    edge_case_example::<NoManagement>("examples/satellite_constellation/contact_plan_1.cp", None);
+    edge_case_example::<NoManagement>("examples/satellite_constellation/contact_plan_1.cp", None)?;
     edge_case_example::<Box<dyn NodeManager>>(
         "examples/satellite_constellation/contact_plan_2.cp",
         Some(&node_dispatch),
-    );
+    )?;
+
+    Ok(())
 
     // === OUTPUT ===
     // Running with contact plan location=examples/satellite_constellation/contact_plan_1.cp, and destination node=2

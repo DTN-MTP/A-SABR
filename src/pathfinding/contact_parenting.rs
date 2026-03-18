@@ -346,7 +346,7 @@ mod tests {
                 make_contact(1, 2, 0.0, 2000.0, 100.0, 1.0),
             ],
             None,
-        )?))))
+        )?)?)))
     }
 
     fn five_contact_graph_test()
@@ -366,7 +366,7 @@ mod tests {
                 make_contact(0, 2, 0.0, 2000.0, 100.0, 10.0),
             ],
             None,
-        )?))))
+        )?)?)))
     }
 
     fn exemple_1_graph() -> Result<Rc<RefCell<Multigraph<NoManagement, EVLManager>>>, ASABRError> {
@@ -384,7 +384,7 @@ mod tests {
                 make_contact(2, 3, 30.0, 40.0, 1.0, 0.0),
             ],
             None,
-        )?))))
+        )?)?)))
     }
 
     fn exemple_2_graph() -> Result<Rc<RefCell<Multigraph<NoManagement, EVLManager>>>, ASABRError> {
@@ -404,7 +404,7 @@ mod tests {
                 make_contact(3, 4, 50.0, 60.0, 1.0, 0.0),
             ],
             None,
-        )?))))
+        )?)?)))
     }
 
     #[test]

@@ -143,7 +143,7 @@ macro_rules! register_cgr_router {
             return Ok(Box::new($router::<NM, CM>::new(
                 $contact_plan,
                 routing_table,
-            )));
+            )?));
         }
     };
 }
@@ -161,7 +161,7 @@ macro_rules! register_spsn_router {
                 $contact_plan,
                 cache,
                 $check_priority,
-            )));
+            )?));
         }
     };
 }

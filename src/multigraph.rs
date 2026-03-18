@@ -107,7 +107,7 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
     /// # Returns
     ///
     /// * `Self` - A new instance of `Multigraph`.
-    pub fn new(contact_plan: ContactPlan<NM, NM, CM>) -> Self {
+    pub fn new(contact_plan: ContactPlan<NM, NM, CM>) -> Result<Self, ASABRError> {
         let mut nodes = contact_plan.nodes;
         let mut contacts = contact_plan.contacts;
         // the contacts might not be sorted
@@ -165,11 +165,11 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
             sender.receivers.shrink_to_fit();
         }
 
-        Self {
+        Ok(Self {
             senders,
             nodes: all_refs,
             node_count,
-        }
+        })
     }
 
     /// Applies exclusions to the nodes based on the provided sorted exclusions.
