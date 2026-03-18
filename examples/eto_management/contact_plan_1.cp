@@ -13,4 +13,3 @@ contact 1 2 100 200 evl 1 0
 contact 2 3 200 300 qd 1 0
 # C3
 contact 1 4 0 90 evl 1 0
-

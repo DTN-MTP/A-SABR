@@ -41,4 +41,3 @@ jobs:
         uses: actions/deploy-pages@v4
         with:
           artifact_name: docs-pages
-
