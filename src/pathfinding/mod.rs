@@ -202,7 +202,6 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
             sending_time,
             &bundle_to_consider,
         ) {
-            #[cfg(feature = "node_tx")]
             if !tx_node.borrow().manager.dry_run_tx(
                 sending_time,
                 hop.tx_start,
@@ -213,7 +212,6 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
             }
 
             if hop.tx_end + hop.delay < final_data.arrival {
-                #[cfg(feature = "node_rx")]
                 if !rx_node.borrow().manager.dry_run_rx(
                     hop.tx_start + hop.delay,
                     hop.tx_end + hop.delay,
