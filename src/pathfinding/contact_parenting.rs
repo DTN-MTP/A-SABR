@@ -302,7 +302,7 @@ mod tests {
             ContactInfo::new(tx, rx, start, end),
             EVLManager::new(rate, delay),
         )
-        .expect(&format!("Contact failed"))
+        .expect("Contact failed")
     }
 
     fn make_bundle(dest: NodeID, priority: i8, size: f64, expiration: f64) -> Bundle {
@@ -432,7 +432,7 @@ mod tests {
             ContactParentingTreeExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
 
         let bundle = make_bundle(2, 1, 1.0, 2000.0);
-        let excluded = vec![1];
+        let excluded = [1];
 
         let res_hop = algo_hop
             .get_next(0.0, 0, &bundle, &excluded[..])
@@ -469,7 +469,7 @@ mod tests {
             ContactParentingPathExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
 
         let bundle = make_bundle(2, 1, 1.0, 2000.0);
-        let excluded = vec![1];
+        let excluded = [1];
 
         let res_hop = algo_hop
             .get_next(0.0, 0, &bundle, &excluded[..])
