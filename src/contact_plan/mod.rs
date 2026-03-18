@@ -35,11 +35,11 @@ impl<NNM: NodeManager, CNM: NodeManager, CCM: ContactManager> ContactPlan<NNM, C
     /// # Returns
     ///
     /// * `Self` - A new instance of `ContactPlan`.
-    fn new(
+    pub fn new(
         nodes: Vec<Node<NNM>>,
         contacts: Vec<Contact<CNM, CCM>>,
         vnode_map: Option<VirtualNodeMap>,
-    ) -> Result<ContactPlan<NNM, CNM, CCM>, ASABRError> {
+    ) -> Result<Self, ASABRError> {
         Ok(ContactPlan {
             nodes,
             contacts,
