@@ -2,6 +2,7 @@ use a_sabr::{
     bundle::Bundle,
     contact_manager::legacy::evl::EVLManager,
     distance::sabr::SABR,
+    errors::ASABRError,
     node_manager::none::NoManagement,
     pathfinding::{
         Pathfinding, hybrid_parenting::HybridParentingPath, node_parenting::NodeParentingPath,
@@ -13,7 +14,7 @@ use a_sabr::{
 #[cfg(feature = "contact_work_area")]
 use a_sabr::pathfinding::contact_parenting::ContactParentingPath;
 
-fn edge_case_example(cp_path: &str, dest: NodeID) {
+fn edge_case_example(cp_path: &str, dest: NodeID) -> Result<(), ASABRError> {
     let bundle = Bundle {
         source: 0,
         destinations: vec![dest],
@@ -26,19 +27,20 @@ fn edge_case_example(cp_path: &str, dest: NodeID) {
         NoManagement,
         EVLManager,
         NodeParentingPath<NoManagement, EVLManager, SABR>,
-    >(cp_path, None, None);
+    >(cp_path, None, None)?;
 
     #[cfg(feature = "contact_work_area")]
     let mut contact_graph = init_pathfinding::<
         NoManagement,
         EVLManager,
         ContactParentingPath<NoManagement, EVLManager, SABR>,
-    >(cp_path, None, None);
+    >(cp_path, None, None)?;
+
     let mut mpt_graph = init_pathfinding::<
         NoManagement,
         EVLManager,
         HybridParentingPath<NoManagement, EVLManager, SABR>,
-    >(cp_path, None, None);
+    >(cp_path, None, None)?;
 
     println!(
         "\nRunning with contact plan location={}, and destination node={} ",
@@ -58,18 +60,22 @@ fn edge_case_example(cp_path: &str, dest: NodeID) {
     let res = mpt_graph.get_next(0.0, 0, &bundle, &[]).unwrap();
     print!("With HybridParentingPath pathfinding. ");
     pretty_print(res.by_destination[dest as usize].clone().unwrap());
+
+    Ok(())
 }
 
-fn main() {
+fn main() -> Result<(), ASABRError> {
     #[cfg(not(feature = "contact_work_area"))]
     panic!("Please enable the 'contact_work_area' feature.");
 
-    edge_case_example("examples/dijkstra_accuracy/contact_plan_1.cp", 3);
-    edge_case_example("examples/dijkstra_accuracy/contact_plan_2.cp", 4);
+    edge_case_example("examples/dijkstra_accuracy/contact_plan_1.cp", 3)?;
+    edge_case_example("examples/dijkstra_accuracy/contact_plan_2.cp", 4)?;
 
     println!(
         "\nN.B.: Results with the single end-to-end \"Path\" variant. We would get the same results with their \"Tree\" versions."
     );
+
+    Ok(())
 
     // === OUTPUT ===
     // Running with contact plan location=examples/dijkstra_accuracy/contact_plan_1.cp, and destination node=3

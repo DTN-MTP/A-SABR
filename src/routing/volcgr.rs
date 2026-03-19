@@ -1,10 +1,9 @@
 use crate::{
     bundle::Bundle,
-    contact::Contact,
     contact_manager::ContactManager,
+    contact_plan::ContactPlan,
     errors::ASABRError,
     multigraph::Multigraph,
-    node::Node,
     node_manager::NodeManager,
     pathfinding::Pathfinding,
     route_stage::RouteStage,
@@ -58,17 +57,16 @@ impl<S: RouteStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfindin
     VolCgr<NM, CM, P, S>
 {
     pub fn new(
-        nodes: Vec<Node<NM>>,
-        contacts: Vec<Contact<NM, CM>>,
+        contact_plan: ContactPlan<NM, NM, CM>,
         route_storage: Rc<RefCell<S>>,
-    ) -> Self {
-        Self {
-            pathfinding: P::new(Rc::new(RefCell::new(Multigraph::new(nodes, contacts)))),
+    ) -> Result<Self, ASABRError> {
+        Ok(Self {
+            pathfinding: P::new(Rc::new(RefCell::new(Multigraph::new(contact_plan)?))),
             route_storage: route_storage.clone(),
             // for compilation
             _phantom_nm: PhantomData,
             _phantom_cm: PhantomData,
-        }
+        })
     }
 
     fn route_unicast(

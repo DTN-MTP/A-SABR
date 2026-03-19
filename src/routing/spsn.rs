@@ -1,10 +1,9 @@
 use crate::{
     bundle::Bundle,
-    contact::Contact,
     contact_manager::ContactManager,
+    contact_plan::ContactPlan,
     errors::ASABRError,
     multigraph::Multigraph,
-    node::Node,
     node_manager::NodeManager,
     pathfinding::Pathfinding,
     route_storage::{Guard, TreeStorage},
@@ -74,8 +73,8 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
     ///
     /// # Parameters
     ///
-    /// * `nodes` - A vector of nodes representing the routing network.
-    /// * `contacts` - A vector of contacts associated with the nodes.
+    /// * `ContactPlan` - A contact plan of nodes representing the routing network, contacts and a
+    ///   vnode map, and associated management information.
     /// * `route_storage` - A reference-counted storage for routing data.
     /// * `with_priorities` - A boolean indicating whether to consider priorities during routing.
     ///
@@ -83,19 +82,18 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
     ///
     /// * `Self` - A new instance of the `Spsn` struct.
     pub fn new(
-        nodes: Vec<Node<NM>>,
-        contacts: Vec<Contact<NM, CM>>,
+        contact_plan: ContactPlan<NM, NM, CM>,
         route_storage: Rc<RefCell<S>>,
         with_priorities: bool,
-    ) -> Self {
-        Self {
-            pathfinding: P::new(Rc::new(RefCell::new(Multigraph::new(nodes, contacts)))),
+    ) -> Result<Self, ASABRError> {
+        Ok(Self {
+            pathfinding: P::new(Rc::new(RefCell::new(Multigraph::new(contact_plan)?))),
             route_storage: route_storage.clone(),
             unicast_guard: Guard::new(with_priorities),
             // for compilation
             _phantom_nm: PhantomData,
             _phantom_cm: PhantomData,
-        }
+        })
     }
 
     /// Routes a bundle to a single destination node using unicast routing.

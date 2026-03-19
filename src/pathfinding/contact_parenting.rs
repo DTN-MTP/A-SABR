@@ -269,8 +269,10 @@ mod tests {
     use crate::contact::Contact;
     use crate::contact::ContactInfo;
     use crate::contact_manager::legacy::evl::EVLManager;
+    use crate::contact_plan::ContactPlan;
     use crate::distance::hop::Hop;
     use crate::distance::sabr::SABR;
+    use crate::errors::ASABRError;
     use crate::multigraph::Multigraph;
     use crate::node::Node;
     use crate::node::NodeInfo;
@@ -302,7 +304,7 @@ mod tests {
             ContactInfo::new(tx, rx, start, end),
             EVLManager::new(rate, delay),
         )
-        .expect(&format!("Contact failed"))
+        .expect("Contact failed")
     }
 
     fn make_bundle(dest: NodeID, priority: i8, size: f64, expiration: f64) -> Bundle {
@@ -336,18 +338,20 @@ mod tests {
         );
     }
 
-    fn unit_graph_test() -> Rc<RefCell<Multigraph<NoManagement, EVLManager>>> {
-        Rc::new(RefCell::new(Multigraph::new(
+    fn unit_graph_test() -> Result<Rc<RefCell<Multigraph<NoManagement, EVLManager>>>, ASABRError> {
+        Ok(Rc::new(RefCell::new(Multigraph::new(ContactPlan::new(
             vec![make_node(0, "A"), make_node(1, "B"), make_node(2, "C")],
             vec![
                 make_contact(0, 1, 0.0, 2000.0, 100.0, 1.0),
                 make_contact(1, 2, 0.0, 2000.0, 100.0, 1.0),
             ],
-        )))
+            None,
+        )?)?)))
     }
 
-    fn five_contact_graph_test() -> Rc<RefCell<Multigraph<NoManagement, EVLManager>>> {
-        Rc::new(RefCell::new(Multigraph::new(
+    fn five_contact_graph_test()
+    -> Result<Rc<RefCell<Multigraph<NoManagement, EVLManager>>>, ASABRError> {
+        Ok(Rc::new(RefCell::new(Multigraph::new(ContactPlan::new(
             vec![
                 make_node(0, "A"),
                 make_node(1, "B"),
@@ -361,11 +365,12 @@ mod tests {
                 make_contact(3, 2, 0.0, 2000.0, 100.0, 0.01),
                 make_contact(0, 2, 0.0, 2000.0, 100.0, 10.0),
             ],
-        )))
+            None,
+        )?)?)))
     }
 
-    fn exemple_1_graph() -> Rc<RefCell<Multigraph<NoManagement, EVLManager>>> {
-        Rc::new(RefCell::new(Multigraph::new(
+    fn exemple_1_graph() -> Result<Rc<RefCell<Multigraph<NoManagement, EVLManager>>>, ASABRError> {
+        Ok(Rc::new(RefCell::new(Multigraph::new(ContactPlan::new(
             vec![
                 make_node(0, "source"),
                 make_node(1, "from_C0"),
@@ -378,11 +383,12 @@ mod tests {
                 make_contact(1, 2, 10.0, 20.0, 1.0, 0.0),
                 make_contact(2, 3, 30.0, 40.0, 1.0, 0.0),
             ],
-        )))
+            None,
+        )?)?)))
     }
 
-    fn exemple_2_graph() -> Rc<RefCell<Multigraph<NoManagement, EVLManager>>> {
-        Rc::new(RefCell::new(Multigraph::new(
+    fn exemple_2_graph() -> Result<Rc<RefCell<Multigraph<NoManagement, EVLManager>>>, ASABRError> {
+        Ok(Rc::new(RefCell::new(Multigraph::new(ContactPlan::new(
             vec![
                 make_node(0, "source"),
                 make_node(1, "from_C0"),
@@ -397,12 +403,13 @@ mod tests {
                 make_contact(2, 3, 20.0, 40.0, 1.0, 0.0),
                 make_contact(3, 4, 50.0, 60.0, 1.0, 0.0),
             ],
-        )))
+            None,
+        )?)?)))
     }
 
     #[test]
-    fn test_a_to_c_tree() {
-        let mg = unit_graph_test();
+    fn test_a_to_c_tree() -> Result<(), ASABRError> {
+        let mg = unit_graph_test()?;
 
         let mut algo_hop =
             ContactParentingTreeExcl::<NoManagement, EVLManager, Hop>::new(mg.clone());
@@ -420,11 +427,13 @@ mod tests {
             .get_next(0.0, 0, &bundle, &[][..])
             .expect("SABR : Routing Failed !");
         assert_time_hop(&res_sabr, 2, 2.02, 2, "SABR");
+
+        Ok(())
     }
 
     #[test]
-    fn test_a_to_c_tree_excluded() {
-        let mg = unit_graph_test();
+    fn test_a_to_c_tree_excluded() -> Result<(), ASABRError> {
+        let mg = unit_graph_test()?;
 
         let mut algo_hop =
             ContactParentingTreeExcl::<NoManagement, EVLManager, Hop>::new(mg.clone());
@@ -432,7 +441,7 @@ mod tests {
             ContactParentingTreeExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
 
         let bundle = make_bundle(2, 1, 1.0, 2000.0);
-        let excluded = vec![1];
+        let excluded = [1];
 
         let res_hop = algo_hop
             .get_next(0.0, 0, &bundle, &excluded[..])
@@ -457,11 +466,13 @@ mod tests {
             res_sabr.by_destination[2].is_none(),
             "SABR : C should not be accessible without B"
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_a_to_c_path_excl() {
-        let mg = unit_graph_test();
+    fn test_a_to_c_path_excl() -> Result<(), ASABRError> {
+        let mg = unit_graph_test()?;
 
         let mut algo_hop =
             ContactParentingPathExcl::<NoManagement, EVLManager, Hop>::new(mg.clone());
@@ -469,7 +480,7 @@ mod tests {
             ContactParentingPathExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
 
         let bundle = make_bundle(2, 1, 1.0, 2000.0);
-        let excluded = vec![1];
+        let excluded = [1];
 
         let res_hop = algo_hop
             .get_next(0.0, 0, &bundle, &excluded[..])
@@ -486,11 +497,13 @@ mod tests {
             res_sabr.by_destination[2].is_none(),
             "SABR : C should not be accessible without B"
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_two_paths_to_c() {
-        let mg = five_contact_graph_test();
+    fn test_two_paths_to_c() -> Result<(), ASABRError> {
+        let mg = five_contact_graph_test()?;
 
         let mut algo_hop =
             ContactParentingTreeExcl::<NoManagement, EVLManager, Hop>::new(mg.clone());
@@ -510,11 +523,13 @@ mod tests {
             .expect("SABR : Routing Failed !");
 
         assert_time_hop(&res_sabr, 2, 0.13, 2, "SABR");
+
+        Ok(())
     }
 
     #[test]
-    fn test_exemple_1() {
-        let mg = exemple_1_graph();
+    fn test_exemple_1() -> Result<(), ASABRError> {
+        let mg = exemple_1_graph()?;
 
         let mut algo_hop = ContactParentingPath::<NoManagement, EVLManager, Hop>::new(mg.clone());
         let mut algo_sabr = ContactParentingPath::<NoManagement, EVLManager, SABR>::new(mg.clone());
@@ -532,11 +547,13 @@ mod tests {
             .expect("Routing Failed !");
 
         assert_time_hop(&res_sabr, 3, 30.0, 2, "SABR");
+
+        Ok(())
     }
 
     #[test]
-    fn test_exemple_2() {
-        let mg = exemple_2_graph();
+    fn test_exemple_2() -> Result<(), ASABRError> {
+        let mg = exemple_2_graph()?;
 
         let mut algo_hop = ContactParentingPath::<NoManagement, EVLManager, Hop>::new(mg.clone());
         let mut algo_sabr = ContactParentingPath::<NoManagement, EVLManager, SABR>::new(mg.clone());
@@ -554,5 +571,7 @@ mod tests {
             .expect("Routing Failed !");
 
         assert_time_hop(&res_sabr, 4, 50.0, 4, "SABR");
+
+        Ok(())
     }
 }

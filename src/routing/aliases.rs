@@ -1,9 +1,8 @@
 use crate::{
-    contact::Contact,
     contact_manager::ContactManager,
+    contact_plan::ContactPlan,
     distance::{hop::Hop, sabr::SABR},
     errors::ASABRError,
-    node::Node,
     node_manager::NodeManager,
     pathfinding::{
         hybrid_parenting::{HybridParentingPathExcl, HybridParentingTreeExcl},
@@ -137,21 +136,20 @@ pub type CgrFirstDepletedContactParentingHop<NM, CM> = Cgr<
 >;
 
 macro_rules! register_cgr_router {
-    ($router:ident, $router_name:literal, $test_name_variable:ident, $nodes:ident, $contacts:ident) => {
+    ($router:ident, $router_name:literal, $test_name_variable:ident, $contact_plan:ident) => {
         if $test_name_variable == $router_name {
             let routing_table = Rc::new(RefCell::new(RoutingTable::new()));
 
             return Ok(Box::new($router::<NM, CM>::new(
-                $nodes,
-                $contacts,
+                $contact_plan,
                 routing_table,
-            )));
+            )?));
         }
     };
 }
 
 macro_rules! register_spsn_router {
-    ($router:ident, $router_name:literal, $test_name_variable:ident, $nodes:ident, $contacts:ident, $check_size:ident, $check_priority:ident, $max_entries:ident) => {
+    ($router:ident, $router_name:literal, $test_name_variable:ident, $contact_plan:ident, $check_size:ident, $check_priority:ident, $max_entries:ident) => {
         if $test_name_variable == $router_name {
             let cache = Rc::new(RefCell::new(TreeCache::new(
                 $check_size,
@@ -160,11 +158,10 @@ macro_rules! register_spsn_router {
             )));
 
             return Ok(Box::new($router::<NM, CM>::new(
-                $nodes,
-                $contacts,
+                $contact_plan,
                 cache,
                 $check_priority,
-            )));
+            )?));
         }
     };
 }
@@ -177,8 +174,7 @@ pub struct SpsnOptions {
 
 pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'static>(
     router_type: &str,
-    nodes: Vec<Node<NM>>,
-    contacts: Vec<Contact<NM, CM>>,
+    contact_plan: ContactPlan<NM, NM, CM>,
     spsn_options: Option<SpsnOptions>,
 ) -> Result<Box<dyn Router<NM, CM>>, ASABRError> {
     if let Some(options) = spsn_options {
@@ -190,8 +186,7 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
             SpsnNodeParenting,
             "SpsnNodeParenting",
             router_type,
-            nodes,
-            contacts,
+            contact_plan,
             check_size,
             check_priority,
             max_entries
@@ -201,8 +196,7 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
             SpsnNodeParentingHop,
             "SpsnNodeParentingHop",
             router_type,
-            nodes,
-            contacts,
+            contact_plan,
             check_size,
             check_priority,
             max_entries
@@ -212,8 +206,7 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
             SpsnHybridParenting,
             "SpsnHybridParenting",
             router_type,
-            nodes,
-            contacts,
+            contact_plan,
             check_size,
             check_priority,
             max_entries
@@ -223,8 +216,7 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
             SpsnHybridParentingHop,
             "SpsnHybridParentingHop",
             router_type,
-            nodes,
-            contacts,
+            contact_plan,
             check_size,
             check_priority,
             max_entries
@@ -235,8 +227,7 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
             SpsnContactParenting,
             "SpsnContactParenting",
             router_type,
-            nodes,
-            contacts,
+            contact_plan,
             check_size,
             check_priority,
             max_entries
@@ -247,8 +238,7 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
             SpsnContactParentingHop,
             "SpsnContactParentingHop",
             router_type,
-            nodes,
-            contacts,
+            contact_plan,
             check_size,
             check_priority,
             max_entries
@@ -259,32 +249,28 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
         VolCgrNodeParenting,
         "VolCgrNodeParenting",
         router_type,
-        nodes,
-        contacts
+        contact_plan
     );
 
     register_cgr_router!(
         VolCgrHybridParenting,
         "VolCgrHybridParenting",
         router_type,
-        nodes,
-        contacts
+        contact_plan
     );
 
     register_cgr_router!(
         VolCgrHybridParentingHop,
         "VolCgrHybridParentingHop",
         router_type,
-        nodes,
-        contacts
+        contact_plan
     );
 
     register_cgr_router!(
         VolCgrNodeParentingHop,
         "VolCgrNodeParentingHop",
         router_type,
-        nodes,
-        contacts
+        contact_plan
     );
 
     #[cfg(feature = "contact_work_area")]
@@ -292,8 +278,7 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
         VolCgrContactParenting,
         "VolCgrContactParenting",
         router_type,
-        nodes,
-        contacts
+        contact_plan
     );
 
     #[cfg(feature = "contact_work_area")]
@@ -301,8 +286,7 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
         VolCgrContactParentingHop,
         "VolCgrContactParentingHop",
         router_type,
-        nodes,
-        contacts
+        contact_plan
     );
 
     #[cfg(feature = "contact_suppression")]
@@ -310,8 +294,7 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
         CgrFirstEndingHybridParentingHop,
         "CgrFirstEndingHybridParentingHop",
         router_type,
-        nodes,
-        contacts
+        contact_plan
     );
 
     #[cfg(feature = "contact_suppression")]
@@ -319,8 +302,7 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
         CgrFirstEndingHybridParenting,
         "CgrFirstEndingHybridParenting",
         router_type,
-        nodes,
-        contacts
+        contact_plan
     );
 
     #[cfg(feature = "contact_suppression")]
@@ -328,8 +310,7 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
         CgrFirstEndingNodeParentingHop,
         "CgrFirstEndingNodeParentingHop",
         router_type,
-        nodes,
-        contacts
+        contact_plan
     );
 
     #[cfg(feature = "contact_suppression")]
@@ -337,8 +318,7 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
         CgrFirstEndingNodeParenting,
         "CgrFirstEndingNodeParenting",
         router_type,
-        nodes,
-        contacts
+        contact_plan
     );
 
     #[cfg(all(feature = "contact_work_area", feature = "contact_suppression"))]
@@ -346,8 +326,7 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
         CgrFirstEndingContactParentingHop,
         "CgrFirstEndingContactParentingHop",
         router_type,
-        nodes,
-        contacts
+        contact_plan
     );
 
     #[cfg(all(feature = "contact_work_area", feature = "contact_suppression"))]
@@ -355,8 +334,7 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
         CgrFirstEndingContactParenting,
         "CgrFirstEndingContactParenting",
         router_type,
-        nodes,
-        contacts
+        contact_plan
     );
 
     #[cfg(all(feature = "contact_suppression", feature = "first_depleted"))]
@@ -364,8 +342,7 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
         CgrFirstDepletedHybridParentingHop,
         "CgrFirstDepletedHybridParentingHop",
         router_type,
-        nodes,
-        contacts
+        contact_plan
     );
 
     #[cfg(all(feature = "contact_suppression", feature = "first_depleted"))]
@@ -373,8 +350,7 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
         CgrFirstDepletedHybridParenting,
         "CgrFirstDepletedHybridParenting",
         router_type,
-        nodes,
-        contacts
+        contact_plan
     );
 
     #[cfg(all(feature = "contact_suppression", feature = "first_depleted"))]
@@ -382,8 +358,7 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
         CgrFirstDepletedNodeParentingHop,
         "CgrFirstDepletedNodeParentingHop",
         router_type,
-        nodes,
-        contacts
+        contact_plan
     );
 
     #[cfg(all(feature = "contact_suppression", feature = "first_depleted"))]
@@ -391,8 +366,7 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
         CgrFirstDepletedNodeParenting,
         "CgrFirstDepletedNodeParenting",
         router_type,
-        nodes,
-        contacts
+        contact_plan
     );
 
     #[cfg(all(
@@ -404,8 +378,7 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
         CgrFirstDepletedContactParentingHop,
         "CgrFirstDepletedContactParentingHop",
         router_type,
-        nodes,
-        contacts
+        contact_plan
     );
 
     #[cfg(all(
@@ -417,8 +390,7 @@ pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'sta
         CgrFirstDepletedContactParenting,
         "CgrFirstDepletedContactParenting",
         router_type,
-        nodes,
-        contacts
+        contact_plan
     );
 
     Err(ASABRError::ScheduleError(

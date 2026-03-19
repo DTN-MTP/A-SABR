@@ -1,6 +1,7 @@
 use a_sabr::bundle::Bundle;
 use a_sabr::contact_manager::legacy::evl::EVLManager;
 use a_sabr::distance::sabr::SABR;
+use a_sabr::errors::ASABRError;
 use a_sabr::node_manager::NodeManager;
 use a_sabr::node_manager::none::NoManagement;
 use a_sabr::parsing::coerce_nm;
@@ -90,7 +91,7 @@ fn edge_case_example<NM: NodeManager + Parser<NM> + DispatchParser<NM>>(
     cp_path: &str,
     bundle_priority: Priority,
     node_marker_map: Option<&StaticMarkerMap<NM>>,
-) {
+) -> Result<(), ASABRError> {
     let bundle = Bundle {
         source: 0,
         destinations: vec![3],
@@ -99,11 +100,11 @@ fn edge_case_example<NM: NodeManager + Parser<NM> + DispatchParser<NM>>(
         expiration: 1000.0,
     };
 
-    let mut mpt_graph = init_pathfinding::<NM, EVLManager, HybridParentingPath<NM, EVLManager, SABR>>(
-        cp_path,
-        node_marker_map,
-        None,
-    );
+    let mut mpt_graph = init_pathfinding::<
+        NM,
+        EVLManager,
+        HybridParentingPath<NM, EVLManager, SABR>,
+    >(cp_path, node_marker_map, None)?;
 
     println!(
         "\nRunning with contact plan location={}, destination node=3, and bundle priority={} ",
@@ -116,9 +117,11 @@ fn edge_case_example<NM: NodeManager + Parser<NM> + DispatchParser<NM>>(
         Some(route) => pretty_print(route),
         _ => println!("No route found to node 3."),
     }
+
+    Ok(())
 }
 
-fn main() {
+fn main() -> Result<(), ASABRError> {
     #[cfg(not(feature = "node_proc"))]
     panic!("Please enable the 'node_proc' feature.");
 
@@ -126,17 +129,19 @@ fn main() {
     node_dispatch.add("compress", coerce_nm::<Compressing>);
     node_dispatch.add("none", coerce_nm::<NoManagement>);
 
-    edge_case_example::<NoManagement>("examples/bundle_processing/contact_plan_1.cp", 0, None);
+    edge_case_example::<NoManagement>("examples/bundle_processing/contact_plan_1.cp", 0, None)?;
     edge_case_example::<Box<dyn NodeManager>>(
         "examples/bundle_processing/contact_plan_2.cp",
         0,
         Some(&node_dispatch),
-    );
+    )?;
     edge_case_example::<Box<dyn NodeManager>>(
         "examples/bundle_processing/contact_plan_2.cp",
         2,
         Some(&node_dispatch),
-    );
+    )?;
+
+    Ok(())
 
     // === OUTPUT ===
     // Running with contact plan location=examples/bundle_processing/contact_plan_1.cp, destination node=3, and bundle priority=0

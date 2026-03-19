@@ -8,6 +8,7 @@ use a_sabr::{
         segmentation::seg::SegmentationManager,
     },
     contact_plan::{asabr_file_lexer::FileLexer, from_asabr_lexer::ASABRContactPlan},
+    errors::ASABRError,
     node_manager::none::NoManagement,
     parsing::{ContactMarkerMap, coerce_cm},
     route_storage::cache::TreeCache,
@@ -15,7 +16,7 @@ use a_sabr::{
     utils::pretty_print,
 };
 
-fn main() {
+fn main() -> Result<(), ASABRError> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
         eprintln!("Usage: {} <cp_file>", args[0]);
@@ -47,11 +48,10 @@ fn main() {
     let table = Rc::new(RefCell::new(TreeCache::new(true, false, 10)));
     // We initialize the routing algorithm with the storage and the contacts/nodes created thanks to the parser
     let mut spsn = SpsnHybridParenting::<NoManagement, Box<dyn ContactManager>>::new(
-        contact_plan.nodes,
-        contact_plan.contacts,
+        contact_plan,
         table,
         false,
-    );
+    )?;
 
     // We will route a bundle
     let b = Bundle {
@@ -72,4 +72,6 @@ fn main() {
             }
         }
     }
+
+    Ok(())
 }
