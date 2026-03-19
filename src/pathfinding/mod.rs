@@ -17,6 +17,8 @@ pub mod hybrid_parenting;
 #[cfg(feature = "contact_suppression")]
 pub mod limiting_contact;
 pub mod node_parenting;
+#[cfg(test)]
+mod test_helpers;
 
 /// Data structure that holds the results of a pathfinding operation.
 ///
