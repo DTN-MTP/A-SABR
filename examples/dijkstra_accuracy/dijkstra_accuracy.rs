@@ -42,10 +42,7 @@ fn edge_case_example(cp_path: &str, dest: NodeID) -> Result<(), ASABRError> {
         HybridParentingPath<NoManagement, EVLManager, SABR>,
     >(cp_path, None, None)?;
 
-    println!(
-        "\nRunning with contact plan location={}, and destination node={} ",
-        cp_path, dest
-    );
+    println!("\nRunning with contact plan location={cp_path}, and destination node={dest} ");
     let res = node_graph.get_next(0.0, 0, &bundle, &[]).unwrap();
     print!("\nWith NodeParentingPath pathfinding. ");
     pretty_print(res.by_destination[dest as usize].clone().unwrap());

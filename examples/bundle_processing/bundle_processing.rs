@@ -107,8 +107,7 @@ fn edge_case_example<NM: NodeManager + Parser<NM> + DispatchParser<NM>>(
     >(cp_path, node_marker_map, None)?;
 
     println!(
-        "\nRunning with contact plan location={}, destination node=3, and bundle priority={} ",
-        cp_path, bundle_priority
+        "\nRunning with contact plan location={cp_path}, destination node=3, and bundle priority={bundle_priority}"
     );
 
     let res = mpt_graph.get_next(0.0, 0, &bundle, &[]).unwrap();

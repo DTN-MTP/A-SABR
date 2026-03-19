@@ -164,9 +164,9 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
     let mut final_data = ContactManagerTxData {
         tx_start: 0.0,
         tx_end: 0.0,
-        delay: 0.0,
         expiration: 0.0,
-        arrival: Date::MAX,
+        rx_start: Date::MAX,
+        rx_end: Date::MAX,
     };
 
     // If bundle processing is enabled, a mutable bundle copy is required to be attached to the RouteStage.
@@ -185,7 +185,7 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
             continue;
         }
 
-        if contact_borrowed.info.start > final_data.arrival {
+        if contact_borrowed.info.start > final_data.rx_end {
             break;
         }
 
@@ -212,13 +212,13 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
                 continue;
             }
 
-            if hop.tx_end + hop.delay < final_data.arrival {
+            if hop.rx_end < final_data.rx_end {
                 #[cfg(feature = "node_rx")]
-                if !rx_node.borrow().manager.dry_run_rx(
-                    hop.tx_start + hop.delay,
-                    hop.tx_end + hop.delay,
-                    _bundle,
-                ) {
+                if !rx_node
+                    .borrow()
+                    .manager
+                    .dry_run_rx(hop.rx_start, hop.rx_end, _bundle)
+                {
                     continue;
                 }
 
@@ -228,10 +228,10 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
         }
     }
 
-    if final_data.arrival < Date::MAX {
+    if final_data.rx_end < Date::MAX {
         let seleted_contact = &contacts[index];
         let mut route_proposition: RouteStage<NM, CM> = RouteStage::new(
-            final_data.arrival,
+            final_data.rx_end,
             seleted_contact.borrow().get_rx_node(),
             Some(ViaHop {
                 contact: seleted_contact.clone(),
@@ -245,7 +245,7 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
 
         route_proposition.hop_count = sndr_route_borrowed.hop_count + 1;
         route_proposition.cumulative_delay =
-            sndr_route_borrowed.cumulative_delay + final_data.delay;
+            sndr_route_borrowed.cumulative_delay + final_data.rx_end;
         route_proposition.expiration = Date::min(
             final_data.expiration - sndr_route_borrowed.cumulative_delay,
             sndr_route_borrowed.expiration,
