@@ -96,10 +96,7 @@ fn edge_case_example<NM: NodeManager + Parser<NM> + DispatchParser<NM>>(
         HybridParentingPath<NM, EVLManager, SABR>,
     >(cp_path, node_marker_map, None)?;
 
-    println!(
-        "\nRunning with contact plan location={}, and destination node=2 ",
-        cp_path
-    );
+    println!("\nRunning with contact plan location={cp_path}, and destination node=2 ");
 
     let res = mpt_graph.get_next(0.0, 0, &bundle, &[]).unwrap();
 

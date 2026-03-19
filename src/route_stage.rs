@@ -209,17 +209,16 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
             return Err(ASABRError::ScheduleError("Faulty dry run"));
         }
 
-        let arrival_time = res.tx_end + res.delay;
+        let arrival_time = res.rx_end;
 
         if arrival_time > bundle_to_consider.expiration {
             return Err(ASABRError::ScheduleError("Faulty dry run"));
         }
         #[cfg(feature = "node_rx")]
-        if !rx_node.manager.schedule_rx(
-            res.tx_start + res.delay,
-            res.tx_end + res.delay,
-            &bundle_to_consider,
-        ) {
+        if !rx_node
+            .manager
+            .schedule_rx(res.rx_start, res.rx_end, &bundle_to_consider)
+        {
             return Err(ASABRError::ScheduleError("Faulty dry run"));
         }
 
@@ -306,17 +305,16 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
             return Ok(false);
         }
 
-        let arrival_time = res.tx_end + res.delay;
+        let arrival_time = res.rx_end;
 
         if arrival_time > bundle_to_consider.expiration {
             return Ok(false);
         }
         #[cfg(feature = "node_rx")]
-        if !rx_node.manager.dry_run_rx(
-            res.tx_start + res.delay,
-            res.tx_end + res.delay,
-            &bundle_to_consider,
-        ) {
+        if !rx_node
+            .manager
+            .dry_run_rx(res.rx_start, res.rx_end, &bundle_to_consider)
+        {
             return Ok(false);
         }
 

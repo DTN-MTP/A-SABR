@@ -1,10 +1,6 @@
 #[cfg(feature = "first_depleted")]
 use crate::types::Volume;
-use crate::{
-    bundle::Bundle,
-    contact::ContactInfo,
-    types::{Date, Duration},
-};
+use crate::{bundle::Bundle, contact::ContactInfo, types::Date};
 
 pub mod legacy;
 pub mod segmentation;
@@ -15,12 +11,12 @@ pub struct ContactManagerTxData {
     pub tx_start: Date,
     /// The end time of the transmission.
     pub tx_end: Date,
-    /// The last bit transmission delay.
-    pub delay: Duration,
     /// Expiration time.
     pub expiration: Date,
+    /// The first bit arrival time (tx_start + delay).
+    pub rx_start: Date,
     /// The last bit arrival time (tx_end + delay).
-    pub arrival: Date,
+    pub rx_end: Date,
 }
 
 macro_rules! define_contact_manager {

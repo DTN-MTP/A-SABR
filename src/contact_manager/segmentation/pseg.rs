@@ -90,13 +90,14 @@ impl ContactManager for PSegmentationManager {
                 Some(tx_end) => {
                     // the seg is valid, check if this is the last one to consider
                     if tx_end < seg.end {
-                        let delay = super::get_delay(tx_end, &self.delay_intervals);
+                        let (d_start, d_end) =
+                            super::get_delays(tx_start, tx_end, &self.delay_intervals);
                         return Some(ContactManagerTxData {
                             tx_start,
                             tx_end,
-                            delay,
                             expiration: seg.end,
-                            arrival: tx_end + delay,
+                            rx_start: tx_start + d_start,
+                            rx_end: tx_end + d_end,
                         });
                     }
                     // if we reach this point, the seg is valid, but transmission didn't reach terminaison, check next
@@ -112,13 +113,14 @@ impl ContactManager for PSegmentationManager {
                         contact_data.end,
                     ) {
                         if tx_end < seg.end {
-                            let delay = super::get_delay(tx_end, &self.delay_intervals);
+                            let (d_start, d_end) =
+                                super::get_delays(tx_start, tx_end, &self.delay_intervals);
                             return Some(ContactManagerTxData {
                                 tx_start,
                                 tx_end,
-                                delay,
                                 expiration: seg.end,
-                                arrival: tx_end + delay,
+                                rx_start: tx_start + d_start,
+                                rx_end: tx_end + d_end,
                             });
                         }
                         tx_end_opt = Some(tx_end);

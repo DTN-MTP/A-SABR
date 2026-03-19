@@ -15,7 +15,7 @@ fn main() {
     let mut my_lexer = match mylexer_res {
         Ok(val) => val,
         Err(err) => {
-            println!("{}", err);
+            println!("{err}");
             return;
         }
     };
@@ -27,7 +27,7 @@ fn main() {
     ) {
         Ok(contact_plan) => contact_plan,
         Err(err) => {
-            println!("{}", err);
+            println!("{err}");
             return;
         }
     };
