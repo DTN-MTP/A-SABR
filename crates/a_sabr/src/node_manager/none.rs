@@ -1,3 +1,6 @@
+use a_sabr_macros::{DefaultNodeManager, DefaultNodeRx, DefaultNodeTx};
+
+use crate::node_manager::{NodeRx, NodeTx};
 use crate::parsing::{DispatchParser, Lexer, Parser, ParsingState};
 
 use crate::{bundle::Bundle, types::Date};
@@ -5,38 +8,10 @@ use crate::{bundle::Bundle, types::Date};
 use super::NodeManager;
 
 /// Use this manager if no node management shall be considered (with or without the node_proc compilation feature).
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct NoManagement {}
-
 /// This manager has no effect.
-impl NodeManager for NoManagement {
-    #[cfg(feature = "node_proc")]
-    fn dry_run_process(&self, at_time: Date, _bundle: &mut Bundle) -> Date {
-        at_time
-    }
-    fn dry_run_tx(&self, _waiting_since: Date, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        true
-    }
-    fn dry_run_rx(&self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        true
-    }
-    #[cfg(feature = "node_proc")]
-    fn schedule_process(&self, at_time: Date, _bundle: &mut Bundle) -> Date {
-        at_time
-    }
-    fn schedule_tx(
-        &mut self,
-        _waiting_since: Date,
-        _start: Date,
-        _end: Date,
-        _bundle: &Bundle,
-    ) -> bool {
-        true
-    }
-    fn schedule_rx(&mut self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        true
-    }
-}
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(DefaultNodeRx, DefaultNodeTx, DefaultNodeManager)]
+pub struct NoManagement {}
 
 /// Implements the DispatchParser to allow dynamic parsing.
 impl DispatchParser<NoManagement> for NoManagement {}

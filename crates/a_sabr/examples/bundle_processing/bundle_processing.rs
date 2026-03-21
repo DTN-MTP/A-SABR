@@ -3,6 +3,7 @@ use a_sabr::contact_manager::legacy::evl::EVLManager;
 use a_sabr::distance::sabr::SABR;
 use a_sabr::node_manager::NodeManager;
 use a_sabr::node_manager::none::NoManagement;
+use a_sabr::node_manager::{NodeRx, NodeTx};
 use a_sabr::parsing::coerce_nm;
 use a_sabr::parsing::{DispatchParser, Lexer, Parser, ParsingState};
 use a_sabr::parsing::{NodeMarkerMap, StaticMarkerMap};
@@ -12,8 +13,10 @@ use a_sabr::types::Date;
 use a_sabr::types::Priority;
 use a_sabr::types::Token;
 use a_sabr::utils::{init_pathfinding, pretty_print};
+use a_sabr_macros::{DefaultNodeRx, DefaultNodeTx};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(DefaultNodeRx, DefaultNodeTx)]
 struct Compressing {
     max_priority: Priority,
 }

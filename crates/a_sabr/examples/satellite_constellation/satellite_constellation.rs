@@ -3,6 +3,7 @@ use a_sabr::contact_manager::legacy::evl::EVLManager;
 use a_sabr::distance::sabr::SABR;
 use a_sabr::node_manager::NodeManager;
 use a_sabr::node_manager::none::NoManagement;
+use a_sabr::node_manager::{NodeRx, NodeTx};
 use a_sabr::parsing::NodeMarkerMap;
 use a_sabr::parsing::coerce_nm;
 use a_sabr::parsing::{DispatchParser, Lexer, Parser, ParsingState, StaticMarkerMap};
@@ -12,13 +13,15 @@ use a_sabr::types::Date;
 use a_sabr::types::Duration;
 use a_sabr::types::Token;
 use a_sabr::utils::{init_pathfinding, pretty_print};
+use a_sabr_macros::{DefaultNodeManager, DefaultNodeRx};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(DefaultNodeRx, DefaultNodeManager)]
 struct NoRetention {
     max_proc_time: Duration,
 }
 
-impl NodeManager for NoRetention {
+impl NodeTx for NoRetention {
     fn dry_run_tx(&self, waiting_since: Date, start: Date, _end: Date, _bundle: &Bundle) -> bool {
         start - waiting_since < self.max_proc_time
     }
