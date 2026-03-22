@@ -107,13 +107,13 @@ impl ContactManager for SegmentationManager {
                 continue;
             };
 
-            let delay = super::get_delay(tx_end, &self.delay_intervals);
+            let (d_start, d_end) = super::get_delays(tx_start, tx_end, &self.delay_intervals);
             return Some(ContactManagerTxData {
                 tx_start,
                 tx_end,
-                delay,
                 expiration: free_seg.end,
-                arrival: tx_end + delay,
+                rx_start: tx_start + d_start,
+                rx_end: tx_end + d_end,
             });
         }
         None
@@ -158,7 +158,7 @@ impl ContactManager for SegmentationManager {
 
         let interval = &mut self.free_intervals[index];
         let expiration = interval.end;
-        let delay = super::get_delay(tx_end, &self.delay_intervals);
+        let (d_start, d_end) = super::get_delays(tx_start, tx_end, &self.delay_intervals);
 
         if interval.start != tx_start {
             interval.end = tx_start;
@@ -177,9 +177,9 @@ impl ContactManager for SegmentationManager {
         Some(ContactManagerTxData {
             tx_start,
             tx_end,
-            delay,
             expiration,
-            arrival: tx_end + delay,
+            rx_start: tx_start + d_start,
+            rx_end: tx_end + d_end,
         })
     }
 

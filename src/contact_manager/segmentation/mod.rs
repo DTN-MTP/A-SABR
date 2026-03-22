@@ -27,14 +27,29 @@ pub struct Segment<T> {
 ///
 /// The delay value for the corresponding interval, or `Duration::MAX` if no interval applies.
 #[inline(always)]
-fn get_delay(tx_end: Date, delay_intervals: &Vec<Segment<Duration>>) -> Duration {
+fn get_delays(
+    tx_start: Date,
+    tx_end: Date,
+    delay_intervals: &Vec<Segment<Duration>>,
+) -> (Duration, Duration) {
+    let mut i = 0;
+    let mut start_delay = Duration::MAX;
+
     for delay_seg in delay_intervals {
-        if tx_end > delay_seg.end {
-            continue;
+        if tx_start <= delay_seg.end {
+            start_delay = delay_seg.val;
+            break;
         }
-        return delay_seg.val;
+        i += 1;
     }
-    Duration::MAX
+
+    for delay_seg in &delay_intervals[i..] {
+        if tx_end <= delay_seg.end {
+            return (start_delay, delay_seg.val);
+        }
+    }
+
+    (start_delay, Duration::MAX)
 }
 
 /// Attempts to initialize segmentation state by validating interval coverage.

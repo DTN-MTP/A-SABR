@@ -311,9 +311,9 @@ macro_rules! generate_prio_volume_manager {
                 Some($crate::contact_manager::ContactManagerTxData {
                     tx_start,
                     tx_end,
-                    delay: self.delay,
                     expiration: contact_data.end,
-                    arrival: self.delay + tx_end,
+                    rx_start: self.delay + tx_start,
+                    rx_end: self.delay + tx_end,
                 })
             }
 
