@@ -31,7 +31,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: swatinem/rust-cache@v2
       - name: Run Tests
-        run: cargo test --all-features --all-targets
+        run: cargo test --workspace --all-features --all-targets
 
   coverage:
     name: Code Coverage
@@ -43,7 +43,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: swatinem/rust-cache@v2
       - uses: taiki-e/install-action@cargo-tarpaulin
-      - run: cargo tarpaulin --ignore-tests --out Html
+      - run: cargo tarpaulin --workspace --ignore-tests --out Html
       - uses: actions/upload-artifact@v4
         with:
           name: code-coverage-report
