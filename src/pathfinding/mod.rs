@@ -247,7 +247,7 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
 
         route_proposition.hop_count = sndr_route_borrowed.hop_count + 1;
         route_proposition.cumulative_delay =
-            sndr_route_borrowed.cumulative_delay + final_data.rx_end;
+            sndr_route_borrowed.cumulative_delay + final_data.rx_end - final_data.tx_end;
         route_proposition.expiration = Date::min(
             final_data.expiration - sndr_route_borrowed.cumulative_delay,
             sndr_route_borrowed.expiration,
