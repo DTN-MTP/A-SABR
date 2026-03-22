@@ -110,11 +110,12 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
     pub fn new(contact_plan: ContactPlan<NM, CM>) -> Result<Self, ASABRError> {
         let mut nodes = contact_plan.nodes;
         let mut contacts = contact_plan.contacts;
-        // the contacts might not be sorted
-        // having a sorted list of contacts allow easy multigraph creation
+
         let node_count = nodes.len();
         let mut senders: Vec<Sender<NM, CM>> = Vec::with_capacity(node_count);
 
+        // the contacts might not be sorted
+        // having a sorted list of contacts allow easy multigraph creation
         contacts.sort_unstable();
         nodes.sort_unstable();
 
@@ -131,10 +132,14 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
             all_refs.push(node_ref)
         }
 
+        // The following creates the `Sender`/`Receiver`s pairs from every contact.
+        // Contacts are sorted and iterated over in reverse.
         while let Some(last_contact) = contacts.last() {
             let tx_id = last_contact.get_tx_node();
             let rx_id = last_contact.get_rx_node();
 
+            // Count how many contacts have the same Tx and Rx nodes as `last_contact`.
+            // There should be at least one (`last_contact` itself).
             let mut contact_count_to_drain = 0;
 
             for contact in contacts.iter().rev() {
@@ -146,14 +151,16 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
                 contact_count_to_drain += 1;
             }
 
-            let first_to_drain = contacts.len() - contact_count_to_drain;
+            // Transfer said contact·s from `contacts` to `contacts_to_receiver`.
             let mut contacts_to_receiver = Vec::with_capacity(contact_count_to_drain);
+            let first_to_drain = contacts.len() - contact_count_to_drain;
             let drain = contacts.drain(first_to_drain..);
 
             for contact in drain {
                 contacts_to_receiver.push(Rc::new(RefCell::new(contact)));
             }
 
+            // Transfer to `Sender`/`Receiver`s pair.
             senders[tx_id as usize].receivers.push(Receiver {
                 node: all_refs[rx_id as usize].clone(),
                 contacts_to_receiver,
