@@ -154,8 +154,9 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
     ///
     /// This function schedules the transmission by interacting with the contact manager and the nodes
     /// in the `node_list`. If node management is enabled (features node_rx, node_tx, and node_proc),
-    /// the nodes will be queried for their transmission and reception schedules. The function will return `true`
-    /// if the scheduling is successful and the bundle is scheduled, or `false` if any failure occurs.
+    /// the nodes will be queried for their transmission and reception schedules. The function will
+    /// return Ok(()) if the scheduling is successful and the bundle is scheduled, or an error if
+    /// any failure occurs.
     ///
     /// # Arguments
     ///
