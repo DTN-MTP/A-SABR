@@ -35,4 +35,27 @@ mod tests {
     crate::generate_auto_update_tests!(evl, pevl);
     crate::generate_budget_tests!(pbevl);
     crate::generate_budget_auto_update_tests!(pbevl);
+
+    #[test]
+    fn tx_start_unaffected_by_queue_occupancy() {
+        let mut manager = evl();
+        let contact = make_contact_info(C_START, C_END);
+        let before = manager.dry_run_tx(&contact, C_START, &bp0(1000.0)).unwrap();
+        manager
+            .schedule_tx(&contact, C_START, &bp0(1000.0))
+            .unwrap();
+        manager
+            .schedule_tx(&contact, C_START, &bp0(1000.0))
+            .unwrap();
+        manager
+            .schedule_tx(&contact, C_START, &bp0(1000.0))
+            .unwrap();
+
+        let after = manager.dry_run_tx(&contact, C_START, &bp0(1000.0)).unwrap();
+
+        assert_eq!(
+            before.tx_start, after.tx_start,
+            "TEST FAILED: EVL tx_start should not be affected by queue occupancy."
+        );
+    }
 }
