@@ -28,12 +28,12 @@ impl VirtualNodeMap {
     }
 
     /// This method reverses the HashMap keys and values before returning a corresponding NodeIDMap
-    pub fn get_rid_to_vnodes_map(self) -> NodeIDMap {
+    pub fn get_rid_to_vnodes_map(&self) -> NodeIDMap {
         let mut reversed: HashMap<NodeID, Vec<NodeID>> = HashMap::new();
 
-        for (vnode, rids) in self.vnode_map {
+        for (vnode, rids) in &self.vnode_map {
             for rid in rids {
-                reversed.entry(rid).or_default().push(vnode);
+                reversed.entry(*rid).or_default().push(*vnode);
             }
         }
 
