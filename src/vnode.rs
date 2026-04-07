@@ -74,6 +74,7 @@ impl Parser<VirtualNodeInfo> for VirtualNodeInfo {
 /// Represents a HashMap wich stores virtual node IDs as keys and real node ID lists as values
 #[derive(Debug, Default)]
 pub struct VirtualNodeMap {
+    /// A vnode to nodes NodeIDMap.
     vnode_map: NodeIDMap,
 }
 
@@ -98,5 +99,14 @@ impl VirtualNodeMap {
         }
 
         reversed
+    }
+
+    /// Returns the total number of vnodes in the vnode map.
+    ///
+    /// # Returns
+    ///
+    /// * `usize` - The total number of nodes.
+    pub fn get_vnode_count(&self) -> usize {
+        self.vnode_map.len()
     }
 }
