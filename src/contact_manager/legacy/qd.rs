@@ -41,12 +41,10 @@ mod tests {
         let mut manager = qd();
         let contact = make_contact_info(C_START, C_END);
 
-        // 2000 bytes schedulés → queue_size/rate = 2000/1000 = 2s de décalage
         manager
             .schedule_tx(&contact, C_START, &bp0(2000.0))
             .unwrap();
 
-        // at_time=0 < contact_start décalé (2.0) → tx_start doit être 2.0
         let data = manager.dry_run_tx(&contact, C_START, &bp0(100.0)).unwrap();
         assert_eq!(
             data.tx_start, 2.0,
@@ -59,12 +57,10 @@ mod tests {
         let mut manager = qd();
         let contact = make_contact_info(C_START, C_END);
 
-        // queue décale contact_start à 2.0
         manager
             .schedule_tx(&contact, C_START, &bp0(2000.0))
             .unwrap();
 
-        // at_time=5.0 > 2.0 → tx_start doit être at_time, pas le décalage
         let data = manager.dry_run_tx(&contact, 5.0, &bp0(100.0)).unwrap();
         assert_eq!(
             data.tx_start, 5.0,
