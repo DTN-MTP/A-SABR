@@ -154,7 +154,7 @@ macro_rules! define_contact_graph {
 
                     for receiver in &sender.receivers {
                         if $with_exclusions {
-                            if receiver.is_excluded() {
+                            if receiver.is_excluded(&graph.nodes) {
                                 continue;
                             }
                         }
@@ -187,7 +187,7 @@ macro_rules! define_contact_graph {
                                     }
                                 }
                                 if push {
-                                    let rx_node_id = receiver.node.borrow().info.id;
+                                    let rx_node_id = receiver.vertex_id;
 
                                     if let Some(hop) = &route_proposition.via {
                                         let route_proposition_ref = Rc::new(RefCell::new(

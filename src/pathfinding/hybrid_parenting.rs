@@ -327,7 +327,7 @@ macro_rules! define_mpt {
 
                     for receiver in &sender.receivers {
                         if $with_exclusions {
-                            if receiver.is_excluded() {
+                            if receiver.is_excluded(&graph.nodes) {
                                 continue;
                             }
                         }

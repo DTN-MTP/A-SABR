@@ -8,10 +8,11 @@ use crate::contact_plan::ContactPlan;
 use crate::errors::ASABRError;
 use crate::node_manager::NodeManager;
 use crate::types::*;
+use crate::vertex::VertexID;
 
 /// Represents a sender node in a routing system, with associated receivers.
 ///
-/// The `Sender` struct holds a reference to a sender node and a list of `Receiver`
+/// The `Sender` struct holds the ID of a sender vertex and a list of `Receiver`
 /// instances that represent the intended recipients for messages or routing actions.
 ///
 /// # Generic Parameters
@@ -19,8 +20,8 @@ use crate::types::*;
 /// - `CM`: A type implementing the `ContactManager` trait, responsible for managing contact-level operations.
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Sender<NM: NodeManager, CM: ContactManager> {
-    /// The node represented by this sender, wrapped in `Rc<RefCell<...>>` for shared ownership and mutability.
-    pub node: Rc<RefCell<Node<NM>>>,
+    /// The ID of the vertex represented by this sender.
+    pub vertex_id: VertexID,
     /// A list of receivers that this sender can communicate with or send data to.
     pub receivers: Vec<Receiver<NM, CM>>,
 }
@@ -35,8 +36,8 @@ pub struct Sender<NM: NodeManager, CM: ContactManager> {
 /// - `CM`: A type implementing the `ContactManager` trait, managing contact-level operations.
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Receiver<NM: NodeManager, CM: ContactManager> {
-    /// The node represented by this receiver, wrapped in `Rc<RefCell<...>>`.
-    pub node: Rc<RefCell<Node<NM>>>,
+    /// The ID of the vertex represented by this receiver.
+    pub vertex_id: VertexID,
     /// A list of contacts providing paths to this receiver.
     pub contacts_to_receiver: Vec<Rc<RefCell<Contact<NM, CM>>>>,
     /// The index of the next contact to be checked for relevance.
@@ -76,8 +77,12 @@ impl<NM: NodeManager, CM: ContactManager> Receiver<NM, CM> {
     /// # Returns
     /// - `true`: If the receiver node is excluded.
     /// - `false`: If the receiver node is included.
-    pub fn is_excluded(&self) -> bool {
-        return self.node.borrow().info.excluded;
+    pub fn is_excluded(&self, nodes: &[Rc<RefCell<Node<NM>>>]) -> bool {
+        if self.vertex_id as usize >= nodes.len() {
+            // It's a vnode
+            return false;
+        }
+        return nodes[self.vertex_id as usize].borrow().info.excluded;
     }
 }
 
@@ -122,12 +127,13 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
 
         let mut all_refs = Vec::with_capacity(node_count);
 
+        // Create the `Sender` of each node, and populate node refs in all_refs.
         for node in nodes {
             let node_ref = Rc::new(RefCell::new(node));
-            // to avoid realloc and preprocessing to get the perfect layout
-            // we just alloc with the worst case capacity and we shrink later
             senders.push(Sender {
-                node: Rc::clone(&node_ref),
+                vertex_id: node_ref.try_borrow()?.get_node_id(),
+                // to avoid realloc and preprocessing to get the perfect layout
+                // we just alloc with the worst case capacity and we shrink later
                 receivers: Vec::with_capacity(node_count),
             });
             all_refs.push(node_ref)
@@ -163,7 +169,7 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
 
             // Transfer to `Sender`/`Receiver`s pair.
             senders[tx_id as usize].receivers.push(Receiver {
-                node: all_refs[rx_id as usize].clone(),
+                vertex_id: rx_id,
                 contacts_to_receiver,
                 next: RefCell::new(0),
             });
@@ -200,10 +206,16 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
 
         for (node_id, sender) in self.senders.iter_mut().enumerate() {
             if exclusion_idx < exclusion_len && exclusions[exclusion_idx] as usize == node_id {
-                sender.node.try_borrow_mut()?.info.excluded = true;
+                self.nodes[sender.vertex_id as usize]
+                    .try_borrow_mut()?
+                    .info
+                    .excluded = true;
                 exclusion_idx += 1;
             } else {
-                sender.node.try_borrow_mut()?.info.excluded = false;
+                self.nodes[sender.vertex_id as usize]
+                    .try_borrow_mut()?
+                    .info
+                    .excluded = false;
             }
         }
         Ok(())
