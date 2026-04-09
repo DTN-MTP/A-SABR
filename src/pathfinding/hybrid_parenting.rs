@@ -323,9 +323,9 @@ macro_rules! define_mpt {
                         }
                     }
 
-                    let sender = &mut graph.senders[tx_node_id as usize];
+                    let sender = &graph.senders[tx_node_id as usize];
 
-                    for receiver in &mut sender.receivers {
+                    for receiver in &sender.receivers {
                         if $with_exclusions {
                             if receiver.is_excluded() {
                                 continue;
@@ -339,8 +339,7 @@ macro_rules! define_mpt {
                                 &from_route,
                                 bundle,
                                 &receiver.contacts_to_receiver,
-                                &sender.node,
-                                &receiver.node,
+                                &graph.nodes,
                             )
                             // This transforms a prop in the stack to a prop in the heap
                             && let Some(new_route) =
