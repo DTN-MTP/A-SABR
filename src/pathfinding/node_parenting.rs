@@ -124,7 +124,7 @@ macro_rules! define_node_graph {
 
                     for receiver in &sender.receivers {
                         if $with_exclusions {
-                            if receiver.is_excluded() {
+                            if receiver.is_excluded(&graph.nodes) {
                                 continue;
                             }
                         }
@@ -139,7 +139,7 @@ macro_rules! define_node_graph {
                                 &graph.nodes,
                             )
                         {
-                            let idx = receiver.node.borrow().info.id as usize;
+                            let idx = receiver.vertex_id as usize;
                             let push = match tree.by_destination[idx].as_ref() {
                                 Some(known_route_ref) => {
                                     let mut known_route = known_route_ref.try_borrow_mut()?;
