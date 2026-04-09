@@ -119,9 +119,10 @@ macro_rules! define_node_graph {
                             break;
                         }
                     }
-                    let sender = &mut graph.senders[tx_node_id as usize];
 
-                    for receiver in &mut sender.receivers {
+                    let sender = &graph.senders[tx_node_id as usize];
+
+                    for receiver in &sender.receivers {
                         if $with_exclusions {
                             if receiver.is_excluded() {
                                 continue;
@@ -135,8 +136,7 @@ macro_rules! define_node_graph {
                                 &from_route,
                                 bundle,
                                 &receiver.contacts_to_receiver,
-                                &sender.node,
-                                &receiver.node,
+                                &graph.nodes,
                             )
                         {
                             let idx = receiver.node.borrow().info.id as usize;

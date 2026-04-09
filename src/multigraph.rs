@@ -40,7 +40,7 @@ pub struct Receiver<NM: NodeManager, CM: ContactManager> {
     /// A list of contacts providing paths to this receiver.
     pub contacts_to_receiver: Vec<Rc<RefCell<Contact<NM, CM>>>>,
     /// The index of the next contact to be checked for relevance.
-    pub next: usize,
+    pub next: RefCell<usize>,
 }
 
 impl<NM: NodeManager, CM: ContactManager> Receiver<NM, CM> {
@@ -56,10 +56,11 @@ impl<NM: NodeManager, CM: ContactManager> Receiver<NM, CM> {
     /// # Returns
     /// - `Some(usize)`: The index of the first valid contact if found.
     /// - `None`: If no valid contact is found.
-    pub fn lazy_prune_and_get_first_idx(&mut self, current_time: Date) -> Option<usize> {
-        for (idx, contact) in self.contacts_to_receiver.iter().enumerate().skip(self.next) {
+    pub fn lazy_prune_and_get_first_idx(&self, current_time: Date) -> Option<usize> {
+        let mut next_mut = self.next.borrow_mut();
+        for (idx, contact) in self.contacts_to_receiver.iter().enumerate().skip(*next_mut) {
             if contact.borrow().info.end > current_time {
-                self.next = idx;
+                *next_mut = idx;
                 return Some(idx);
             }
         }
@@ -164,7 +165,7 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
             senders[tx_id as usize].receivers.push(Receiver {
                 node: all_refs[rx_id as usize].clone(),
                 contacts_to_receiver,
-                next: 0,
+                next: RefCell::new(0),
             });
         }
 

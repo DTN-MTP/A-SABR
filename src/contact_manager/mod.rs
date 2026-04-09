@@ -6,7 +6,7 @@ pub mod legacy;
 pub mod segmentation;
 
 /// Data structure representing the transmission (tx) start, end, and related timing information.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ContactManagerTxData {
     /// The start time of the transmission.
     pub tx_start: Date,

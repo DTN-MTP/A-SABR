@@ -250,8 +250,7 @@ pub(crate) fn exemple_2_graph()
 pub(crate) struct HopContext<NM: NodeManager> {
     pub bundle: Bundle,
     pub source: SharedRouteStage<NM, EVLManager>,
-    pub tx: Rc<RefCell<Node<NM>>>,
-    pub rx: Rc<RefCell<Node<NM>>>,
+    pub nodes: Vec<Rc<RefCell<Node<NM>>>>,
 }
 
 pub(crate) fn make_hop_context(size: f64) -> HopContext<NoManagement> {
@@ -259,10 +258,10 @@ pub(crate) fn make_hop_context(size: f64) -> HopContext<NoManagement> {
     let source = make_source::<NoManagement>(0.0, 0, &bundle);
     let tx = make_node_rc(0, "A", NoManagement {});
     let rx = make_node_rc(1, "B", NoManagement {});
+    let nodes = vec![tx, rx];
     HopContext {
         bundle,
         source,
-        tx,
-        rx,
+        nodes,
     }
 }

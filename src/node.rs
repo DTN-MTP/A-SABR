@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::{cell::RefCell, cmp::Ordering, rc::Rc};
 
 use crate::{
     node_manager::NodeManager,
@@ -32,6 +32,8 @@ pub struct Node<NM: NodeManager> {
     /// The manager responsible for handling the node's operations.
     pub manager: NM,
 }
+
+pub type SharedNode<NM> = Rc<RefCell<Node<NM>>>;
 
 impl<NM: NodeManager> Node<NM> {
     /// Tries to create a new instance of `Node`.
