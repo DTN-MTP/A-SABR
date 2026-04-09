@@ -18,7 +18,7 @@ pub type NodeName = String;
 pub type Duration = f64;
 
 /// Represents a date (could represent days since a specific epoch).
-pub type Date = f64;
+pub type Date = Duration;
 
 /// Represents the priority of a task or node.
 pub type Priority = i8;
