@@ -13,6 +13,7 @@ use crate::pathfinding::NodeID;
 use crate::pathfinding::PathFindingOutput;
 use crate::route_stage::{RouteStage, SharedRouteStage};
 use crate::types::Date;
+use crate::vertex::Vertex;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -84,20 +85,26 @@ impl NodeManager for MockNodeManager {
     }
 }
 
-pub(crate) fn make_node<NM: NodeManager>(id: u16, name: &str, nm: NM) -> Node<NM> {
-    Node::try_new(
-        NodeInfo {
-            id,
-            name: name.into(),
-            excluded: false,
-        },
-        nm,
+pub(crate) fn make_vertex<NM: NodeManager>(id: u16, name: &str, nm: NM) -> Vertex<NM> {
+    Vertex::INode(
+        Node::try_new(
+            NodeInfo {
+                id,
+                name: name.into(),
+                excluded: false,
+            },
+            nm,
+        )
+        .unwrap(),
     )
-    .unwrap()
 }
 
 pub(crate) fn make_node_rc<NM: NodeManager>(id: u16, name: &str, nm: NM) -> Rc<RefCell<Node<NM>>> {
-    Rc::new(RefCell::new(make_node(id, name, nm)))
+    let vertex = make_vertex(id, name, nm);
+    match vertex {
+        Vertex::INode(node) => Rc::new(RefCell::new(node)),
+        _ => unreachable!(),
+    }
 }
 
 pub(crate) fn make_contact<NM: NodeManager>(
@@ -175,9 +182,9 @@ pub(crate) fn unit_graph_test()
 -> Result<Rc<RefCell<Multigraph<NoManagement, EVLManager>>>, ASABRError> {
     Ok(Rc::new(RefCell::new(Multigraph::new(ContactPlan::new(
         vec![
-            make_node(0, "A", NoManagement {}),
-            make_node(1, "B", NoManagement {}),
-            make_node(2, "C", NoManagement {}),
+            make_vertex(0, "A", NoManagement {}),
+            make_vertex(1, "B", NoManagement {}),
+            make_vertex(2, "C", NoManagement {}),
         ],
         vec![
             make_contact::<NoManagement>(0, 1, 0.0, 2000.0, 100.0, 1.0),
@@ -191,10 +198,10 @@ pub(crate) fn five_contact_graph_test()
 -> Result<Rc<RefCell<Multigraph<NoManagement, EVLManager>>>, ASABRError> {
     Ok(Rc::new(RefCell::new(Multigraph::new(ContactPlan::new(
         vec![
-            make_node(0, "A", NoManagement {}),
-            make_node(1, "B", NoManagement {}),
-            make_node(2, "C", NoManagement {}),
-            make_node(3, "D", NoManagement {}),
+            make_vertex(0, "A", NoManagement {}),
+            make_vertex(1, "B", NoManagement {}),
+            make_vertex(2, "C", NoManagement {}),
+            make_vertex(3, "D", NoManagement {}),
         ],
         vec![
             make_contact::<NoManagement>(0, 1, 0.0, 2000.0, 100.0, 0.01),
@@ -211,10 +218,10 @@ pub(crate) fn exemple_1_graph()
 -> Result<Rc<RefCell<Multigraph<NoManagement, EVLManager>>>, ASABRError> {
     Ok(Rc::new(RefCell::new(Multigraph::new(ContactPlan::new(
         vec![
-            make_node(0, "source", NoManagement {}),
-            make_node(1, "from_C0", NoManagement {}),
-            make_node(2, "from_C2_C1", NoManagement {}),
-            make_node(3, "from_C3", NoManagement {}),
+            make_vertex(0, "source", NoManagement {}),
+            make_vertex(1, "from_C0", NoManagement {}),
+            make_vertex(2, "from_C2_C1", NoManagement {}),
+            make_vertex(3, "from_C3", NoManagement {}),
         ],
         vec![
             make_contact::<NoManagement>(0, 1, 0.0, 10.0, 1.0, 0.0),
@@ -230,11 +237,11 @@ pub(crate) fn exemple_2_graph()
 -> Result<Rc<RefCell<Multigraph<NoManagement, EVLManager>>>, ASABRError> {
     Ok(Rc::new(RefCell::new(Multigraph::new(ContactPlan::new(
         vec![
-            make_node(0, "source", NoManagement {}),
-            make_node(1, "from_C0", NoManagement {}),
-            make_node(2, "from_C2_C1", NoManagement {}),
-            make_node(3, "from_C3", NoManagement {}),
-            make_node(4, "from_C4", NoManagement {}),
+            make_vertex(0, "source", NoManagement {}),
+            make_vertex(1, "from_C0", NoManagement {}),
+            make_vertex(2, "from_C2_C1", NoManagement {}),
+            make_vertex(3, "from_C3", NoManagement {}),
+            make_vertex(4, "from_C4", NoManagement {}),
         ],
         vec![
             make_contact::<NoManagement>(0, 1, 0.0, 10.0, 1.0, 0.0),

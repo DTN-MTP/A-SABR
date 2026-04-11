@@ -14,6 +14,7 @@ use crate::{
     node::{Node, NodeInfo},
     node_manager::{NodeManager, none::NoManagement},
     types::{DataRate, Date, Duration, NodeID},
+    vertex::Vertex,
 };
 
 use std::{cmp::Ordering, collections::HashMap};
@@ -113,14 +114,14 @@ pub struct IONContactPlan {}
 fn manage_aliases(
     map_id_map: &mut HashMap<String, NodeID>,
     candidate_name: &String,
-    nodes: &mut Vec<Node<NoManagement>>,
+    vertices: &mut Vec<Vertex<NoManagement>>,
 ) -> NodeID {
     if let Some(value) = map_id_map.get(candidate_name) {
         *value
     } else {
         let next = map_id_map.len() as NodeID;
         map_id_map.insert(candidate_name.clone(), next);
-        nodes.push(
+        vertices.push(Vertex::INode(
             Node::try_new(
                 NodeInfo {
                     id: next as NodeID,
@@ -130,7 +131,7 @@ fn manage_aliases(
                 NoManagement {},
             )
             .unwrap(),
-        );
+        ));
         next
     }
 }
@@ -176,7 +177,7 @@ impl IONContactPlan {
 
         let mut contact_count = 0;
         let mut contacts = vec![];
-        let mut nodes = vec![];
+        let mut vertices = vec![];
 
         loop {
             let mut line = String::new();
@@ -201,8 +202,8 @@ impl IONContactPlan {
             if words[1].as_str() == "contact" {
                 let tx_start: Date = words[2].parse().unwrap();
                 let tx_end: Date = words[3].parse().unwrap();
-                let tx_node_id = manage_aliases(&mut map_id_map, &words[4], &mut nodes);
-                let rx_node_id = manage_aliases(&mut map_id_map, &words[5], &mut nodes);
+                let tx_node_id = manage_aliases(&mut map_id_map, &words[4], &mut vertices);
+                let rx_node_id = manage_aliases(&mut map_id_map, &words[5], &mut vertices);
                 let data_rate: DataRate = words[6].parse().unwrap();
                 let confidence = get_confidence(&words);
                 contact_count += 1;
@@ -223,8 +224,8 @@ impl IONContactPlan {
             if words[1].as_str() == "range" {
                 let tx_start: Date = words[2].parse().unwrap();
                 let tx_end: Date = words[3].parse().unwrap();
-                let tx_node_id = manage_aliases(&mut map_id_map, &words[4], &mut nodes);
-                let rx_node_id = manage_aliases(&mut map_id_map, &words[5], &mut nodes);
+                let tx_node_id = manage_aliases(&mut map_id_map, &words[4], &mut vertices);
+                let rx_node_id = manage_aliases(&mut map_id_map, &words[5], &mut vertices);
                 let delay: Duration = words[6].parse().unwrap();
                 ranges.push(IONRangeData {
                     tx_start,
@@ -266,6 +267,6 @@ impl IONContactPlan {
             ))?;
         }
 
-        Ok(ContactPlan::new(nodes, contacts, None)?)
+        Ok(ContactPlan::new(vertices, contacts, None)?)
     }
 }

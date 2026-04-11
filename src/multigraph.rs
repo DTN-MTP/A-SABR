@@ -8,7 +8,7 @@ use crate::contact_plan::ContactPlan;
 use crate::errors::ASABRError;
 use crate::node_manager::NodeManager;
 use crate::types::*;
-use crate::vertex::VertexID;
+use crate::vertex::{Vertex, VertexID};
 
 /// Represents a sender node in a routing system, with associated receivers.
 ///
@@ -114,7 +114,14 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
     ///
     /// * `Self` - A new instance of `Multigraph`.
     pub fn new(contact_plan: ContactPlan<NM, CM>) -> Result<Self, ASABRError> {
-        let mut nodes = contact_plan.nodes;
+        let mut nodes: Vec<Node<NM>> = contact_plan
+            .vertices
+            .into_iter()
+            .filter_map(|v| match v {
+                Vertex::INode(node) => Some(node),
+                _ => None,
+            })
+            .collect();
         let mut contacts = contact_plan.contacts;
 
         let node_count = nodes.len();

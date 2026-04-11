@@ -5,6 +5,7 @@ use crate::{
     node::{Node, NodeInfo},
     parsing::{Parser, StaticMarkerMap},
     types::{NodeID, NodeIDMap, NodeName},
+    vertex::Vertex,
     vnode::{VirtualNodeInfo, VirtualNodeMap},
 };
 use crate::{
@@ -60,7 +61,6 @@ impl ASABRContactPlan {
     /// # Parameters
     ///
     /// * `node` - The `Node` to be added to the plan.
-    /// * `nodes` - A mutable reference to a vector of nodes, where the new node will be stored.
     ///
     /// # Returns
     ///
@@ -71,8 +71,7 @@ impl ASABRContactPlan {
     ///
     /// * `NM` - A generic type that implements the `NodeManager` trait, used to manage the node.
     fn add_node<NM: NodeManager>(
-        node: Node<NM>,
-        nodes: &mut Vec<Node<NM>>,
+        node: &Node<NM>,
         max_node_id_in_nodes: &mut usize,
         known_node_ids: &mut HashSet<NodeID>,
         known_node_names: &mut HashSet<NodeName>,
@@ -89,7 +88,6 @@ impl ASABRContactPlan {
         *max_node_id_in_nodes = max(*max_node_id_in_nodes, node_id.into());
         known_node_ids.insert(node_id);
         known_node_names.insert(node_name);
-        nodes.push(node);
         Ok(())
     }
 
@@ -106,8 +104,9 @@ impl ASABRContactPlan {
     ///
     /// * `Result<(), String>` - Returns `Ok(())` if the node was successfully added, or an error message
     ///   if any of the error control checks fail.
-    fn add_vnode(
+    fn add_vnode<NM: NodeManager>(
         vnode_info: VirtualNodeInfo,
+        vertices: &mut Vec<Vertex<NM>>,
         vnode_map: &mut NodeIDMap,
         known_node_ids: &HashSet<NodeID>,
         max_node_id_in_nodes: &mut usize,
@@ -149,6 +148,7 @@ impl ASABRContactPlan {
         }
 
         vnode_map.insert(vnode_info.vid, vnode_info.rids);
+        vertices.push(Vertex::VNode(vnode_info.vid));
 
         Ok(())
     }
@@ -186,7 +186,7 @@ impl ASABRContactPlan {
         contact_marker_map: Option<&StaticMarkerMap<CM>>,
     ) -> Result<ContactPlan<NM, CM>, String> {
         let mut contacts: Vec<Contact<NM, CM>> = Vec::new();
-        let mut nodes: Vec<Node<NM>> = Vec::new();
+        let mut vertices: Vec<Vertex<NM>> = Vec::new();
         let mut vnode_map: NodeIDMap = NodeIDMap::new();
 
         // These include nodes and vnodes
@@ -233,7 +233,7 @@ impl ASABRContactPlan {
                             }
                         }
                     }
-                    "node" => {
+                    "node" | "enode" => {
                         let node = parse_components::<NodeInfo, NM>(lexer, node_marker_map);
                         match node {
                             ParsingState::EOF => {
@@ -251,12 +251,17 @@ impl ASABRContactPlan {
                                 };
 
                                 Self::add_node(
-                                    node,
-                                    &mut nodes,
+                                    &node,
                                     &mut max_node_id_in_nodes,
                                     &mut known_node_ids,
                                     &mut known_node_names,
                                 )?;
+
+                                match element_type.as_str() {
+                                    "node" => vertices.push(Vertex::INode(node)),
+                                    "enode" => vertices.push(Vertex::ENode(node)),
+                                    _ => unreachable!(),
+                                };
                             }
                         }
                     }
@@ -269,38 +274,10 @@ impl ASABRContactPlan {
                             ParsingState::Error(msg) => {
                                 return Err(msg);
                             }
-                            ParsingState::Finished((info, manager)) => {
-                                // A vnode is not only a mapping to a list of NodeIDs in a vnode_map, it is also a real node in the graph.
-                                // Thus here we instantiate a Node object from the VirtualNodeInfo
-                                let node_info = NodeInfo {
-                                    id: info.vid,
-                                    name: info.name.clone(),
-                                    excluded: false,
-                                };
-
-                                let Some(vnode) = Node::try_new(node_info, manager) else {
-                                    return Err(format!(
-                                        "Malformed node ({})",
-                                        lexer.get_current_position()
-                                    ));
-                                };
-
-                                // Add the vnode to the nodes list, returning on error.
-                                // This also updates max_node_id_in_nodes, known_node_ids and
-                                // known_node_names.
-                                Self::add_node(
-                                    vnode,
-                                    &mut nodes,
-                                    &mut max_node_id_in_nodes,
-                                    &mut known_node_ids,
-                                    &mut known_node_names,
-                                )?;
-
-                                // Add the vnode to the vnode_map, returning on error.
-                                // add_vnode must come after add_node, as it relies on previous
-                                // checks and updates to the nodes list.
+                            ParsingState::Finished((info, _)) => {
                                 Self::add_vnode(
                                     info,
+                                    &mut vertices,
                                     &mut vnode_map,
                                     &known_node_ids,
                                     &mut max_node_id_in_nodes,
@@ -323,14 +300,14 @@ impl ASABRContactPlan {
                     .to_string(),
             );
         }
-        if nodes.is_empty() {
+        if vertices.is_empty() {
             return Err("Nodes must be declared".to_string());
         }
-        if nodes.len() - 1 != max_node_id_in_nodes {
+        if vertices.len() - 1 != max_node_id_in_nodes {
             return Err("Some node declarations are missing".to_string());
         }
 
-        ContactPlan::new(nodes, contacts, Some(VirtualNodeMap::new(vnode_map)))
+        ContactPlan::new(vertices, contacts, Some(VirtualNodeMap::new(vnode_map)))
             .map_err(|_| "Failed to create contact plan".to_string())
     }
 }
