@@ -8,7 +8,7 @@ use a_sabr::{
         segmentation::seg::SegmentationManager,
     },
     contact_plan::{asabr_file_lexer::FileLexer, from_asabr_lexer::ASABRContactPlan},
-    errors::ASABRError,
+    errors::{ASABRError, CowError},
     node_manager::none::NoManagement,
     parsing::{ContactMarkerMap, coerce_cm},
     route_storage::cache::TreeCache,
@@ -42,7 +42,12 @@ fn main() -> Result<(), ASABRError> {
         None,
         Some(&contact_dispatch),
     )
-    .unwrap();
+    .map_err(|e| match e {
+        ASABRError::ParsingError(e) => ASABRError::ParsingError(CowError::new(
+            format!("<cp_file> must be in ASABR format with NoManagement for nodes and dynamic management (evl, qd, eto or seg) for contacts. Error while parsing CP: {e}"),
+        )),
+        _ => e,
+    })?;
 
     // We create a storage for the Paths
     let table = Rc::new(RefCell::new(TreeCache::new(true, false, 10)));
