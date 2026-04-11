@@ -24,7 +24,7 @@ fn main() {
     .unwrap();
     println!(
         "ION CP parsed, found {} nodes (no management) & {} contacts (segmentation)",
-        contact_plan.nodes.len(),
+        contact_plan.vertices.len(),
         contact_plan.contacts.len()
     );
     // ION, with EVL
@@ -33,7 +33,7 @@ fn main() {
             .unwrap();
     println!(
         "ION CP parsed, found {} nodes (no management) & {} contacts (EVL)",
-        contact_plan.nodes.len(),
+        contact_plan.vertices.len(),
         contact_plan.contacts.len()
     );
 
@@ -43,7 +43,7 @@ fn main() {
             .unwrap();
     println!(
         "ION CP parsed, found {} nodes (no management) & {} contacts (EVL with priorities)",
-        contact_plan.nodes.len(),
+        contact_plan.vertices.len(),
         contact_plan.contacts.len()
     );
 
@@ -54,7 +54,7 @@ fn main() {
     .unwrap();
     println!(
         "Tvg-util CP parsed, found {} nodes (no management) & {} contacts (segmentation)",
-        contact_plan.nodes.len(),
+        contact_plan.vertices.len(),
         contact_plan.contacts.len()
     );
 
@@ -65,7 +65,7 @@ fn main() {
     .unwrap();
     println!(
         "Tvg-util CP parsed, found {} nodes (no management) & {} contacts (EVL)",
-        contact_plan.nodes.len(),
+        contact_plan.vertices.len(),
         contact_plan.contacts.len()
     );
 
@@ -76,7 +76,7 @@ fn main() {
     .unwrap();
     println!(
         "Tvg-util CP parsed, found {} nodes (no management) & {} contacts (queue-delay with priorities)",
-        contact_plan.nodes.len(),
+        contact_plan.vertices.len(),
         contact_plan.contacts.len()
     );
 
@@ -85,7 +85,7 @@ fn main() {
         ASABRContactPlan::parse::<NoManagement, EVLManager>(&mut mylexer, None, None).unwrap();
     println!(
         "A-SABR CP parsed (statically for nodes & contacts), found {} nodes (no management) & {} contacts (EVL)",
-        contact_plan.nodes.len(),
+        contact_plan.vertices.len(),
         contact_plan.contacts.len()
     );
 
@@ -96,7 +96,7 @@ fn main() {
         ASABRContactPlan::parse::<NoManagement, QDManager>(&mut mylexer, None, None).unwrap();
     println!(
         "A-SABR CP parsed (statically for nodes & contacts), found {} nodes (no management) & {} contacts (queue-delay)",
-        contact_plan.nodes.len(),
+        contact_plan.vertices.len(),
         contact_plan.contacts.len()
     );
 
@@ -120,7 +120,7 @@ fn main() {
     .unwrap();
     println!(
         "A-SABR CP parsed (statically for nodes, dynamically for contacts), found {} nodes (no management) & {} contacts (of various types)",
-        contact_plan.nodes.len(),
+        contact_plan.vertices.len(),
         contact_plan.contacts.len()
     );
 }

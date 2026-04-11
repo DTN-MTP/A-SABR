@@ -4,8 +4,10 @@ use crate::parsing::{Lexer, Parser, ParsingState};
 #[cfg(feature = "contact_work_area")]
 use crate::route_stage::SharedRouteStage;
 use crate::types::{Date, NodeID, Token};
+use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::marker::PhantomData;
+use std::rc::Rc;
 
 /// Represents basic information about a contact between two nodes.
 #[derive(Clone, Copy)]
@@ -77,6 +79,8 @@ pub struct Contact<NM: NodeManager, CM: ContactManager> {
     #[doc(hidden)]
     _phantom_nm: PhantomData<NM>,
 }
+
+pub type SharedContact<NM, CM> = Rc<RefCell<Contact<NM, CM>>>;
 
 impl<NM: NodeManager, CM: ContactManager> Contact<NM, CM> {
     /// Creates a new `Contact` instance if the contact information and manager are valid.

@@ -1,8 +1,8 @@
 use crate::contact::Contact;
 use crate::contact_manager::ContactManager;
 use crate::errors::ASABRError;
-use crate::node::Node;
 use crate::node_manager::NodeManager;
+use crate::vertex::Vertex;
 use crate::vnode::VirtualNodeMap;
 
 pub mod asabr_file_lexer;
@@ -18,8 +18,10 @@ pub mod from_tvgutil_file;
 /// - `CCM`: A type implementing the `ContactManager` trait, responsible for managing the
 ///   contact's operations.
 pub struct ContactPlan<NM: NodeManager, CM: ContactManager> {
-    pub nodes: Vec<Node<NM>>,
+    /// Vertices sorted by ID. All `VNode`s come after every `INode`s and `ENode`s.
+    pub vertices: Vec<Vertex<NM>>,
     pub contacts: Vec<Contact<NM, CM>>,
+    /// Maps vnodes and the nodes they label.
     pub vnode_map: VirtualNodeMap,
 }
 
@@ -36,12 +38,12 @@ impl<NM: NodeManager, CM: ContactManager> ContactPlan<NM, CM> {
     ///
     /// * `Self` - A new instance of `ContactPlan`.
     pub fn new(
-        nodes: Vec<Node<NM>>,
+        vertices: Vec<Vertex<NM>>,
         contacts: Vec<Contact<NM, CM>>,
         vnode_map: Option<VirtualNodeMap>,
     ) -> Result<Self, ASABRError> {
         Ok(ContactPlan {
-            nodes,
+            vertices,
             contacts,
             vnode_map: vnode_map.unwrap_or_default(),
         })

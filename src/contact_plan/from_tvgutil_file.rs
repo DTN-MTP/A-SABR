@@ -13,6 +13,7 @@ use crate::{
     node::{Node, NodeInfo},
     node_manager::{NodeManager, none::NoManagement},
     types::{DataRate, Date, Duration, NodeID},
+    vertex::Vertex,
 };
 
 use std::{collections::HashMap, io};
@@ -83,7 +84,7 @@ impl TVGUtilContactPlan {
     pub fn parse<NM: NodeManager, CM: FromTVGUtilContactData<NM, CM> + ContactManager>(
         filename: &str,
     ) -> io::Result<ContactPlan<NoManagement, CM>> {
-        let mut nodes: Vec<Node<NoManagement>> = Vec::new();
+        let mut vertices: Vec<Vertex<NoManagement>> = Vec::new();
         let mut contacts: Vec<Contact<NoManagement, CM>> = Vec::new();
 
         let mut map_id_map: HashMap<&str, NodeID> = HashMap::new();
@@ -94,7 +95,7 @@ impl TVGUtilContactPlan {
 
         for (node_id, (node_name, _node_data)) in json_nodes.iter().enumerate() {
             map_id_map.insert(node_name, node_id as NodeID);
-            nodes.push(
+            vertices.push(Vertex::ENode(
                 Node::try_new(
                     NodeInfo {
                         id: node_id as NodeID,
@@ -104,7 +105,7 @@ impl TVGUtilContactPlan {
                     NoManagement {},
                 )
                 .unwrap(),
-            );
+            ));
         }
 
         let json_contacts = parsed["edges"].as_array().unwrap();
@@ -141,6 +142,6 @@ impl TVGUtilContactPlan {
                 contacts.push(contact);
             }
         }
-        Ok(ContactPlan::new(nodes, contacts, None)?)
+        Ok(ContactPlan::new(vertices, contacts, None)?)
     }
 }
