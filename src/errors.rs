@@ -5,6 +5,7 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum ASABRError {
+    ParsingError(CowError),
     BorrowMutError(&'static str),
     DryRunError(&'static str),
     ScheduleError(&'static str),
