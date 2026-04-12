@@ -24,15 +24,15 @@ use std::fs;
 pub struct TVGUtilContactData {
     tx_start: Date,
     tx_end: Date,
-    tx_node: NodeID,
-    rx_node: NodeID,
+    tx_node_id: NodeID,
+    rx_node_id: NodeID,
     delay: Duration,
     data_rate: DataRate,
     _confidence: f32,
 }
 
 fn contact_info_from_tvg_data(data: &TVGUtilContactData) -> ContactInfo {
-    ContactInfo::new(data.tx_node, data.rx_node, data.tx_start, data.tx_end)
+    ContactInfo::new(data.tx_node_id, data.rx_node_id, data.tx_start, data.tx_end)
 }
 
 pub trait FromTVGUtilContactData<NM: NodeManager, CM: ContactManager> {
@@ -111,8 +111,8 @@ impl TVGUtilContactPlan {
         for nodes_pair in json_contacts {
             let data = nodes_pair.as_object().unwrap();
             let pair = data["vertices"].as_array().unwrap();
-            let tx_node = map_id_map.get(pair[0].as_str().unwrap()).unwrap();
-            let rx_node = map_id_map.get(pair[1].as_str().unwrap()).unwrap();
+            let tx_node_id = map_id_map.get(pair[0].as_str().unwrap()).unwrap();
+            let rx_node_id = map_id_map.get(pair[1].as_str().unwrap()).unwrap();
 
             for contact_data in data["contacts"].as_array().unwrap() {
                 let contact_array = contact_data.as_array().unwrap();
@@ -129,8 +129,8 @@ impl TVGUtilContactPlan {
                 let tvgcontact = TVGUtilContactData {
                     tx_start: start,
                     tx_end: end,
-                    tx_node: *tx_node,
-                    rx_node: *rx_node,
+                    tx_node_id: *tx_node_id,
+                    rx_node_id: *rx_node_id,
                     delay,
                     data_rate,
                     _confidence: confidence,

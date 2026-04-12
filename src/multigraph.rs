@@ -136,16 +136,16 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
         // The following creates the `Sender`/`Receiver`s pairs from every contact.
         // Contacts are sorted and iterated over in reverse.
         while let Some(last_contact) = contacts.last() {
-            let tx_id = last_contact.get_tx_node();
-            let rx_id = last_contact.get_rx_node();
+            let tx_id = last_contact.get_tx_node_id();
+            let rx_id = last_contact.get_rx_node_id();
 
             // Count how many contacts have the same Tx and Rx nodes as `last_contact`.
             // There should be at least one (`last_contact` itself).
             let mut contact_count_to_drain = 0;
 
             for contact in contacts.iter().rev() {
-                if contact.get_rx_node() != rx_id as NodeID
-                    || contact.get_tx_node() != tx_id as NodeID
+                if contact.get_rx_node_id() != rx_id as NodeID
+                    || contact.get_tx_node_id() != tx_id as NodeID
                 {
                     break;
                 }
