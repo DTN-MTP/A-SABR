@@ -204,18 +204,12 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
         let mut exclusion_idx = 0;
         let exclusion_len = exclusions.len();
 
-        for (node_id, sender) in self.senders.iter_mut().enumerate() {
+        for (node_id, node) in self.nodes.iter_mut().enumerate() {
             if exclusion_idx < exclusion_len && exclusions[exclusion_idx] as usize == node_id {
-                self.nodes[sender.vertex_id as usize]
-                    .try_borrow_mut()?
-                    .info
-                    .excluded = true;
+                node.try_borrow_mut()?.info.excluded = true;
                 exclusion_idx += 1;
             } else {
-                self.nodes[sender.vertex_id as usize]
-                    .try_borrow_mut()?
-                    .info
-                    .excluded = false;
+                node.try_borrow_mut()?.info.excluded = false;
             }
         }
         Ok(())
