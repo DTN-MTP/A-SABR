@@ -57,7 +57,19 @@ impl Parser<VirtualNodeInfo> for VirtualNodeInfo {
 
         let rids_state = Vec::parse(lexer);
         let rids: Vec<NodeID> = match rids_state {
-            ParsingState::Finished(value) => value,
+            ParsingState::Finished(vec) => {
+                for i in 0..vec.len() {
+                    for j in (i + 1)..vec.len() {
+                        if vec[i] == vec[j] {
+                            return ParsingState::Error(format!(
+                                "Parsing failed: duplicate node ID in vnode definition ({})",
+                                lexer.get_current_position()
+                            ));
+                        }
+                    }
+                }
+                vec
+            }
             ParsingState::Error(msg) => return ParsingState::Error(msg),
             ParsingState::EOF => {
                 return ParsingState::Error(format!(
@@ -106,6 +118,7 @@ impl VirtualNodeMap {
     /// # Returns
     ///
     /// * `usize` - The total number of nodes.
+    #[inline(always)]
     pub fn get_vnode_count(&self) -> usize {
         self.vnode_map.len()
     }
