@@ -12,9 +12,9 @@ use std::marker::PhantomData;
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ContactInfo {
     ///The ID of the transmitting node.
-    pub tx_node: NodeID,
+    pub tx_node_id: NodeID,
     /// The ID of the receiving node.
-    pub rx_node: NodeID,
+    pub rx_node_id: NodeID,
     /// The start time of the contact.
     pub start: Date,
     /// The end time of the contact.
@@ -26,18 +26,18 @@ impl ContactInfo {
     ///
     /// # Parameters
     ///
-    /// * `tx_node` - The ID of the transmitting node.
-    /// * `rx_node` - The ID of the receiving node.
+    /// * `tx_node_id` - The ID of the transmitting node.
+    /// * `rx_node_id` - The ID of the receiving node.
     /// * `start` - The start time of the contact.
     /// * `end` - The end time of the contact.
     ///
     /// # Returns
     ///
     /// * `Self` - A new instance of `ContactInfo`.
-    pub fn new(tx_node: NodeID, rx_node: NodeID, start: Date, end: Date) -> Self {
+    pub fn new(tx_node_id: NodeID, rx_node_id: NodeID, start: Date, end: Date) -> Self {
         Self {
-            tx_node,
-            rx_node,
+            tx_node_id,
+            rx_node_id,
             start,
             end,
         }
@@ -111,8 +111,8 @@ impl<NM: NodeManager, CM: ContactManager> Contact<NM, CM> {
     ///
     /// * `NodeID` - The ID of the transmitting node.
     #[inline(always)]
-    pub fn get_tx_node(&self) -> NodeID {
-        self.info.tx_node
+    pub fn get_tx_node_id(&self) -> NodeID {
+        self.info.tx_node_id
     }
 
     /// Retrieves the receiving node's ID.
@@ -121,23 +121,23 @@ impl<NM: NodeManager, CM: ContactManager> Contact<NM, CM> {
     ///
     /// * `NodeID` - The ID of the receiving node.
     #[inline(always)]
-    pub fn get_rx_node(&self) -> NodeID {
-        self.info.rx_node
+    pub fn get_rx_node_id(&self) -> NodeID {
+        self.info.rx_node_id
     }
 }
 
 impl<NM: NodeManager, CM: ContactManager> Ord for Contact<NM, CM> {
     fn cmp(&self, other: &Self) -> Ordering {
-        if self.info.tx_node > other.info.tx_node {
+        if self.info.tx_node_id > other.info.tx_node_id {
             return Ordering::Greater;
         }
-        if self.info.tx_node < other.info.tx_node {
+        if self.info.tx_node_id < other.info.tx_node_id {
             return Ordering::Less;
         }
-        if self.info.rx_node > other.info.rx_node {
+        if self.info.rx_node_id > other.info.rx_node_id {
             return Ordering::Greater;
         }
-        if self.info.rx_node < other.info.rx_node {
+        if self.info.rx_node_id < other.info.rx_node_id {
             return Ordering::Less;
         }
         if self.info.start > other.info.start {
@@ -158,8 +158,8 @@ impl<NM: NodeManager, CM: ContactManager> PartialOrd for Contact<NM, CM> {
 
 impl<NM: NodeManager, CM: ContactManager> PartialEq for Contact<NM, CM> {
     fn eq(&self, other: &Self) -> bool {
-        self.info.tx_node == other.info.tx_node
-            && self.info.rx_node == other.info.rx_node
+        self.info.tx_node_id == other.info.tx_node_id
+            && self.info.rx_node_id == other.info.rx_node_id
             && self.info.start == other.info.start
     }
 }
@@ -177,7 +177,7 @@ impl Parser<ContactInfo> for ContactInfo {
     /// * `ParsingState<ContactInfo>` - The parsing state indicating success or failure.
     fn parse(lexer: &mut dyn Lexer) -> ParsingState<ContactInfo> {
         let tx_node_state = NodeID::parse(lexer);
-        let tx_node: NodeID = match tx_node_state {
+        let tx_node_id: NodeID = match tx_node_state {
             ParsingState::Finished(value) => value,
             ParsingState::Error(msg) => return ParsingState::Error(msg),
             ParsingState::EOF => {
@@ -189,7 +189,7 @@ impl Parser<ContactInfo> for ContactInfo {
         };
 
         let rx_node_state = NodeID::parse(lexer);
-        let rx_node: NodeID = match rx_node_state {
+        let rx_node_id: NodeID = match rx_node_state {
             ParsingState::Finished(value) => value,
             ParsingState::Error(msg) => return ParsingState::Error(msg),
             ParsingState::EOF => {
@@ -224,6 +224,6 @@ impl Parser<ContactInfo> for ContactInfo {
             }
         };
 
-        ParsingState::Finished(ContactInfo::new(tx_node, rx_node, start, end))
+        ParsingState::Finished(ContactInfo::new(tx_node_id, rx_node_id, start, end))
     }
 }

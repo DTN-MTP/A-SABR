@@ -36,19 +36,19 @@ impl ASABRContactPlan {
         vnode_map: &NodeIDMap,
         max_node_id_in_contacts: &mut usize,
     ) -> Result<(), String> {
-        if vnode_map.contains_key(&contact.info.rx_node) {
+        if vnode_map.contains_key(&contact.info.rx_node_id) {
             return Err(format!(
                 "Contact Rx node ({}) cannot be a virtual node",
-                contact.info.rx_node
+                contact.info.rx_node_id
             ));
-        } else if vnode_map.contains_key(&contact.info.tx_node) {
+        } else if vnode_map.contains_key(&contact.info.tx_node_id) {
             return Err(format!(
                 "Contact Tx node ({}) cannot be a virtual node",
-                contact.info.tx_node
+                contact.info.tx_node_id
             ));
         }
 
-        let value = max(contact.get_tx_node(), contact.get_rx_node());
+        let value = max(contact.get_tx_node_id(), contact.get_rx_node_id());
         *max_node_id_in_contacts = max(*max_node_id_in_contacts, value.into());
         contacts.push(contact);
         Ok(())

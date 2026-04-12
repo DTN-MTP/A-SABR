@@ -178,7 +178,7 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
     for (idx, contact) in contacts.iter().enumerate().skip(first_contact_index) {
         let contact_borrowed = contact.borrow();
         #[cfg(feature = "node_proc")]
-        let tx_node = &nodes[contact_borrowed.info.tx_node as usize];
+        let tx_node = &nodes[contact_borrowed.info.tx_node_id as usize];
 
         #[cfg(feature = "contact_suppression")]
         if contact_borrowed.suppressed {
@@ -204,8 +204,8 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
             sending_time,
             &bundle_to_consider,
         ) {
-            let tx_node = &nodes[contact_borrowed.info.tx_node as usize];
-            let rx_node = &nodes[contact_borrowed.info.rx_node as usize];
+            let tx_node = &nodes[contact_borrowed.info.tx_node_id as usize];
+            let rx_node = &nodes[contact_borrowed.info.rx_node_id as usize];
 
             #[cfg(feature = "node_tx")]
             if !tx_node.borrow().manager.dry_run_tx(
@@ -241,7 +241,7 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
         let selected_contact = &contacts[index];
         let mut route_proposition: RouteStage<NM, CM> = RouteStage::new(
             final_data.rx_end,
-            selected_contact.borrow().get_rx_node(),
+            selected_contact.borrow().get_rx_node_id(),
             Some(ViaHop {
                 contact: selected_contact.clone(),
                 parent_route: sndr_route.clone(),
