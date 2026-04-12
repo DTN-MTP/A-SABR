@@ -174,7 +174,7 @@ pub struct SpsnOptions {
 
 pub fn build_generic_router<NM: NodeManager + 'static, CM: ContactManager + 'static>(
     router_type: &str,
-    contact_plan: ContactPlan<NM, NM, CM>,
+    contact_plan: ContactPlan<NM, CM>,
     spsn_options: Option<SpsnOptions>,
 ) -> Result<Box<dyn Router<NM, CM>>, ASABRError> {
     if let Some(options) = spsn_options {

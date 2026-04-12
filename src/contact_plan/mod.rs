@@ -17,13 +17,13 @@ pub mod from_tvgutil_file;
 ///   node's operations.
 /// - `CCM`: A type implementing the `ContactManager` trait, responsible for managing the
 ///   contact's operations.
-pub struct ContactPlan<NNM: NodeManager, CNM: NodeManager, CCM: ContactManager> {
-    pub nodes: Vec<Node<NNM>>,
-    pub contacts: Vec<Contact<CNM, CCM>>,
+pub struct ContactPlan<NM: NodeManager, CM: ContactManager> {
+    pub nodes: Vec<Node<NM>>,
+    pub contacts: Vec<Contact<NM, CM>>,
     pub vnode_map: VirtualNodeMap,
 }
 
-impl<NNM: NodeManager, CNM: NodeManager, CCM: ContactManager> ContactPlan<NNM, CNM, CCM> {
+impl<NM: NodeManager, CM: ContactManager> ContactPlan<NM, CM> {
     /// Creates a new `ContactPlan`.
     ///
     /// # Parameters
@@ -36,8 +36,8 @@ impl<NNM: NodeManager, CNM: NodeManager, CCM: ContactManager> ContactPlan<NNM, C
     ///
     /// * `Self` - A new instance of `ContactPlan`.
     pub fn new(
-        nodes: Vec<Node<NNM>>,
-        contacts: Vec<Contact<CNM, CCM>>,
+        nodes: Vec<Node<NM>>,
+        contacts: Vec<Contact<NM, CM>>,
         vnode_map: Option<VirtualNodeMap>,
     ) -> Result<Self, ASABRError> {
         Ok(ContactPlan {

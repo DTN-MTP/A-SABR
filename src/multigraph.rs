@@ -107,7 +107,7 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
     /// # Returns
     ///
     /// * `Self` - A new instance of `Multigraph`.
-    pub fn new(contact_plan: ContactPlan<NM, NM, CM>) -> Result<Self, ASABRError> {
+    pub fn new(contact_plan: ContactPlan<NM, CM>) -> Result<Self, ASABRError> {
         let mut nodes = contact_plan.nodes;
         let mut contacts = contact_plan.contacts;
         // the contacts might not be sorted

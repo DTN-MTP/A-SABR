@@ -53,7 +53,7 @@ impl<S: RouteStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfindin
     Cgr<NM, CM, P, S>
 {
     pub fn new(
-        contact_plan: ContactPlan<NM, NM, CM>,
+        contact_plan: ContactPlan<NM, CM>,
         route_storage: Rc<RefCell<S>>,
     ) -> Result<Self, ASABRError> {
         Ok(Self {
