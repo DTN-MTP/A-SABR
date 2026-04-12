@@ -67,7 +67,7 @@ fn contact_info_from_tvg_data(data: &IONContactData) -> ContactInfo {
 }
 
 pub trait FromIONContactData<NM: NodeManager, CM: ContactManager> {
-    fn ion_convert(data: &IONContactData) -> Option<Contact<NM, CM>>;
+    fn ion_convert(data: &IONContactData) -> Option<Contact<NoManagement, CM>>;
 }
 
 macro_rules! generate_for_evl_variants {
@@ -165,7 +165,7 @@ fn get_confidence(vec: &[String]) -> f32 {
 impl IONContactPlan {
     pub fn parse<NM: NodeManager, CM: FromIONContactData<NM, CM> + ContactManager>(
         filename: &str,
-    ) -> io::Result<ContactPlan<NoManagement, NM, CM>> {
+    ) -> io::Result<ContactPlan<NoManagement, CM>> {
         let file = File::open(filename)?;
         let mut reader = BufReader::new(file);
         let mut map_id_map: HashMap<String, NodeID> = HashMap::new();

@@ -82,7 +82,7 @@ impl<S: TreeStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding
     ///
     /// * `Self` - A new instance of the `Spsn` struct.
     pub fn new(
-        contact_plan: ContactPlan<NM, NM, CM>,
+        contact_plan: ContactPlan<NM, CM>,
         route_storage: Rc<RefCell<S>>,
         with_priorities: bool,
     ) -> Result<Self, ASABRError> {

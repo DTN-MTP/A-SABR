@@ -36,7 +36,7 @@ fn contact_info_from_tvg_data(data: &TVGUtilContactData) -> ContactInfo {
 }
 
 pub trait FromTVGUtilContactData<NM: NodeManager, CM: ContactManager> {
-    fn tvg_convert(data: TVGUtilContactData) -> Option<Contact<NM, CM>>;
+    fn tvg_convert(data: TVGUtilContactData) -> Option<Contact<NoManagement, CM>>;
 }
 
 macro_rules! generate_for_evl_variants {
@@ -82,9 +82,9 @@ pub struct TVGUtilContactPlan {}
 impl TVGUtilContactPlan {
     pub fn parse<NM: NodeManager, CM: FromTVGUtilContactData<NM, CM> + ContactManager>(
         filename: &str,
-    ) -> io::Result<ContactPlan<NoManagement, NM, CM>> {
+    ) -> io::Result<ContactPlan<NoManagement, CM>> {
         let mut nodes: Vec<Node<NoManagement>> = Vec::new();
-        let mut contacts: Vec<Contact<NM, CM>> = Vec::new();
+        let mut contacts: Vec<Contact<NoManagement, CM>> = Vec::new();
 
         let mut map_id_map: HashMap<&str, NodeID> = HashMap::new();
 

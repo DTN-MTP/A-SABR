@@ -184,7 +184,7 @@ impl ASABRContactPlan {
         lexer: &mut dyn Lexer,
         node_marker_map: Option<&StaticMarkerMap<NM>>,
         contact_marker_map: Option<&StaticMarkerMap<CM>>,
-    ) -> Result<ContactPlan<NM, NM, CM>, String> {
+    ) -> Result<ContactPlan<NM, CM>, String> {
         let mut contacts: Vec<Contact<NM, CM>> = Vec::new();
         let mut nodes: Vec<Node<NM>> = Vec::new();
         let mut vnode_map: NodeIDMap = NodeIDMap::new();
