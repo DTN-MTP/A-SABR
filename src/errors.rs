@@ -9,6 +9,7 @@ pub enum ASABRError {
     ScheduleError(&'static str),
     ContactPlanError(&'static str),
     MulticastUnsupportedError,
+    ParsingError(String),
 }
 
 impl From<BorrowError> for ASABRError {

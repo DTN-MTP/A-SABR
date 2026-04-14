@@ -1,17 +1,17 @@
 use std::{collections::HashMap, str::FromStr};
 
-use crate::{contact_manager::ContactManager, node_manager::NodeManager};
+use crate::{contact_manager::ContactManager, errors::ASABRError, node_manager::NodeManager};
 
 pub type ContactMarkerMap<'a> = Dispatcher<'a, ContactDispatcher>;
 pub type NodeMarkerMap<'a> = Dispatcher<'a, NodeDispatcher>;
-pub type ContactDispatcher = fn(&mut dyn Lexer) -> ParsingState<Box<dyn ContactManager>>;
-pub type NodeDispatcher = fn(&mut dyn Lexer) -> ParsingState<Box<dyn NodeManager>>;
+pub type ContactDispatcher = fn(&mut dyn Lexer) -> Result<Box<dyn ContactManager>, ASABRError>;
+pub type NodeDispatcher = fn(&mut dyn Lexer) -> Result<Box<dyn NodeManager>, ASABRError>;
 
 pub type StaticMarkerMap<'a, M> = Dispatcher<'a, StaticDispatcher<M>>;
-pub type StaticDispatcher<M> = fn(&mut dyn Lexer) -> ParsingState<M>;
+pub type StaticDispatcher<M> = fn(&mut dyn Lexer) -> Result<M, ASABRError>;
 
 impl<T: FromStr> Parser<Vec<T>> for Vec<T> {
-    fn parse(lexer: &mut dyn Lexer) -> ParsingState<Vec<T>> {
+    fn parse(lexer: &mut dyn Lexer) -> Result<Vec<T>, ASABRError> {
         let mut items = Vec::new();
         let mut started = false;
 
@@ -29,19 +29,23 @@ impl<T: FromStr> Parser<Vec<T>> for Vec<T> {
         };
 
         loop {
-            let token = match lexer.consume_next_token() {
-                ParsingState::Finished(t) => t,
-                ParsingState::EOF => return ParsingState::EOF,
-                ParsingState::Error(e) => return ParsingState::Error(e),
+            let token = match lexer.consume_next_token()? {
+                LexerOutput::Finished(t) => t,
+                LexerOutput::EOF => {
+                    return Err(ASABRError::ParsingError(format!(
+                        "Parsing failed, expected ']' ({})",
+                        lexer.get_current_position()
+                    )));
+                }
             };
             let token = token.trim();
 
             if !started {
                 if !token.starts_with('[') {
-                    return ParsingState::Error(format!(
+                    return Err(ASABRError::ParsingError(format!(
                         "Parsing failed, expected '[' ({})",
                         lexer.get_current_position()
-                    ));
+                    )));
                 }
                 started = true;
             }
@@ -55,14 +59,14 @@ impl<T: FromStr> Parser<Vec<T>> for Vec<T> {
             };
 
             if !try_push(inner, &mut items) {
-                return ParsingState::Error(format!(
+                return Err(ASABRError::ParsingError(format!(
                     "Parsing failed ({})",
                     lexer.get_current_position()
-                ));
+                )));
             }
 
             if closes {
-                return ParsingState::Finished(items);
+                return Ok(items);
             }
         }
     }
@@ -116,12 +120,10 @@ impl<'a, T> Dispatcher<'a, T> {
     }
 }
 
-/// Represents the state of parsing for a generic type.
-pub enum ParsingState<T> {
+/// Represents the successful outcome of a parsing step.
+pub enum LexerOutput<T> {
     /// Indicates that the end of the file has been reached.
     EOF,
-    /// Contains an error message indicating what went wrong during parsing.
-    Error(String),
     /// Contains the successfully parsed value of type `T`.
     Finished(T),
 }
@@ -129,9 +131,9 @@ pub enum ParsingState<T> {
 /// Trait for a lexer that reads input and returns parsed tokens.
 pub trait Lexer {
     /// Looks up the next token in the input stream.
-    fn lookup(&mut self) -> ParsingState<String>;
+    fn lookup(&mut self) -> Result<LexerOutput<String>, ASABRError>;
     /// Consumes and returns the next token from the input stream.
-    fn consume_next_token(&mut self) -> ParsingState<String>;
+    fn consume_next_token(&mut self) -> Result<LexerOutput<String>, ASABRError>;
     /// Returns the current position in the input stream.
     fn get_current_position(&self) -> String;
 }
@@ -139,19 +141,14 @@ pub trait Lexer {
 /// Trait for parsing a generic type `T` from a lexer.
 pub trait Parser<T> {
     ///  Parses an instance of type `T` from the provided lexer.
-    fn parse(lexer: &mut dyn Lexer) -> ParsingState<T>;
+    fn parse(lexer: &mut dyn Lexer) -> Result<T, ASABRError>;
 }
 
 /// Delegate the parsing logic to the boxed Parser type.
 impl<T: Parser<T>> Parser<Box<T>> for Box<T> {
     ///  Parses an instance of type `T` an return a boxed type.
-    fn parse(lexer: &mut dyn Lexer) -> ParsingState<Box<T>> {
-        let ret = T::parse(lexer);
-        match ret {
-            ParsingState::EOF => ParsingState::EOF,
-            ParsingState::Error(msg) => ParsingState::Error(msg),
-            ParsingState::Finished(val) => ParsingState::Finished(Box::new(val)),
-        }
+    fn parse(lexer: &mut dyn Lexer) -> Result<Box<T>, ASABRError> {
+        Ok(Box::new(T::parse(lexer)?))
     }
 }
 
@@ -160,8 +157,10 @@ macro_rules! implement_parser {
     ($manager_type:ident) => {
         /// Dispatching is impossible for concrete Parser types.
         impl Parser<Box<dyn $manager_type>> for Box<dyn $manager_type> {
-            fn parse(_lexer: &mut dyn Lexer) -> ParsingState<Box<dyn $manager_type>> {
-                panic!("Unable to dispatch to the correct parser, the Dispatcher");
+            fn parse(_lexer: &mut dyn Lexer) -> Result<Box<dyn $manager_type>, ASABRError> {
+                Err(ASABRError::ParsingError(
+                    "Unable to dispatch to the correct parser, the Dispatcher".to_string(),
+                ))
             }
         }
     };
@@ -179,38 +178,15 @@ implement_parser!(ContactManager);
 ///
 /// # Returns
 ///
-/// * `ParsingState<(INFO, MANAGER)>` - The parsing state containing either the parsed components or an error.
+/// * `Result<LexerOutput<(INFO, MANAGER)>, ASABRError>` - The parsing state containing either the parsed components or an error.
 pub fn parse_components<INFO: Parser<INFO>, MANAGER: DispatchParser<MANAGER> + Parser<MANAGER>>(
     lexer: &mut dyn Lexer,
     dispatch_map: Option<&StaticMarkerMap<MANAGER>>,
-) -> ParsingState<(INFO, MANAGER)> {
-    let info: INFO;
-    let manager: MANAGER;
+) -> Result<(INFO, MANAGER), ASABRError> {
+    let info = INFO::parse(lexer)?;
 
-    let info_state = INFO::parse(lexer);
-    match info_state {
-        ParsingState::Finished(value) => info = value,
-        ParsingState::Error(msg) => return ParsingState::Error(msg),
-        ParsingState::EOF => {
-            return ParsingState::Error(format!(
-                "Parsing failed ({})",
-                lexer.get_current_position()
-            ));
-        }
-    }
-
-    let manager_state = MANAGER::parse_dispatch(lexer, dispatch_map);
-    match manager_state {
-        ParsingState::Finished(value) => manager = value,
-        ParsingState::Error(msg) => return ParsingState::Error(msg),
-        ParsingState::EOF => {
-            return ParsingState::Error(format!(
-                "Parsing failed ({})",
-                lexer.get_current_position()
-            ));
-        }
-    }
-    ParsingState::Finished((info, manager))
+    let manager = MANAGER::parse_dispatch(lexer, dispatch_map)?;
+    Ok((info, manager))
 }
 
 /// Trait for parsing a manager type `T` from a lexer.
@@ -226,19 +202,18 @@ pub trait DispatchParser<T: Parser<T>> {
     /// * `lexer` - A mutable reference to the lexer that is used to read the manager component.
     ///     - **Type**: `&mut dyn Lexer`
     /// * `marker_map` - An optional map of markers to functions that can parse specific types of managers.
-    ///     - **Type**: `Option<&Dispatcher<fn(&mut dyn Lexer) -> ParsingState<T>>>`
+    ///     - **Type**: `Option<&Dispatcher<fn(&mut dyn Lexer) -> Result<LexerOutput<T>, ASABRError>>>`
     ///     - This map allows dynamic dispatch of the parsing functions based on the markers found in the input.
     ///
     /// # Returns
     ///
-    /// * `ParsingState<T>` - The parsing state which can be:
-    ///     - `Finished(T)` - Indicates successful parsing with the parsed manager component.
-    ///     - `Error(String)` - Indicates an error encountered during parsing with an error message.
-    ///     - `EOF` - Indicates the end of the input stream, suggesting that parsing cannot continue.
+    /// * `Result<LexerOutput<T>, ASABRError>` - The parsing state which can be:
+    ///     - `Ok(T)` - Indicates successful parsing with the parsed manager component.
+    ///     - `Err(ASABRError::ParsingError(String))` - Indicates an error encountered during parsing with an error message.
     fn parse_dispatch(
         lexer: &mut dyn Lexer,
         _marker_map: Option<&StaticMarkerMap<T>>,
-    ) -> ParsingState<T> {
+    ) -> Result<T, ASABRError> {
         T::parse(lexer)
     }
 }
@@ -248,8 +223,8 @@ impl<T: DispatchParser<T> + Parser<T>> DispatchParser<Box<T>> for Box<T> {
     /// Delegates the parsing to the Parser trait.
     fn parse_dispatch(
         lexer: &mut dyn Lexer,
-        _: Option<&Dispatcher<fn(&mut dyn Lexer) -> ParsingState<Box<T>>>>,
-    ) -> ParsingState<Box<T>> {
+        _: Option<&Dispatcher<fn(&mut dyn Lexer) -> Result<Box<T>, ASABRError>>>,
+    ) -> Result<Box<T>, ASABRError> {
         <Box<T>>::parse(lexer)
     }
 }
@@ -263,18 +238,13 @@ impl<T: DispatchParser<T> + Parser<T>> DispatchParser<Box<T>> for Box<T> {
 macro_rules! implement_manager {
     ($manager_type:ident, $coerce_fn:ident) => {
         /// Forces parsing to a concrete type and returns the boxed value as a boxed dynamic type.
-        pub fn $coerce_fn<'a, M>(lexer: &mut dyn Lexer) -> ParsingState<Box<dyn $manager_type + 'a>>
+        pub fn $coerce_fn<'a, M>(
+            lexer: &mut dyn Lexer,
+        ) -> Result<Box<dyn $manager_type + 'a>, ASABRError>
         where
             M: $manager_type + Parser<M> + 'a,
         {
-            let ret = M::parse(lexer);
-            match ret {
-                ParsingState::EOF => ParsingState::EOF,
-                ParsingState::Error(msg) => ParsingState::Error(msg),
-                ParsingState::Finished(val) => {
-                    ParsingState::Finished(Box::new(val) as Box<dyn $manager_type + 'a>)
-                }
-            }
+            Ok(Box::new(M::parse(lexer)?) as Box<dyn $manager_type + 'a>)
         }
 
         /// Delegates the parsing to the correct Parser concrete implementation after dispatching.
@@ -283,31 +253,34 @@ macro_rules! implement_manager {
             fn parse_dispatch(
                 lexer: &mut dyn Lexer,
                 marker_map_opt: Option<
-                    &Dispatcher<fn(&mut dyn Lexer) -> ParsingState<Box<dyn $manager_type>>>,
+                    &Dispatcher<fn(&mut dyn Lexer) -> Result<Box<dyn $manager_type>, ASABRError>>,
                 >,
-            ) -> ParsingState<Box<dyn $manager_type>> {
-                let res = lexer.consume_next_token();
-                match res {
-                    ParsingState::EOF => ParsingState::EOF,
-                    ParsingState::Error(msg) => ParsingState::Error(msg),
-                    ParsingState::Finished(marker) => {
-                        let Some(marker_map) = marker_map_opt else {
-                            return ParsingState::Error(format!(
-                                "Dynamic parsing requires a map ({})",
-                                lexer.get_current_position()
-                            ));
-                        };
-
-                        let Some(parse_fn) = marker_map.get(marker.as_str()) else {
-                            return ParsingState::Error(format!(
-                                "Unrecognized marker ({})",
-                                lexer.get_current_position()
-                            ));
-                        };
-
-                        parse_fn(lexer)
+            ) -> Result<Box<dyn $manager_type>, ASABRError> {
+                let marker = match lexer.consume_next_token()? {
+                    LexerOutput::EOF => {
+                        return Err(ASABRError::ParsingError(format!(
+                            "Marker expected ({})",
+                            lexer.get_current_position()
+                        )));
                     }
-                }
+                    LexerOutput::Finished(marker) => marker,
+                };
+
+                let Some(marker_map) = marker_map_opt else {
+                    return Err(ASABRError::ParsingError(format!(
+                        "Dynamic parsing requires a map ({})",
+                        lexer.get_current_position()
+                    )));
+                };
+
+                let Some(parse_fn) = marker_map.get(marker.as_str()) else {
+                    return Err(ASABRError::ParsingError(format!(
+                        "Unrecognized marker ({})",
+                        lexer.get_current_position()
+                    )));
+                };
+
+                parse_fn(lexer)
             }
         }
     };

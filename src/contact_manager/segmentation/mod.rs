@@ -1,5 +1,6 @@
 use crate::contact::ContactInfo;
-use crate::parsing::{Lexer, ParsingState};
+use crate::errors::ASABRError;
+use crate::parsing::{Lexer, LexerOutput};
 use crate::types::{DataRate, Date, Duration, Token, Volume};
 
 pub mod pseg;
@@ -245,49 +246,19 @@ pub trait BaseSegmentationManager {
 ///
 /// # Returns
 ///
-/// Returns a `ParsingState`:
+/// Returns a `Result<LexerOutput<T>, ASABRError>`:
 /// - `Finished((start, end, val))` if the interval is successfully parsed.
-/// - `Error(msg)` if there is an error during parsing.
-/// - `EOF` if an unexpected end-of-file is encountered during parsing.
-fn parse_interval<T: std::str::FromStr>(lexer: &mut dyn Lexer) -> ParsingState<(Date, Date, T)> {
-    let val: T;
+/// - An error from Date::parse(), or if an unexpected end-of-file is encountered during parsing.
+fn parse_interval<T: std::str::FromStr>(
+    lexer: &mut dyn Lexer,
+) -> Result<(Date, Date, T), ASABRError> {
+    let start: Date = Date::parse(lexer)?;
 
-    let start_state = Date::parse(lexer);
-    let start: Date = match start_state {
-        ParsingState::Finished(value) => value,
-        ParsingState::Error(msg) => return ParsingState::Error(msg),
-        ParsingState::EOF => {
-            return ParsingState::Error(format!(
-                "Parsing failed ({})",
-                lexer.get_current_position()
-            ));
-        }
-    };
+    let end: Date = Date::parse(lexer)?;
 
-    let end_state = Date::parse(lexer);
-    let end: Date = match end_state {
-        ParsingState::Finished(value) => value,
-        ParsingState::Error(msg) => return ParsingState::Error(msg),
-        ParsingState::EOF => {
-            return ParsingState::Error(format!(
-                "Parsing failed ({})",
-                lexer.get_current_position()
-            ));
-        }
-    };
+    let val: T = T::parse(lexer)?;
 
-    let val_state = T::parse(lexer);
-    match val_state {
-        ParsingState::Finished(value) => val = value,
-        ParsingState::Error(msg) => return ParsingState::Error(msg),
-        ParsingState::EOF => {
-            return ParsingState::Error(format!(
-                "Parsing failed ({})",
-                lexer.get_current_position()
-            ));
-        }
-    }
-    ParsingState::Finished((start, end, val))
+    Ok((start, end, val))
 }
 
 /// Parses a `BaseSegmentationManager` from the lexer, extracting the rate and delay intervals.
@@ -298,60 +269,40 @@ fn parse_interval<T: std::str::FromStr>(lexer: &mut dyn Lexer) -> ParsingState<(
 ///
 /// # Returns
 ///
-/// Returns a `ParsingState` indicating whether parsing was successful (`Finished`) or encountered an error (`Error`).
-fn parse<M: BaseSegmentationManager>(lexer: &mut dyn Lexer) -> ParsingState<M> {
+/// Returns a `Result<LexerOutput<T>, ASABRError>` indicating whether parsing was successful (`Finished`)
+/// or encountered an error.
+fn parse<M: BaseSegmentationManager>(lexer: &mut dyn Lexer) -> Result<M, ASABRError> {
     let mut rate_intervals: Vec<Segment<DataRate>> = Vec::new();
     let mut delay_intervals: Vec<Segment<Duration>> = Vec::new();
 
     loop {
-        let res = lexer.lookup();
-        match res {
-            ParsingState::EOF => break,
-            ParsingState::Error(e) => return ParsingState::Error(e),
-            ParsingState::Finished(interval_type) => match interval_type.as_str() {
-                "delay" => {
-                    lexer.consume_next_token();
-                    let state = parse_interval::<Duration>(lexer);
-                    match state {
-                        ParsingState::Finished((start, end, delay)) => {
-                            delay_intervals.push(Segment {
-                                start,
-                                end,
-                                val: delay,
-                            });
-                        }
-                        ParsingState::EOF => {
-                            return ParsingState::EOF;
-                        }
-                        ParsingState::Error(msg) => {
-                            return ParsingState::Error(msg);
-                        }
-                    }
-                }
-                "rate" => {
-                    lexer.consume_next_token();
-                    let state = parse_interval::<DataRate>(lexer);
-                    match state {
-                        ParsingState::Finished((start, end, rate)) => {
-                            rate_intervals.push(Segment {
-                                start,
-                                end,
-                                val: rate,
-                            });
-                        }
-                        ParsingState::EOF => {
-                            return ParsingState::EOF;
-                        }
-                        ParsingState::Error(msg) => {
-                            return ParsingState::Error(msg);
-                        }
-                    }
-                }
-                _ => {
-                    break;
-                }
-            },
+        let interval_type = match lexer.lookup()? {
+            LexerOutput::EOF => break,
+            LexerOutput::Finished(t) => t,
+        };
+        match interval_type.as_str() {
+            "delay" => {
+                lexer.consume_next_token()?;
+                let (start, end, delay) = parse_interval::<Duration>(lexer)?;
+                delay_intervals.push(Segment {
+                    start,
+                    end,
+                    val: delay,
+                });
+            }
+            "rate" => {
+                lexer.consume_next_token()?;
+                let (start, end, rate) = parse_interval::<DataRate>(lexer)?;
+                rate_intervals.push(Segment {
+                    start,
+                    end,
+                    val: rate,
+                });
+            }
+            _ => {
+                break;
+            }
         }
     }
-    ParsingState::Finished(M::new(rate_intervals, delay_intervals))
+    Ok(M::new(rate_intervals, delay_intervals))
 }

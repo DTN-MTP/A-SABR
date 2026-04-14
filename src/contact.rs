@@ -1,6 +1,7 @@
 use crate::contact_manager::ContactManager;
+use crate::errors::ASABRError;
 use crate::node_manager::NodeManager;
-use crate::parsing::{Lexer, Parser, ParsingState};
+use crate::parsing::{Lexer, Parser};
 #[cfg(feature = "contact_work_area")]
 use crate::route_stage::SharedRouteStage;
 use crate::types::{Date, NodeID, Token};
@@ -186,56 +187,16 @@ impl Parser<ContactInfo> for ContactInfo {
     ///
     /// # Returns
     ///
-    /// * `ParsingState<ContactInfo>` - The parsing state indicating success or failure.
-    fn parse(lexer: &mut dyn Lexer) -> ParsingState<ContactInfo> {
-        let tx_node_state = NodeID::parse(lexer);
-        let tx_node_id: NodeID = match tx_node_state {
-            ParsingState::Finished(value) => value,
-            ParsingState::Error(msg) => return ParsingState::Error(msg),
-            ParsingState::EOF => {
-                return ParsingState::Error(format!(
-                    "Parsing failed ({})",
-                    lexer.get_current_position()
-                ));
-            }
-        };
+    /// * `Result<LexerOutput<ContactInfo>, ASABRError>` - The successful parsing state or an error.
+    fn parse(lexer: &mut dyn Lexer) -> Result<ContactInfo, ASABRError> {
+        let tx_node_id: NodeID = NodeID::parse(lexer)?;
 
-        let rx_node_state = NodeID::parse(lexer);
-        let rx_node_id: NodeID = match rx_node_state {
-            ParsingState::Finished(value) => value,
-            ParsingState::Error(msg) => return ParsingState::Error(msg),
-            ParsingState::EOF => {
-                return ParsingState::Error(format!(
-                    "Parsing failed ({})",
-                    lexer.get_current_position()
-                ));
-            }
-        };
+        let rx_node_id: NodeID = NodeID::parse(lexer)?;
 
-        let start_state = Date::parse(lexer);
-        let start: Date = match start_state {
-            ParsingState::Finished(value) => value,
-            ParsingState::Error(msg) => return ParsingState::Error(msg),
-            ParsingState::EOF => {
-                return ParsingState::Error(format!(
-                    "Parsing failed ({})",
-                    lexer.get_current_position()
-                ));
-            }
-        };
+        let start: Date = Date::parse(lexer)?;
 
-        let end_state = Date::parse(lexer);
-        let end: Date = match end_state {
-            ParsingState::Finished(value) => value,
-            ParsingState::Error(msg) => return ParsingState::Error(msg),
-            ParsingState::EOF => {
-                return ParsingState::Error(format!(
-                    "Parsing failed ({})",
-                    lexer.get_current_position()
-                ));
-            }
-        };
+        let end: Date = Date::parse(lexer)?;
 
-        ParsingState::Finished(ContactInfo::new(tx_node_id, rx_node_id, start, end))
+        Ok(ContactInfo::new(tx_node_id, rx_node_id, start, end))
     }
 }

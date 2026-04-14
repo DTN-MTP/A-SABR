@@ -7,7 +7,8 @@ use crate::{
         ContactManager, ContactManagerTxData,
         segmentation::{BaseSegmentationManager, Segment},
     },
-    parsing::{DispatchParser, Lexer, Parser, ParsingState},
+    errors::ASABRError,
+    parsing::{DispatchParser, Lexer, Parser},
     types::{DataRate, Date, Duration},
 };
 
@@ -228,8 +229,9 @@ impl Parser<SegmentationManager> for SegmentationManager {
     ///
     /// # Returns
     ///
-    /// Returns a `ParsingState` indicating whether parsing was successful (`Finished`) or encountered an error (`Error`).
-    fn parse(lexer: &mut dyn Lexer) -> ParsingState<SegmentationManager> {
+    /// Returns a `Result<LexerOutput<T>, ASABRError>` indicating whether parsing was successful
+    /// (`Finished`) or encountered an error.
+    fn parse(lexer: &mut dyn Lexer) -> Result<SegmentationManager, ASABRError> {
         super::parse::<SegmentationManager>(lexer)
     }
 }
@@ -303,42 +305,35 @@ mod tests {
 
                 assert!(
                     schedule_tx_res.is_some(),
-                    "TEST N°{} FAILED: schedule_tx failed unexpectedly.",
-                    i
+                    "TEST N°{i} FAILED: schedule_tx failed unexpectedly."
                 );
 
                 assert_eq!(
                     dry_run_res.is_some(),
                     schedule_tx_res.is_some(),
-                    "TEST N°{} FAILED: dry_run_tx and schedule_tx do not match.",
-                    i
+                    "TEST N°{i} FAILED: dry_run_tx and schedule_tx do not match."
                 );
 
                 if let (Some(dry), Some(sched)) = (dry_run_res, schedule_tx_res) {
                     assert_eq!(
                         dry.tx_start, sched.tx_start,
-                        "TEST N°{} FAILED: tx_start mismatch.",
-                        i
+                        "TEST N°{i} FAILED: tx_start mismatch."
                     );
                     assert_eq!(
                         dry.tx_end, sched.tx_end,
-                        "TEST N°{} FAILED: tx_end mismatch.",
-                        i
+                        "TEST N°{i} FAILED: tx_end mismatch."
                     );
                     assert_eq!(
                         dry.expiration, sched.expiration,
-                        "TEST N°{} FAILED: expiration mismatch.",
-                        i
+                        "TEST N°{i} FAILED: expiration mismatch."
                     );
                     assert_eq!(
                         dry.rx_start, sched.rx_start,
-                        "TEST N°{} FAILED: rx_start mismatch.",
-                        i
+                        "TEST N°{i} FAILED: rx_start mismatch."
                     );
                     assert_eq!(
                         dry.rx_end, sched.rx_end,
-                        "TEST N°{} FAILED: rx_end mismatch.",
-                        i
+                        "TEST N°{i} FAILED: rx_end mismatch."
                     );
                 }
             }

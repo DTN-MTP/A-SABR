@@ -66,8 +66,8 @@ macro_rules! generate_struct_management {
                return self.original_volume;
             }
             #[inline(always)]
-            fn build_parsing_output(rate: $crate::types::DataRate, delay: $crate::types::Duration, _lexer: &mut dyn $crate::parsing::Lexer) -> $crate::parsing::ParsingState<Self>{
-                return $crate::parsing::ParsingState::Finished($manager_name::new(rate, delay));
+            fn build_parsing_output(rate: $crate::types::DataRate, delay: $crate::types::Duration, _lexer: &mut dyn $crate::parsing::Lexer) -> Result<Self, $crate::errors::ASABRError>{
+                return Ok($manager_name::new(rate, delay));
             }
         }
     };
@@ -127,8 +127,8 @@ macro_rules! generate_struct_management {
                return self.original_volume;
             }
             #[inline(always)]
-            fn build_parsing_output(rate: $crate::types::DataRate, delay: $crate::types::Duration, _lexer: &mut dyn $crate::parsing::Lexer) -> $crate::parsing::ParsingState<Self>{
-                return $crate::parsing::ParsingState::Finished($manager_name::new(rate, delay));
+            fn build_parsing_output(rate: $crate::types::DataRate, delay: $crate::types::Duration, _lexer: &mut dyn $crate::parsing::Lexer) -> Result<Self, $crate::errors::ASABRError>{
+                return Ok($manager_name::new(rate, delay));
             }
         }
     };
@@ -193,24 +193,15 @@ macro_rules! generate_struct_management {
                return self.budgets[bundle.priority as usize];
             }
             #[inline(always)]
-            fn build_parsing_output(rate: $crate::types::DataRate, delay: $crate::types::Duration, lexer: &mut dyn $crate::parsing::Lexer) -> $crate::parsing::ParsingState<Self>{
+            fn build_parsing_output(rate: $crate::types::DataRate, delay: $crate::types::Duration, lexer: &mut dyn $crate::parsing::Lexer) -> Result<Self, $crate::errors::ASABRError>{
                 let mut budgets = [0.0; 3];
                 for i in 0..$prio_count {
 
-                    let budget_state = <$crate::types::Volume as $crate::types::Token<$crate::types::Volume>>::parse(lexer);
-                    match budget_state {
-                        $crate::parsing::ParsingState::Finished(value) => budgets[i] = value,
-                        $crate::parsing::ParsingState::Error(msg) => return $crate::parsing::ParsingState::Error(msg),
-                        $crate::parsing::ParsingState::EOF => {
-                            return $crate::parsing::ParsingState::Error(format!(
-                                "Parsing failed ({})",
-                                lexer.get_current_position()
-                            ))
-                        }
-                    }
+                    let budget = <$crate::types::Volume as $crate::types::Token<$crate::types::Volume>>::parse(lexer)?;
+                    budgets[i] = budget;
                 }
 
-                return $crate::parsing::ParsingState::Finished($manager_name::new(rate, delay, budgets));
+                return Ok($manager_name::new(rate, delay, budgets));
             }
         }
     };
@@ -384,36 +375,13 @@ macro_rules! generate_prio_volume_manager {
             ///
             /// # Returns
             ///
-            /// Returns a `ParsingState` indicating whether parsing was successful (`Finished`) or encountered an error (`Error`).
+            /// Returns a `Result<LexerOutput<T>, ASABRError>` indicating whether parsing was successful
+            /// (`Finished`) or encountered an error.
             fn parse(
                 lexer: &mut dyn $crate::parsing::Lexer,
-            ) -> $crate::parsing::ParsingState<$manager_name> {
-                let delay: $crate::types::Duration;
-                let rate: $crate::types::DataRate;
-
-                let rate_state = <$crate::types::DataRate as $crate::types::Token<$crate::types::DataRate>>::parse(lexer);
-                match rate_state {
-                    $crate::parsing::ParsingState::Finished(value) => rate = value,
-                    $crate::parsing::ParsingState::Error(msg) => return $crate::parsing::ParsingState::Error(msg),
-                    $crate::parsing::ParsingState::EOF => {
-                        return $crate::parsing::ParsingState::Error(format!(
-                            "Parsing failed ({})",
-                            lexer.get_current_position()
-                        ))
-                    }
-                }
-
-                let delay_state = <$crate::types::Duration as $crate::types::Token<$crate::types::Duration>>::parse(lexer);
-                match delay_state {
-                    $crate::parsing::ParsingState::Finished(value) => delay = value,
-                    $crate::parsing::ParsingState::Error(msg) => return $crate::parsing::ParsingState::Error(msg),
-                    $crate::parsing::ParsingState::EOF => {
-                        return $crate::parsing::ParsingState::Error(format!(
-                            "Parsing failed ({})",
-                            lexer.get_current_position()
-                        ))
-                    }
-                }
+            ) -> Result<$manager_name, $crate::errors::ASABRError> {
+                let rate = <$crate::types::DataRate as $crate::types::Token<$crate::types::DataRate>>::parse(lexer)?;
+                let delay = <$crate::types::Duration as $crate::types::Token<$crate::types::Duration>>::parse(lexer)?;
                 return Self::build_parsing_output(rate, delay, lexer);
             }
         }

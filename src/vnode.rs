@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use crate::{
-    parsing::{Lexer, Parser, ParsingState},
+    errors::ASABRError,
+    parsing::{Lexer, Parser},
     types::{NodeID, NodeIDMap, NodeName, Token},
 };
 
@@ -28,58 +29,26 @@ impl Parser<VirtualNodeInfo> for VirtualNodeInfo {
     ///
     /// # Returns
     ///
-    /// * `ParsingState<VirtualNodeInfo>` - The parsing state, which can be either finished with the parsed node info,
-    ///   an error, or an EOF state.
-    fn parse(lexer: &mut dyn Lexer) -> ParsingState<VirtualNodeInfo> {
-        let vid_state = NodeID::parse(lexer);
-        let vid: NodeID = match vid_state {
-            ParsingState::Finished(value) => value,
-            ParsingState::Error(msg) => return ParsingState::Error(msg),
-            ParsingState::EOF => {
-                return ParsingState::Error(format!(
-                    "Parsing failed ({})",
-                    lexer.get_current_position()
-                ));
-            }
-        };
+    /// * `Result<LexerOutput<VirtualNodeInfo>, ASABRError>` - The parsing state, which can be either
+    ///   finished with the parsed node info, an error, or an EOF state.
+    fn parse(lexer: &mut dyn Lexer) -> Result<VirtualNodeInfo, ASABRError> {
+        let vid: NodeID = NodeID::parse(lexer)?;
 
-        let name_state = NodeName::parse(lexer);
-        let name: NodeName = match name_state {
-            ParsingState::Finished(value) => value,
-            ParsingState::Error(msg) => return ParsingState::Error(msg),
-            ParsingState::EOF => {
-                return ParsingState::Error(format!(
-                    "Parsing failed ({})",
-                    lexer.get_current_position()
-                ));
-            }
-        };
+        let name: NodeName = NodeName::parse(lexer)?;
 
-        let rids_state = Vec::parse(lexer);
-        let rids: Vec<NodeID> = match rids_state {
-            ParsingState::Finished(vec) => {
-                for i in 0..vec.len() {
-                    for j in (i + 1)..vec.len() {
-                        if vec[i] == vec[j] {
-                            return ParsingState::Error(format!(
-                                "Parsing failed: duplicate node ID in vnode definition ({})",
-                                lexer.get_current_position()
-                            ));
-                        }
-                    }
+        let rids: Vec<NodeID> = Vec::parse(lexer)?;
+        for i in 0..rids.len() {
+            for j in (i + 1)..rids.len() {
+                if rids[i] == rids[j] {
+                    return Err(ASABRError::ParsingError(format!(
+                        "Parsing failed: duplicate node ID in vnode definition ({})",
+                        lexer.get_current_position()
+                    )));
                 }
-                vec
             }
-            ParsingState::Error(msg) => return ParsingState::Error(msg),
-            ParsingState::EOF => {
-                return ParsingState::Error(format!(
-                    "Parsing failed ({})",
-                    lexer.get_current_position()
-                ));
-            }
-        };
+        }
 
-        ParsingState::Finished(VirtualNodeInfo { vid, name, rids })
+        Ok(VirtualNodeInfo { vid, name, rids })
     }
 }
 
