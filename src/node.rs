@@ -1,8 +1,9 @@
 use std::{cell::RefCell, cmp::Ordering, rc::Rc};
 
 use crate::{
+    errors::ASABRError,
     node_manager::NodeManager,
-    parsing::{Lexer, Parser, ParsingState},
+    parsing::{Lexer, Parser},
     types::{NodeID, NodeName, Token},
 };
 
@@ -103,34 +104,14 @@ impl Parser<NodeInfo> for NodeInfo {
     ///
     /// # Returns
     ///
-    /// * `ParsingState<NodeInfo>` - The parsing state, which can be either finished with the parsed node info,
+    /// * `Result<LexerOutput<NodeInfo>, ASABRError>` - The parsing state, which can be either finished with the parsed node info,
     ///   an error, or an EOF state.
-    fn parse(lexer: &mut dyn Lexer) -> ParsingState<NodeInfo> {
-        let id_state = NodeID::parse(lexer);
-        let id: NodeID = match id_state {
-            ParsingState::Finished(value) => value,
-            ParsingState::Error(msg) => return ParsingState::Error(msg),
-            ParsingState::EOF => {
-                return ParsingState::Error(format!(
-                    "Parsing failed ({})",
-                    lexer.get_current_position()
-                ));
-            }
-        };
+    fn parse(lexer: &mut dyn Lexer) -> Result<NodeInfo, ASABRError> {
+        let id: NodeID = NodeID::parse(lexer)?;
 
-        let name_state = NodeName::parse(lexer);
-        let name: NodeName = match name_state {
-            ParsingState::Finished(value) => value,
-            ParsingState::Error(msg) => return ParsingState::Error(msg),
-            ParsingState::EOF => {
-                return ParsingState::Error(format!(
-                    "Parsing failed ({})",
-                    lexer.get_current_position()
-                ));
-            }
-        };
+        let name: NodeName = NodeName::parse(lexer)?;
 
-        ParsingState::Finished(NodeInfo {
+        Ok(NodeInfo {
             id,
             name,
             excluded: false,

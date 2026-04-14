@@ -7,7 +7,8 @@ use crate::{
         ContactManager, ContactManagerTxData,
         segmentation::{BaseSegmentationManager, Segment},
     },
-    parsing::{Lexer, Parser, ParsingState},
+    errors::ASABRError,
+    parsing::{Lexer, Parser},
     types::{DataRate, Date, Duration, Priority},
 };
 
@@ -244,8 +245,9 @@ impl Parser<PSegmentationManager> for PSegmentationManager {
     ///
     /// # Returns
     ///
-    /// Returns a `ParsingState` indicating whether parsing was successful (`Finished`) or encountered an error (`Error`).
-    fn parse(lexer: &mut dyn Lexer) -> ParsingState<PSegmentationManager> {
+    /// Returns a `Result<LexerOutput<T>, ASABRError>` indicating whether parsing was successful
+    /// (`Finished`) or encountered an error.
+    fn parse(lexer: &mut dyn Lexer) -> Result<PSegmentationManager, ASABRError> {
         super::parse::<PSegmentationManager>(lexer)
     }
 }
@@ -308,16 +310,12 @@ mod tests {
 
             assert_eq!(
                 dry_run_res, schedule_tx_res,
-                "TEST N°{} FAILED: dry_run and schedule_tx doesn't match.\n",
-                i
+                "TEST N°{i} FAILED: dry_run and schedule_tx doesn't match.\n",
             );
+            let is_some = schedule_tx_res.is_some();
             assert_eq!(
-                schedule_tx_res.is_some(),
-                *expect_success,
-                "TEST N°{} FAILED: expected: {} actual: {}",
-                i,
-                expect_success,
-                schedule_tx_res.is_some()
+                is_some, *expect_success,
+                "TEST N°{i} FAILED: expected: {expect_success} actual: {is_some}",
             );
         }
 

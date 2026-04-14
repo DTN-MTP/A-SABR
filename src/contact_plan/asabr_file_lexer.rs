@@ -3,7 +3,10 @@ use std::{
     io::{self, BufRead, BufReader},
 };
 
-use crate::parsing::{Lexer, ParsingState};
+use crate::{
+    errors::ASABRError,
+    parsing::{Lexer, LexerOutput},
+};
 
 /// A lexer for tokenizing text from a file.
 ///
@@ -91,15 +94,12 @@ impl Lexer for FileLexer {
     ///
     /// # Returns
     ///
-    /// Returns `ParsingState::Finished(String)` if a token is successfully consumed,
-    /// `ParsingState::EOF` if the end of the file is reached, or `ParsingState::Error` if an error occurs.
-    fn consume_next_token(&mut self) -> ParsingState<String> {
+    /// Returns `Ok(LexerOutput::Finished(String))` if a token is successfully consumed,
+    /// `Ok(LexerOutput::EOF)` if the end of the file is reached, or `Err` if an error occurs.
+    fn consume_next_token(&mut self) -> Result<LexerOutput<String>, ASABRError> {
         if self.buffer_stack.is_empty() {
-            let res = self.read_next_words();
-            match res {
-                Ok(_) => {}
-                Err(e) => return ParsingState::Error(e.to_string()),
-            }
+            self.read_next_words()
+                .map_err(|e| ASABRError::ParsingError(e.to_string()))?;
         }
 
         let next_word = self.buffer_stack.pop();
@@ -110,9 +110,9 @@ impl Lexer for FileLexer {
                     self.current_line = self.lookup_current_line;
                 }
                 self.token_position += 1;
-                ParsingState::Finished(word)
+                Ok(LexerOutput::Finished(word))
             }
-            None => ParsingState::EOF,
+            None => Ok(LexerOutput::EOF),
         }
     }
 
@@ -133,21 +133,18 @@ impl Lexer for FileLexer {
     ///
     /// # Returns
     ///
-    /// Returns `ParsingState::Finished(String)` if a token is available,
-    /// `ParsingState::EOF` if the end of the file is reached, or `ParsingState::Error` if an error occurs.
-    fn lookup(&mut self) -> ParsingState<String> {
+    /// Returns `Ok(LexerOutput::Finished(String))` if a token is available,
+    /// `Ok(LexerOutput::EOF)` if the end of the file is reached, or `Err` if an error occurs.
+    fn lookup(&mut self) -> Result<LexerOutput<String>, ASABRError> {
         if self.buffer_stack.is_empty() {
-            let res = self.read_next_words();
-            match res {
-                Ok(_) => {}
-                Err(e) => return ParsingState::Error(e.to_string()),
-            }
+            self.read_next_words()
+                .map_err(|e| ASABRError::ParsingError(e.to_string()))?;
         }
 
         let next_word = self.buffer_stack.last();
         match next_word {
-            Some(word) => ParsingState::Finished(word.to_string()),
-            None => ParsingState::EOF,
+            Some(word) => Ok(LexerOutput::Finished(word.to_string())),
+            None => Ok(LexerOutput::EOF),
         }
     }
 }

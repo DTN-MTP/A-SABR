@@ -1,6 +1,9 @@
 use std::{collections::HashMap, str::FromStr};
 
-use crate::parsing::{Lexer, ParsingState};
+use crate::{
+    errors::ASABRError,
+    parsing::{Lexer, LexerOutput},
+};
 
 // Convenient for vector indexing
 // TODO: add a check like ~ static_assert(sizeof(NodeID) <= sizeof(usize))
@@ -46,24 +49,28 @@ pub trait Token<T: Sized> {
     ///
     /// # Returns
     ///
-    /// A `ParsingState<T>` indicating the result of the parsing operation.
-    fn parse(lexer: &mut dyn Lexer) -> ParsingState<T>;
+    /// A `Result<LexerOutput<T>, ASABRError>` indicating the result of the parsing operation.
+    fn parse(lexer: &mut dyn Lexer) -> Result<T, ASABRError>;
 }
 
 /// Implement the `Token` trait for any type that implements `FromStr`.
 impl<T: FromStr> Token<T> for T {
-    fn parse(lexer: &mut dyn Lexer) -> ParsingState<T> {
-        let res = lexer.consume_next_token();
-        match res {
-            ParsingState::EOF => ParsingState::EOF,
-            ParsingState::Error(e) => ParsingState::Error(e),
-            ParsingState::Finished(token) => match token.parse::<T>() {
-                Ok(value) => ParsingState::Finished(value),
-                Err(_) => ParsingState::Error(format!(
-                    "Parsing failed ({})",
+    fn parse(lexer: &mut dyn Lexer) -> Result<T, ASABRError> {
+        let token = match lexer.consume_next_token()? {
+            LexerOutput::EOF => {
+                return Err(ASABRError::ParsingError(format!(
+                    "Expected token, found EOF ({})",
                     lexer.get_current_position()
-                )),
-            },
+                )));
+            }
+            LexerOutput::Finished(token) => token,
+        };
+        match token.parse::<T>() {
+            Ok(value) => Ok(value),
+            Err(_) => Err(ASABRError::ParsingError(format!(
+                "Parsing failed ({})",
+                lexer.get_current_position()
+            ))),
         }
     }
 }

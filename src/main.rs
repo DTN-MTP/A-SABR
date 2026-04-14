@@ -41,8 +41,7 @@ fn main() -> Result<(), ASABRError> {
         &mut mylexer,
         None,
         Some(&contact_dispatch),
-    )
-    .unwrap();
+    )?;
 
     // We create a storage for the Paths
     let table = Rc::new(RefCell::new(TreeCache::new(true, false, 10)));
