@@ -14,7 +14,9 @@ use crate::pathfinding::PathFindingOutput;
 use crate::route_stage::{RouteStage, SharedRouteStage};
 use crate::types::Date;
 use crate::vertex::Vertex;
+use crate::vnode::VirtualNodeMap;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 #[derive(Debug)]
@@ -271,4 +273,49 @@ pub(crate) fn make_hop_context(size: f64) -> HopContext<NoManagement> {
         source,
         nodes,
     }
+}
+
+/// Creates a graph with vnodes for testing anycast routing.
+///
+/// Topology (real nodes):
+///   A(0) --c0--> B(1) --c1--> C(2)
+///   A(0) --c2--> D(3) --c3--> E(4)
+///
+/// VNode V(5) labels both C(2) and E(4).
+///
+/// Contact c0: A->B, delay=1.0
+/// Contact c1: B->C, delay=1.0
+/// Contact c2: A->D, delay=0.5
+/// Contact c3: D->E, delay=0.5
+///
+/// Routing to V(5) should find the path A->D->E (arrival=1.01) over A->B->C (arrival=2.02)
+/// because E is reached faster and is part of the same vnode group.
+pub(crate) fn vnode_anycast_graph()
+-> Result<Rc<RefCell<Multigraph<NoManagement, EVLManager>>>, ASABRError> {
+    let mut vnode_to_rids_map_raw: HashMap<NodeID, Vec<NodeID>> = HashMap::new();
+    let mut rid_to_vnodes_map_raw: HashMap<NodeID, Vec<NodeID>> = HashMap::new();
+    vnode_to_rids_map_raw.insert(5, vec![2, 4]); // V(5) labels C(2) and E(4)
+    rid_to_vnodes_map_raw.insert(2, vec![5]);
+    rid_to_vnodes_map_raw.insert(4, vec![5]);
+
+    Ok(Rc::new(RefCell::new(Multigraph::new(ContactPlan::new(
+        vec![
+            make_vertex(0, "A", NoManagement {}),
+            make_vertex(1, "B", NoManagement {}),
+            make_vertex(2, "C", NoManagement {}),
+            make_vertex(3, "D", NoManagement {}),
+            make_vertex(4, "E", NoManagement {}),
+            Vertex::VNode(5), // VNode V
+        ],
+        vec![
+            make_contact::<NoManagement>(0, 1, 0.0, 2000.0, 100.0, 1.0), // c0: A->B, delay=1.0
+            make_contact::<NoManagement>(1, 2, 0.0, 2000.0, 100.0, 1.0), // c1: B->C, delay=1.0
+            make_contact::<NoManagement>(0, 3, 0.0, 2000.0, 100.0, 0.5), // c2: A->D, delay=0.5
+            make_contact::<NoManagement>(3, 4, 0.0, 2000.0, 100.0, 0.5), // c3: D->E, delay=0.5
+        ],
+        Some(VirtualNodeMap::new(
+            vnode_to_rids_map_raw,
+            rid_to_vnodes_map_raw,
+        )),
+    )?)?)))
 }

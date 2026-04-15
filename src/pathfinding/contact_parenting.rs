@@ -166,6 +166,7 @@ macro_rules! define_contact_graph {
                                 first_contact_index,
                                 &from_route,
                                 &bundle,
+                                receiver.vertex_id,
                                 &receiver.contacts_to_receiver,
                                 &graph.real_nodes,
                             ) {

@@ -338,6 +338,7 @@ macro_rules! define_mpt {
                                 first_contact_index,
                                 &from_route,
                                 bundle,
+                                receiver.vertex_id,
                                 &receiver.contacts_to_receiver,
                                 &graph.real_nodes,
                             )
@@ -550,6 +551,59 @@ mod tests {
             .expect("Routing Failed !");
 
         assert_time_hop(&res_sabr, 4, 50.0, 3, "SABR");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_vnode_anycast_tree() -> Result<(), ASABRError> {
+        let mg = vnode_anycast_graph()?;
+
+        let mut algo = HybridParentingTreeExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
+
+        let bundle = make_bundle(5, 1, 1.0, 2000.0);
+
+        let res = algo
+            .get_next(0.0, 0, &bundle, &[][..])
+            .expect("Routing to vnode failed!");
+
+        assert!(
+            res.by_destination[5].is_some(),
+            "VNode V(5) should be reachable"
+        );
+
+        let vnode_route = res.by_destination[5].as_ref().unwrap().borrow();
+        assert_eq!(
+            vnode_route.to_node, 5,
+            "Route to_node should be vnode vertex ID (5), got {}",
+            vnode_route.to_node
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_vnode_anycast_path() -> Result<(), ASABRError> {
+        let mg = vnode_anycast_graph()?;
+
+        let mut algo = HybridParentingPathExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
+
+        let bundle = make_bundle(5, 1, 1.0, 2000.0);
+
+        let res = algo
+            .get_next(0.0, 0, &bundle, &[][..])
+            .expect("Routing to vnode failed!");
+
+        assert!(
+            res.by_destination[5].is_some(),
+            "VNode V(5) should be reachable via path search"
+        );
+
+        let vnode_route = res.by_destination[5].as_ref().unwrap().borrow();
+        assert_eq!(
+            vnode_route.to_node, 5,
+            "Route to_node should be vnode ID (5)"
+        );
 
         Ok(())
     }

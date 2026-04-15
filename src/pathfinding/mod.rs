@@ -8,6 +8,7 @@ use crate::node_manager::NodeManager;
 use crate::route_stage::ViaHop;
 use crate::route_stage::{RouteStage, SharedRouteStage};
 use crate::types::{Date, NodeID};
+use crate::vertex::VertexID;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -157,6 +158,7 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
     first_contact_index: usize,
     sndr_route: &SharedRouteStage<NM, CM>,
     _bundle: &Bundle,
+    receiver_id: VertexID,
     contacts: &[Rc<RefCell<Contact<NM, CM>>>],
     nodes: &[Rc<RefCell<Node<NM>>>],
 ) -> Option<RouteStage<NM, CM>> {
@@ -241,7 +243,7 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
         let selected_contact = &contacts[index];
         let mut route_proposition: RouteStage<NM, CM> = RouteStage::new(
             final_data.rx_end,
-            selected_contact.borrow().get_rx_node_id(),
+            receiver_id,
             Some(ViaHop {
                 contact: selected_contact.clone(),
                 parent_route: sndr_route.clone(),
@@ -276,6 +278,7 @@ mod tests {
     use crate::node_manager::none::NoManagement;
     use crate::pathfinding::test_helpers::*;
     use crate::route_stage::RouteStage;
+    use crate::vertex::VertexID;
     use std::cell::RefCell;
     use std::rc::Rc;
 
@@ -284,10 +287,18 @@ mod tests {
         first_contact_index: usize,
         source: &SharedRouteStage<NM, EVLManager>,
         bundle: &Bundle,
+        receiver_id: VertexID,
         contacts: &[Rc<RefCell<Contact<NM, EVLManager>>>],
         nodes: &[Rc<RefCell<Node<NM>>>],
     ) -> Option<RouteStage<NM, EVLManager>> {
-        try_make_hop(first_contact_index, source, bundle, contacts, nodes)
+        try_make_hop(
+            first_contact_index,
+            source,
+            bundle,
+            receiver_id,
+            contacts,
+            nodes,
+        )
     }
 
     #[test]
@@ -301,7 +312,7 @@ mod tests {
         let ctx = make_hop_context(50.0);
 
         let result: Option<RouteStage<NoManagement, EVLManager>> =
-            run_hop(0, &ctx.source, &ctx.bundle, &[], &ctx.nodes);
+            run_hop(0, &ctx.source, &ctx.bundle, 1, &[], &ctx.nodes);
 
         assert!(
             result.is_none(),
@@ -317,7 +328,7 @@ mod tests {
         )];
 
         let result: Option<RouteStage<NoManagement, EVLManager>> =
-            run_hop(1, &ctx.source, &ctx.bundle, &contacts, &ctx.nodes);
+            run_hop(1, &ctx.source, &ctx.bundle, 1, &contacts, &ctx.nodes);
 
         assert!(
             result.is_none(),
@@ -332,7 +343,7 @@ mod tests {
             0, 1, 0.0, 200.0, 100.0, 1.0,
         )];
 
-        let result = run_hop(0, &ctx.source, &ctx.bundle, &contacts, &ctx.nodes);
+        let result = run_hop(0, &ctx.source, &ctx.bundle, 1, &contacts, &ctx.nodes);
 
         assert!(
             result.is_none(),
@@ -347,7 +358,7 @@ mod tests {
             0, 1, 0.0, 200.0, 100.0, 1.0,
         )];
 
-        let result = run_hop(0, &ctx.source, &ctx.bundle, &contacts, &ctx.nodes);
+        let result = run_hop(0, &ctx.source, &ctx.bundle, 1, &contacts, &ctx.nodes);
 
         assert!(
             result.is_some(),
@@ -365,6 +376,7 @@ mod tests {
             1,
             &ctx.source,
             &ctx.bundle,
+            1,
             &[contact_skipped, contact_used],
             &ctx.nodes,
         );
@@ -396,6 +408,7 @@ mod tests {
             0,
             &ctx.source,
             &ctx.bundle,
+            1,
             &[contact1, contact2, contact3],
             &ctx.nodes,
         );
@@ -418,6 +431,7 @@ mod tests {
             0,
             &ctx.source,
             &ctx.bundle,
+            1,
             &[contact_suppressed, contact_valid],
             &ctx.nodes,
         );
@@ -446,7 +460,7 @@ mod tests {
             0, 1, 0.0, 2000.0, 100.0, 1.0,
         )];
 
-        let result = run_hop(0, &source, &bundle, &contacts, &nodes);
+        let result = run_hop(0, &source, &bundle, 1, &contacts, &nodes);
 
         assert!(
             result.is_none(),
@@ -466,7 +480,7 @@ mod tests {
             0, 1, 0.0, 2000.0, 100.0, 1.0,
         )];
 
-        let result = run_hop(0, &source, &bundle, &contacts, &nodes);
+        let result = run_hop(0, &source, &bundle, 1, &contacts, &nodes);
 
         assert!(
             result.is_none(),
@@ -486,7 +500,7 @@ mod tests {
             0, 1, 0.0, 2000.0, 100.0, 1.0,
         )];
 
-        let result = run_hop(0, &source, &bundle, &contacts, &nodes);
+        let result = run_hop(0, &source, &bundle, 1, &contacts, &nodes);
 
         assert!(
             result.is_some(),
@@ -522,6 +536,7 @@ mod tests {
             0,
             &source,
             &bundle,
+            1,
             &[contact_a, contact_b, contact_c, contact_d],
             &nodes,
         );
@@ -574,6 +589,7 @@ mod tests {
             0,
             &ctx.source,
             &ctx.bundle,
+            1,
             &[contact_a, contact_b],
             &ctx.nodes,
         )
@@ -615,7 +631,7 @@ mod tests {
         // Contact D : arrival = 5.0
         let contact_d = make_contact_rc::<NoManagement>(1, 2, 0.0, 1000.0, 100.0, 2.0);
 
-        let hop2 = run_hop(0, &source2, &ctx.bundle, &[contact_c, contact_d], &nodes)
+        let hop2 = run_hop(0, &source2, &ctx.bundle, 2, &[contact_c, contact_d], &nodes)
             .expect("TEST FAILED: Hop 2 should succeed.");
 
         assert_eq!(
@@ -642,6 +658,55 @@ mod tests {
         assert!(
             hop2.via.is_some(),
             "Hop 2 FAILED: Expected a ViaHop to be set."
+        );
+    }
+
+    #[test]
+    fn test_to_node_equals_receiver_vertex_id() {
+        let ctx = make_hop_context(50.0);
+        let contacts = vec![make_contact_rc::<NoManagement>(
+            0, 1, 0.0, 200.0, 100.0, 1.0,
+        )];
+
+        // Pass receiver_id = 1 (same as contact's rx_node_id): to_node should be 1
+        let result = run_hop(0, &ctx.source, &ctx.bundle, 1, &contacts, &ctx.nodes);
+        let route = result.expect("Expected a valid hop");
+        assert_eq!(
+            route.to_node, 1,
+            "to_node should equal the receiver_vertex_id (1), got {}",
+            route.to_node
+        );
+    }
+
+    #[test]
+    fn test_vnode_receiver_sets_to_node() {
+        let ctx = make_hop_context(50.0);
+        // Contact goes from real node 0 to real node 1
+        let contacts = vec![make_contact_rc::<NoManagement>(
+            0, 1, 0.0, 200.0, 100.0, 1.0,
+        )];
+
+        // Pass receiver_id = 42 (a vnode vertex ID, distinct from contact's rx_node_id = 1).
+        // to_node must be set to the receiver vertex ID, not the contact's rx_node_id.
+        let result = run_hop(0, &ctx.source, &ctx.bundle, 42, &contacts, &ctx.nodes);
+        let route = result.expect("Expected a valid hop even with a vnode receiver");
+        assert_eq!(
+            route.to_node, 42,
+            "to_node should equal the vnode receiver_vertex_id (42), got {}",
+            route.to_node
+        );
+
+        // The ViaHop should still reference the real nodes from the contact
+        let via = route.via.as_ref().expect("Expected a ViaHop");
+        assert_eq!(
+            via.tx_node.borrow().info.id,
+            0,
+            "ViaHop tx_node should be the real tx node (0)"
+        );
+        assert_eq!(
+            via.rx_node.borrow().info.id,
+            1,
+            "ViaHop rx_node should be the real rx node (1), not the vnode"
         );
     }
 }
