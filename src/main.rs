@@ -41,7 +41,13 @@ fn main() -> Result<(), ASABRError> {
         &mut mylexer,
         None,
         Some(&contact_dispatch),
-    )?;
+    )
+    .map_err(|e| match e {
+        ASABRError::ParsingError(e) => ASABRError::ParsingError(
+            format!("<cp_file> must be in ASABR format with NoManagement for nodes and dynamic management (evl, qd, eto or seg) for contacts. Error while parsing CP: {e}"),
+        ),
+        _ => e,
+    })?;
 
     // We create a storage for the Paths
     let table = Rc::new(RefCell::new(TreeCache::new(true, false, 10)));
