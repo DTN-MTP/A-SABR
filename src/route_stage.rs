@@ -5,6 +5,7 @@ use crate::errors::ASABRError;
 use crate::node::Node;
 use crate::node_manager::NodeManager;
 use crate::types::{Date, Duration, HopCount, NodeID};
+use crate::vertex::VertexID;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -46,8 +47,8 @@ impl<NM: NodeManager, CM: ContactManager> Clone for ViaHop<NM, CM> {
 #[cfg_attr(feature = "debug", derive(derivative::Derivative))]
 #[cfg_attr(feature = "debug", derivative(Debug))]
 pub struct RouteStage<NM: NodeManager, CM: ContactManager> {
-    /// The ID of the destination node for this route stage.
-    pub to_node: NodeID,
+    /// The ID of the destination vertex for this route stage.
+    pub to_node: VertexID,
     /// The time at which this route stage is considered to be valid or relevant.
     pub at_time: Date,
     /// A flag that indicates if this stage of the route is disabled.
