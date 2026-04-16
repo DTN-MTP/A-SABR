@@ -116,6 +116,7 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
     /// * `Self` - A new instance of `Multigraph`.
     pub fn new(contact_plan: ContactPlan<NM, CM>) -> Result<Self, ASABRError> {
         // work area
+        let vnodes_for_rid = contact_plan.vnode_map.get_rid_to_vnodes_map();
         let vertex_count = contact_plan.vertices.len();
         let virtual_node_count = contact_plan.vnode_map.get_vnode_to_rids_map().len();
         let real_node_count = vertex_count - virtual_node_count;
@@ -125,7 +126,7 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
             VertexID,
             HashMap<VertexID, Vec<Rc<RefCell<Contact<NM, CM>>>>>,
         > = HashMap::with_capacity(vertex_count);
-        let mut is_interior = vec![false; real_node_count];
+        let mut is_external = vec![false; vertex_count];
 
         // output
         let mut nodes = Vec::with_capacity(real_node_count);
@@ -133,29 +134,29 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
 
         // collect real nodes, track enodes, init senders
         for ver in contact_plan.vertices {
-            if let Vertex::INode(node) = &ver {
-                is_interior[node.get_node_id() as usize] = true;
+            if let Vertex::ENode(node) = &ver {
+                is_external[node.get_node_id() as usize] = true;
             }
 
-            match ver {
-                Vertex::ENode(node) | Vertex::INode(node) => {
+            let vertex_id = match ver {
+                Vertex::ENode(node) => {
                     let id = node.get_node_id();
                     nodes.push(Rc::new(RefCell::new(node)));
-                    senders.push(Sender {
-                        vertex_id: id,
-                        receivers: Vec::with_capacity(vertex_count),
-                    });
+                    id
                 }
-                Vertex::VNode(vid) => {
-                    senders.push(Sender {
-                        vertex_id: vid,
-                        receivers: Vec::with_capacity(vertex_count),
-                    });
+                Vertex::INode(node) => {
+                    let id = node.get_node_id();
+                    nodes.push(Rc::new(RefCell::new(node)));
+                    id
                 }
-            }
-        }
 
-        let vnodes_for_rid = contact_plan.vnode_map.get_rid_to_vnodes_map();
+                Vertex::VNode(vid) => vid,
+            };
+            senders.push(Sender {
+                vertex_id,
+                receivers: Vec::with_capacity(vertex_count),
+            });
+        }
 
         // Fill contacts into vertex Sender and Receiver pairs (including vnodes) in the map.
         for contact in contact_plan.contacts {
@@ -176,12 +177,15 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
                     .flatten()
                     .chain(std::iter::once(&real_rx_id))
                 {
-                    snd_rcv_map
-                        .entry(*t)
-                        .or_default()
-                        .entry(*r)
-                        .or_default()
-                        .push(contact_rc.clone());
+                    // Only add inodes and vnodes as Sender/Receiver in the graph
+                    if !is_external[*t as usize] && !is_external[*r as usize] {
+                        snd_rcv_map
+                            .entry(*t)
+                            .or_default()
+                            .entry(*r)
+                            .or_default()
+                            .push(contact_rc.clone());
+                    }
                 }
             }
         }

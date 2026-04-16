@@ -56,30 +56,29 @@ impl Parser<VirtualNodeInfo> for VirtualNodeInfo {
 #[derive(Debug, Default)]
 pub struct VirtualNodeMap {
     /// A vnode to nodes NodeIDMap.
-    vnode_map: NodeIDMap,
+    vnode_to_rids_map: NodeIDMap,
+    rid_to_vnodes_map: NodeIDMap,
 }
 
 impl VirtualNodeMap {
-    pub fn new(vnode_map: HashMap<NodeID, Vec<NodeID>>) -> Self {
-        Self { vnode_map }
+    pub fn new(
+        vnode_to_rids_map: HashMap<NodeID, Vec<NodeID>>,
+        rids_to_vnode_map: HashMap<NodeID, Vec<NodeID>>,
+    ) -> Self {
+        Self {
+            vnode_to_rids_map,
+            rid_to_vnodes_map: rids_to_vnode_map,
+        }
     }
 
     /// This method does no additional computations and returns a reference to the stored NodeIDMap
     pub fn get_vnode_to_rids_map(&self) -> &NodeIDMap {
-        &self.vnode_map
+        &self.vnode_to_rids_map
     }
 
-    /// This method reverses the HashMap keys and values before returning a corresponding NodeIDMap
-    pub fn get_rid_to_vnodes_map(&self) -> NodeIDMap {
-        let mut reversed: HashMap<NodeID, Vec<NodeID>> = HashMap::new();
-
-        for (vnode, rids) in &self.vnode_map {
-            for rid in rids {
-                reversed.entry(*rid).or_default().push(*vnode);
-            }
-        }
-
-        reversed
+    /// This method does no additional computations and returns a reference to the stored NodeIDMap
+    pub fn get_rid_to_vnodes_map(&self) -> &NodeIDMap {
+        &self.rid_to_vnodes_map
     }
 
     /// Returns the total number of vnodes in the vnode map.
@@ -89,6 +88,6 @@ impl VirtualNodeMap {
     /// * `usize` - The total number of nodes.
     #[inline(always)]
     pub fn get_vnode_count(&self) -> usize {
-        self.vnode_map.len()
+        self.vnode_to_rids_map.len()
     }
 }
