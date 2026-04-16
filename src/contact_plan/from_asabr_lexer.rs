@@ -32,7 +32,8 @@ impl RealNodeType {
 struct Builder<NM: NodeManager, CM: ContactManager> {
     // for output
     vertices: Vec<Vertex<NM>>,
-    vnode_map: NodeIDMap,
+    vnode_to_rids_map: NodeIDMap,
+    rid_to_vnodes_map: NodeIDMap,
     contacts: Vec<Contact<NM, CM>>,
 
     // Unicity
@@ -43,7 +44,8 @@ impl<NM: NodeManager, CM: ContactManager> Builder<NM, CM> {
     fn new() -> Self {
         Self {
             vertices: Vec::new(),
-            vnode_map: HashMap::new(),
+            vnode_to_rids_map: HashMap::new(),
+            rid_to_vnodes_map: HashMap::new(),
             contacts: Vec::new(),
             node_names: HashSet::new(),
         }
@@ -51,7 +53,7 @@ impl<NM: NodeManager, CM: ContactManager> Builder<NM, CM> {
 
     #[inline(always)]
     fn real_nodes_count(&self) -> usize {
-        self.vertices.len() - self.vnode_map.len()
+        self.vertices.len() - self.vnode_to_rids_map.len()
     }
 
     // Checkers
@@ -86,10 +88,7 @@ impl<NM: NodeManager, CM: ContactManager> Builder<NM, CM> {
     fn check_enodes_have_vnodes(&self) -> Result<(), ASABRError> {
         for vertex in &self.vertices {
             if let Vertex::ENode(enode) = vertex
-                && !self
-                    .vnode_map
-                    .values()
-                    .any(|rids| rids.contains(&enode.info.id))
+                && !self.rid_to_vnodes_map.contains_key(&enode.info.id)
             {
                 return Err(ASABRError::ParsingError(format!(
                     "ENode '{}' (id: {}) is not labeled by any vnode",
@@ -130,9 +129,13 @@ impl<NM: NodeManager, CM: ContactManager> Builder<NM, CM> {
         self.register_name(vnode.name)?;
         for rid in &vnode.rids {
             self.check_real_id(*rid)?;
+            self.rid_to_vnodes_map
+                .entry(*rid)
+                .or_default()
+                .push(vnode.vid);
         }
         self.vertices.push(Vertex::VNode(vnode.vid));
-        self.vnode_map.insert(vnode.vid, vnode.rids);
+        self.vnode_to_rids_map.insert(vnode.vid, vnode.rids);
         Ok(())
     }
 
@@ -142,7 +145,10 @@ impl<NM: NodeManager, CM: ContactManager> Builder<NM, CM> {
         ContactPlan::new(
             self.vertices,
             self.contacts,
-            Some(VirtualNodeMap::new(self.vnode_map)),
+            Some(VirtualNodeMap::new(
+                self.vnode_to_rids_map,
+                self.rid_to_vnodes_map,
+            )),
         )
     }
 }
