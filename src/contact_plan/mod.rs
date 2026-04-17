@@ -3,7 +3,7 @@ use crate::contact_manager::ContactManager;
 use crate::errors::ASABRError;
 use crate::node::Node;
 use crate::node_manager::NodeManager;
-use crate::types::VirtualNodeMap;
+use crate::vnode::VirtualNodeMap;
 
 pub mod asabr_file_lexer;
 pub mod from_asabr_lexer;
