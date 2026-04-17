@@ -128,6 +128,14 @@ impl<NM: NodeManager, CM: ContactManager> Contact<NM, CM> {
     pub fn get_rx_node_id(&self) -> NodeID {
         self.info.rx_node_id
     }
+
+    /// Compare two contacts by start time.
+    pub fn cmp_by_start(&self, other: &Self) -> Ordering {
+        self.info
+            .start
+            .partial_cmp(&other.info.start)
+            .unwrap_or(Ordering::Equal)
+    }
 }
 
 impl<NM: NodeManager, CM: ContactManager> Ord for Contact<NM, CM> {

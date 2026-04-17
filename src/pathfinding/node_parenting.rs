@@ -99,7 +99,7 @@ macro_rules! define_node_graph {
                 let mut priority_queue: BinaryHeap<Reverse<DistanceWrapper<NM, CM, D>>> =
                     BinaryHeap::new();
 
-                for node_id in 0..graph.get_node_count() {
+                for node_id in 0..graph.get_vertex_count() {
                     if node_id == source as usize {
                         tree.by_destination[node_id as usize] = Some(source_route.clone());
                     } else {
@@ -124,7 +124,7 @@ macro_rules! define_node_graph {
 
                     for receiver in &sender.receivers {
                         if $with_exclusions {
-                            if receiver.is_excluded(&graph.nodes) {
+                            if receiver.is_excluded(&graph.real_nodes) {
                                 continue;
                             }
                         }
@@ -136,7 +136,7 @@ macro_rules! define_node_graph {
                                 &from_route,
                                 bundle,
                                 &receiver.contacts_to_receiver,
-                                &graph.nodes,
+                                &graph.real_nodes,
                             )
                         {
                             let idx = receiver.vertex_id as usize;
