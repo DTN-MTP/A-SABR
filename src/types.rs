@@ -11,36 +11,6 @@ pub type NodeID = u16;
 /// Represents a HashMap with node IDs as keys and node ID lists as values
 pub type NodeIDMap = HashMap<NodeID, Vec<NodeID>>;
 
-/// Represents a HashMap wich stores virtual node IDs as keys and real node ID lists as values
-#[derive(Debug, Default)]
-pub struct VirtualNodeMap {
-    vnode_map: NodeIDMap,
-}
-
-impl VirtualNodeMap {
-    pub fn new(vnode_map: HashMap<NodeID, Vec<NodeID>>) -> Self {
-        Self { vnode_map }
-    }
-
-    /// This method does no additional computations and returns reference to the stored NodeIDMap
-    pub fn get_vnode_to_rids_map(&self) -> &NodeIDMap {
-        &self.vnode_map
-    }
-
-    /// This method reverses the HashMap keys and values before returning a corresponding NodeIDMap
-    pub fn get_rid_to_vnodes_map(&self) -> NodeIDMap {
-        let mut reversed: HashMap<NodeID, Vec<NodeID>> = HashMap::new();
-
-        for (vnode, rids) in &self.vnode_map {
-            for rid in rids {
-                reversed.entry(*rid).or_default().push(*vnode);
-            }
-        }
-
-        reversed
-    }
-}
-
 /// Represents the name of a node.
 pub type NodeName = String;
 

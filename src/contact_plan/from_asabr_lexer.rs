@@ -4,8 +4,8 @@ use crate::{
     contact_plan::ContactPlan,
     node::{Node, NodeInfo},
     parsing::{Parser, StaticMarkerMap},
-    types::{NodeID, NodeIDMap, NodeName, VirtualNodeMap},
-    vnode::VirtualNodeInfo,
+    types::{NodeID, NodeIDMap, NodeName},
+    vnode::{VirtualNodeInfo, VirtualNodeMap},
 };
 use crate::{
     node_manager::NodeManager,
