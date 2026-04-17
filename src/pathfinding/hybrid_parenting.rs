@@ -302,7 +302,7 @@ macro_rules! define_mpt {
                     bundle,
                     source_route.clone(),
                     excluded_nodes_sorted,
-                    graph.get_node_count(),
+                    graph.get_vertex_count(),
                 );
                 let mut priority_queue: BinaryHeap<Reverse<DistanceWrapper<NM, CM, D>>> =
                     BinaryHeap::new();
@@ -327,7 +327,7 @@ macro_rules! define_mpt {
 
                     for receiver in &sender.receivers {
                         if $with_exclusions {
-                            if receiver.is_excluded(&graph.nodes) {
+                            if receiver.is_excluded(&graph.real_nodes) {
                                 continue;
                             }
                         }
@@ -339,7 +339,7 @@ macro_rules! define_mpt {
                                 &from_route,
                                 bundle,
                                 &receiver.contacts_to_receiver,
-                                &graph.nodes,
+                                &graph.real_nodes,
                             )
                             // This transforms a prop in the stack to a prop in the heap
                             && let Some(new_route) =

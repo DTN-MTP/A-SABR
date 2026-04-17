@@ -95,7 +95,7 @@ impl VirtualNodeMap {
         Self { vnode_map }
     }
 
-    /// This method does no additional computations and returns reference to the stored NodeIDMap
+    /// This method does no additional computations and returns a reference to the stored NodeIDMap
     pub fn get_vnode_to_rids_map(&self) -> &NodeIDMap {
         &self.vnode_map
     }

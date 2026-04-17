@@ -60,7 +60,7 @@ macro_rules! define_contact_graph {
             fn new(multigraph: Rc<RefCell<Multigraph<NM, CM>>>) -> Self {
                 let mut node_count: usize = 0;
                 if $is_tree_output {
-                    node_count = multigraph.borrow().get_node_count();
+                    node_count = multigraph.borrow().get_vertex_count();
                 }
 
                 Self {
@@ -154,7 +154,7 @@ macro_rules! define_contact_graph {
 
                     for receiver in &sender.receivers {
                         if $with_exclusions {
-                            if receiver.is_excluded(&graph.nodes) {
+                            if receiver.is_excluded(&graph.real_nodes) {
                                 continue;
                             }
                         }
@@ -167,7 +167,7 @@ macro_rules! define_contact_graph {
                                 &from_route,
                                 &bundle,
                                 &receiver.contacts_to_receiver,
-                                &graph.nodes,
+                                &graph.real_nodes,
                             ) {
                                 let mut push = false;
                                 if let Some(hop) = &route_proposition.via {
