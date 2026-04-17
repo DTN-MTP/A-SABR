@@ -7,6 +7,7 @@ pub mod seg;
 
 /// A segment represents a time interval with an associated value of type `T`.
 #[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(PartialEq)]
 pub struct Segment<T> {
     /// The start time of the segment.
     pub start: Date,

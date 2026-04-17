@@ -199,6 +199,19 @@ impl ContactManager for PSegmentationManager {
             i += 1;
         }
 
+        //Checking if  same priority segments can be fused
+        let mut j = 0;
+        while j < self.booking.len() - 1 {
+            if self.booking[j].val == self.booking[j + 1].val
+                && self.booking[j].end == self.booking[j + 1].start
+            {
+                self.booking[j].end = self.booking[j + 1].end;
+                self.booking.remove(j + 1);
+            } else {
+                j += 1;
+            }
+        }
+
         Some(out)
     }
 
@@ -600,9 +613,7 @@ mod tests {
         ];
 
         let output = vec![
-            OutputSeg::Booking(0.0, 10.0, 2),
-            OutputSeg::Booking(10.0, 20.0, 2),
-            OutputSeg::Booking(20.0, 30.0, 2),
+            OutputSeg::Booking(0.0, 30.0, 2),
             OutputSeg::Booking(30.0, 200.0, -1),
         ];
 
@@ -810,5 +821,34 @@ mod tests {
         //- Segment 4: [100.0- 120.0] -> Priority 1 (Untouched)
         //- Segment 5: [120.0- 200.0] -> Free (-1)
         //=====================================================================
+    }
+
+    #[test]
+    fn test_agregates() {
+        let input = vec![
+            InputSeg::Delay(0.0, 200.0, 4.0),
+            InputSeg::Rate(0.0, 200.0, 100.0),
+            InputSeg::Booking(0.0, 50.0, -1),
+            InputSeg::Booking(50.0, 100.0, 1),
+            InputSeg::Booking(100.0, 200.0, -1),
+        ];
+
+        let output = vec![
+            OutputSeg::Booking(0.0, 10.0, -1),
+            OutputSeg::Booking(10.0, 100.0, 1),
+            OutputSeg::Booking(100.0, 200.0, -1),
+        ];
+
+        let bundle = Bundle {
+            source: 0,
+            destinations: vec![1],
+            priority: 1,
+            size: 4000.0,
+            expiration: 1000.0,
+        };
+
+        let requests = vec![(bundle, 10.0, true)];
+
+        start_test(input, output, requests);
     }
 }
