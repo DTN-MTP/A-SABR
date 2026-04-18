@@ -130,7 +130,7 @@ macro_rules! create_new_alternative_path_variant {
             fn new(
                 multigraph: std::rc::Rc<std::cell::RefCell<$crate::multigraph::Multigraph<NM, CM>>>
             ) -> Self {
-                let node_count = multigraph.borrow().get_node_count();
+                let node_count = multigraph.borrow().get_vertex_count();
                 Self {
 
                     pathfinding: P::new(multigraph),

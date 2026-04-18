@@ -51,6 +51,10 @@ name = "contact_plans"
 path = "examples/contact_plans/contact_plans.rs"
 
 [[example]]
+name = "inter-regional_routing"
+path = "examples/inter-regional_routing/inter-regional_routing.rs"
+
+[[example]]
 name = "0-ion-tvgutil-parsing"
 path = "exercises/0-ion-tvgutil-parsing/0-ion-tvgutil-parsing.rs"
 

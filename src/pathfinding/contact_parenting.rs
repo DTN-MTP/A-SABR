@@ -60,7 +60,7 @@ macro_rules! define_contact_graph {
             fn new(multigraph: Rc<RefCell<Multigraph<NM, CM>>>) -> Self {
                 let mut node_count: usize = 0;
                 if $is_tree_output {
-                    node_count = multigraph.borrow().get_node_count();
+                    node_count = multigraph.borrow().get_vertex_count();
                 }
 
                 Self {
@@ -150,11 +150,11 @@ macro_rules! define_contact_graph {
                         }
                     }
 
-                    let sender = &mut graph.senders[tx_node_id as usize];
+                    let sender = &graph.senders[tx_node_id as usize];
 
-                    for receiver in &mut sender.receivers {
+                    for receiver in &sender.receivers {
                         if $with_exclusions {
-                            if receiver.is_excluded() {
+                            if receiver.is_excluded(&graph.real_nodes) {
                                 continue;
                             }
                         }
@@ -166,9 +166,9 @@ macro_rules! define_contact_graph {
                                 first_contact_index,
                                 &from_route,
                                 &bundle,
+                                receiver.vertex_id,
                                 &receiver.contacts_to_receiver,
-                                &sender.node,
-                                &receiver.node,
+                                &graph.real_nodes,
                             ) {
                                 let mut push = false;
                                 if let Some(hop) = &route_proposition.via {
@@ -188,7 +188,7 @@ macro_rules! define_contact_graph {
                                     }
                                 }
                                 if push {
-                                    let rx_node_id = receiver.node.borrow().info.id;
+                                    let rx_node_id = receiver.vertex_id;
 
                                     if let Some(hop) = &route_proposition.via {
                                         let route_proposition_ref = Rc::new(RefCell::new(

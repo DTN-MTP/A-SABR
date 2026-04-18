@@ -99,7 +99,7 @@ macro_rules! define_node_graph {
                 let mut priority_queue: BinaryHeap<Reverse<DistanceWrapper<NM, CM, D>>> =
                     BinaryHeap::new();
 
-                for node_id in 0..graph.get_node_count() {
+                for node_id in 0..graph.get_vertex_count() {
                     if node_id == source as usize {
                         tree.by_destination[node_id as usize] = Some(source_route.clone());
                     } else {
@@ -119,11 +119,12 @@ macro_rules! define_node_graph {
                             break;
                         }
                     }
-                    let sender = &mut graph.senders[tx_node_id as usize];
 
-                    for receiver in &mut sender.receivers {
+                    let sender = &graph.senders[tx_node_id as usize];
+
+                    for receiver in &sender.receivers {
                         if $with_exclusions {
-                            if receiver.is_excluded() {
+                            if receiver.is_excluded(&graph.real_nodes) {
                                 continue;
                             }
                         }
@@ -134,12 +135,12 @@ macro_rules! define_node_graph {
                                 first_contact_index,
                                 &from_route,
                                 bundle,
+                                receiver.vertex_id,
                                 &receiver.contacts_to_receiver,
-                                &sender.node,
-                                &receiver.node,
+                                &graph.real_nodes,
                             )
                         {
-                            let idx = receiver.node.borrow().info.id as usize;
+                            let idx = receiver.vertex_id as usize;
                             let push = match tree.by_destination[idx].as_ref() {
                                 Some(known_route_ref) => {
                                     let mut known_route = known_route_ref.try_borrow_mut()?;
@@ -353,6 +354,97 @@ mod tests {
             .expect("Routing Failed !");
 
         assert_time_hop(&res_sabr, 4, 50.0, 4, "SABR");
+
+        Ok(())
+    }
+
+    /// Tests anycast routing via a vnode.
+    ///
+    /// VNode V(5) labels real nodes C(2) and E(4).
+    /// Path to C: A->B->C (arrival = 2.02, 2 hops)
+    /// Path to E: A->D->E (arrival = 1.01, 2 hops)
+    ///
+    /// Routing to vnode V(5) should find the faster path through E.
+    #[test]
+    fn test_vnode_anycast_tree() -> Result<(), ASABRError> {
+        let mg = vnode_anycast_graph()?;
+
+        let mut algo = NodeParentingTreeExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
+
+        // Destination is the vnode V(5)
+        let bundle = make_bundle(5, 1, 1.0, 2000.0);
+
+        let res = algo
+            .get_next(0.0, 0, &bundle, &[][..])
+            .expect("Routing to vnode failed!");
+
+        // The vnode vertex (index 5) should have a route
+        assert!(
+            res.by_destination[5].is_some(),
+            "VNode V(5) should be reachable"
+        );
+
+        let vnode_route = res.by_destination[5].as_ref().unwrap().borrow();
+        // to_node should be the vnode vertex ID (5), not a real node ID
+        assert_eq!(
+            vnode_route.to_node, 5,
+            "Route to vnode should have to_node = vnode vertex ID (5), got {}",
+            vnode_route.to_node
+        );
+
+        // The real nodes C(2) and E(4) should also be reachable
+        assert!(
+            res.by_destination[2].is_some(),
+            "Real node C(2) should be reachable"
+        );
+        assert!(
+            res.by_destination[4].is_some(),
+            "Real node E(4) should be reachable"
+        );
+
+        // The vnode route's ViaHop should reference real nodes (not the vnode)
+        let via = vnode_route
+            .via
+            .as_ref()
+            .expect("VNode route should have a ViaHop");
+        let real_rx_id = via.rx_node.borrow().info.id;
+        assert!(
+            real_rx_id == 2 || real_rx_id == 4,
+            "ViaHop rx_node should be a real node in the vnode group (2 or 4), got {real_rx_id}",
+        );
+
+        Ok(())
+    }
+
+    /// Tests that routing to a vnode correctly picks the faster path.
+    ///
+    /// VNode V(5) labels real nodes C(2) and E(4).
+    /// The unicast pathfinder should stop at V(5) once it is popped from
+    /// the priority queue, having found the best route (through E, faster).
+    #[test]
+    fn test_vnode_anycast_path() -> Result<(), ASABRError> {
+        let mg = vnode_anycast_graph()?;
+
+        let mut algo = NodeParentingPathExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
+
+        // Destination is the vnode V(5)
+        let bundle = make_bundle(5, 1, 1.0, 2000.0);
+
+        let res = algo
+            .get_next(0.0, 0, &bundle, &[][..])
+            .expect("Routing to vnode failed!");
+
+        // V(5) should be reachable
+        assert!(
+            res.by_destination[5].is_some(),
+            "VNode V(5) should be reachable via path search"
+        );
+
+        let vnode_route = res.by_destination[5].as_ref().unwrap().borrow();
+        assert_eq!(
+            vnode_route.to_node, 5,
+            "Route to_node should be vnode ID (5)"
+        );
 
         Ok(())
     }

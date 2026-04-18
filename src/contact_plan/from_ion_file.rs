@@ -14,6 +14,7 @@ use crate::{
     node::{Node, NodeInfo},
     node_manager::{NodeManager, none::NoManagement},
     types::{DataRate, Date, Duration, NodeID},
+    vertex::Vertex,
 };
 
 use std::{cmp::Ordering, collections::HashMap};
@@ -25,8 +26,8 @@ use std::{
 pub struct IONContactData {
     tx_start: Date,
     tx_end: Date,
-    tx_node: NodeID,
-    rx_node: NodeID,
+    tx_node_id: NodeID,
+    rx_node_id: NodeID,
     data_rate: DataRate,
     delay: Duration,
     _confidence: f32,
@@ -57,17 +58,17 @@ impl Eq for IONContactData {}
 struct IONRangeData {
     tx_start: Date,
     tx_end: Date,
-    tx_node: NodeID,
-    rx_node: NodeID,
+    tx_node_id: NodeID,
+    rx_node_id: NodeID,
     delay: Duration,
 }
 
 fn contact_info_from_tvg_data(data: &IONContactData) -> ContactInfo {
-    ContactInfo::new(data.tx_node, data.rx_node, data.tx_start, data.tx_end)
+    ContactInfo::new(data.tx_node_id, data.rx_node_id, data.tx_start, data.tx_end)
 }
 
 pub trait FromIONContactData<NM: NodeManager, CM: ContactManager> {
-    fn ion_convert(data: &IONContactData) -> Option<Contact<NM, CM>>;
+    fn ion_convert(data: &IONContactData) -> Option<Contact<NoManagement, CM>>;
 }
 
 macro_rules! generate_for_evl_variants {
@@ -113,14 +114,14 @@ pub struct IONContactPlan {}
 fn manage_aliases(
     map_id_map: &mut HashMap<String, NodeID>,
     candidate_name: &String,
-    nodes: &mut Vec<Node<NoManagement>>,
+    vertices: &mut Vec<Vertex<NoManagement>>,
 ) -> NodeID {
     if let Some(value) = map_id_map.get(candidate_name) {
         *value
     } else {
         let next = map_id_map.len() as NodeID;
         map_id_map.insert(candidate_name.clone(), next);
-        nodes.push(
+        vertices.push(Vertex::INode(
             Node::try_new(
                 NodeInfo {
                     id: next as NodeID,
@@ -130,7 +131,7 @@ fn manage_aliases(
                 NoManagement {},
             )
             .unwrap(),
-        );
+        ));
         next
     }
 }
@@ -139,18 +140,18 @@ fn manage_contacts(
     contact_map: &mut HashMap<NodeID, HashMap<NodeID, Vec<IONContactData>>>,
     contact: IONContactData,
 ) {
-    let tx_node = contact.tx_node;
-    let rx_node = contact.rx_node;
+    let tx_node_id = contact.tx_node_id;
+    let rx_node_id = contact.rx_node_id;
 
-    if let Some(inner_map) = contact_map.get_mut(&tx_node) {
+    if let Some(inner_map) = contact_map.get_mut(&tx_node_id) {
         inner_map
-            .entry(rx_node)
+            .entry(rx_node_id)
             .or_insert_with(Vec::new)
             .push(contact);
     } else {
         let mut inner_map = HashMap::new();
-        inner_map.insert(rx_node, vec![contact]);
-        contact_map.insert(tx_node, inner_map);
+        inner_map.insert(rx_node_id, vec![contact]);
+        contact_map.insert(tx_node_id, inner_map);
     }
 }
 
@@ -165,7 +166,7 @@ fn get_confidence(vec: &[String]) -> f32 {
 impl IONContactPlan {
     pub fn parse<NM: NodeManager, CM: FromIONContactData<NM, CM> + ContactManager>(
         filename: &str,
-    ) -> io::Result<ContactPlan<NoManagement, NM, CM>> {
+    ) -> io::Result<ContactPlan<NoManagement, CM>> {
         let file = File::open(filename)?;
         let mut reader = BufReader::new(file);
         let mut map_id_map: HashMap<String, NodeID> = HashMap::new();
@@ -176,7 +177,7 @@ impl IONContactPlan {
 
         let mut contact_count = 0;
         let mut contacts = vec![];
-        let mut nodes = vec![];
+        let mut vertices = vec![];
 
         loop {
             let mut line = String::new();
@@ -201,8 +202,8 @@ impl IONContactPlan {
             if words[1].as_str() == "contact" {
                 let tx_start: Date = words[2].parse().unwrap();
                 let tx_end: Date = words[3].parse().unwrap();
-                let tx_node = manage_aliases(&mut map_id_map, &words[4], &mut nodes);
-                let rx_node = manage_aliases(&mut map_id_map, &words[5], &mut nodes);
+                let tx_node_id = manage_aliases(&mut map_id_map, &words[4], &mut vertices);
+                let rx_node_id = manage_aliases(&mut map_id_map, &words[5], &mut vertices);
                 let data_rate: DataRate = words[6].parse().unwrap();
                 let confidence = get_confidence(&words);
                 contact_count += 1;
@@ -212,8 +213,8 @@ impl IONContactPlan {
                     IONContactData {
                         tx_start,
                         tx_end,
-                        tx_node,
-                        rx_node,
+                        tx_node_id,
+                        rx_node_id,
                         data_rate,
                         delay: 0.0,
                         _confidence: confidence,
@@ -223,14 +224,14 @@ impl IONContactPlan {
             if words[1].as_str() == "range" {
                 let tx_start: Date = words[2].parse().unwrap();
                 let tx_end: Date = words[3].parse().unwrap();
-                let tx_node = manage_aliases(&mut map_id_map, &words[4], &mut nodes);
-                let rx_node = manage_aliases(&mut map_id_map, &words[5], &mut nodes);
+                let tx_node_id = manage_aliases(&mut map_id_map, &words[4], &mut vertices);
+                let rx_node_id = manage_aliases(&mut map_id_map, &words[5], &mut vertices);
                 let delay: Duration = words[6].parse().unwrap();
                 ranges.push(IONRangeData {
                     tx_start,
                     tx_end,
-                    tx_node,
-                    rx_node,
+                    tx_node_id,
+                    rx_node_id,
                     delay,
                 });
             }
@@ -244,8 +245,8 @@ impl IONContactPlan {
         }
 
         for range in &ranges {
-            if let Some(tx_map) = contact_info_map.get_mut(&range.tx_node)
-                && let Some(contact_vec) = tx_map.get_mut(&range.rx_node)
+            if let Some(tx_map) = contact_info_map.get_mut(&range.tx_node_id)
+                && let Some(contact_vec) = tx_map.get_mut(&range.rx_node_id)
             {
                 for contact in contact_vec.iter_mut() {
                     if range.tx_start <= contact.tx_start && contact.tx_end <= range.tx_end {
@@ -266,6 +267,6 @@ impl IONContactPlan {
             ))?;
         }
 
-        Ok(ContactPlan::new(nodes, contacts, None)?)
+        Ok(ContactPlan::new(vertices, contacts, None)?)
     }
 }

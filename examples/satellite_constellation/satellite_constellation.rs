@@ -6,7 +6,7 @@ use a_sabr::node_manager::NodeManager;
 use a_sabr::node_manager::none::NoManagement;
 use a_sabr::parsing::NodeMarkerMap;
 use a_sabr::parsing::coerce_nm;
-use a_sabr::parsing::{DispatchParser, Lexer, Parser, ParsingState, StaticMarkerMap};
+use a_sabr::parsing::{DispatchParser, Lexer, Parser, StaticMarkerMap};
 use a_sabr::pathfinding::Pathfinding;
 use a_sabr::pathfinding::hybrid_parenting::HybridParentingPath;
 use a_sabr::types::Date;
@@ -62,19 +62,11 @@ impl NodeManager for NoRetention {
 impl DispatchParser<NoRetention> for NoRetention {}
 
 impl Parser<NoRetention> for NoRetention {
-    fn parse(lexer: &mut dyn Lexer) -> ParsingState<NoRetention> {
+    fn parse(lexer: &mut dyn Lexer) -> Result<NoRetention, ASABRError> {
         // read the next token as a Duration (alias for f64)
-        let max = <Duration as Token<Duration>>::parse(lexer);
-        // treat success/error cases
-        match max {
-            ParsingState::Finished(value) => ParsingState::Finished(NoRetention {
-                max_proc_time: value,
-            }),
-            ParsingState::Error(msg) => ParsingState::Error(msg),
-            ParsingState::EOF => {
-                ParsingState::Error(format!("Parsing failed ({})", lexer.get_current_position()))
-            }
-        }
+        Ok(NoRetention {
+            max_proc_time: Duration::parse(lexer)?,
+        })
     }
 }
 

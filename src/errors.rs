@@ -1,4 +1,4 @@
-use std::cell::BorrowMutError;
+use std::cell::{BorrowError, BorrowMutError};
 use std::error::Error;
 use std::fmt;
 
@@ -9,11 +9,18 @@ pub enum ASABRError {
     ScheduleError(&'static str),
     ContactPlanError(&'static str),
     MulticastUnsupportedError,
+    ParsingError(String),
+}
+
+impl From<BorrowError> for ASABRError {
+    fn from(_: BorrowError) -> Self {
+        ASABRError::BorrowMutError("borrow error occurred")
+    }
 }
 
 impl From<BorrowMutError> for ASABRError {
     fn from(_: BorrowMutError) -> Self {
-        ASABRError::BorrowMutError("borrow error occurred")
+        ASABRError::BorrowMutError("mutable borrow error occurred")
     }
 }
 

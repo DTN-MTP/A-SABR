@@ -5,7 +5,7 @@ use a_sabr::errors::ASABRError;
 use a_sabr::node_manager::NodeManager;
 use a_sabr::node_manager::none::NoManagement;
 use a_sabr::parsing::coerce_nm;
-use a_sabr::parsing::{DispatchParser, Lexer, Parser, ParsingState};
+use a_sabr::parsing::{DispatchParser, Lexer, Parser};
 use a_sabr::parsing::{NodeMarkerMap, StaticMarkerMap};
 use a_sabr::pathfinding::Pathfinding;
 use a_sabr::pathfinding::hybrid_parenting::HybridParentingPath;
@@ -73,17 +73,10 @@ impl DispatchParser<Compressing> for Compressing {}
 
 /// The parser reads a maximum priority
 impl Parser<Compressing> for Compressing {
-    fn parse(lexer: &mut dyn Lexer) -> ParsingState<Compressing> {
-        let max_priority_state = <Priority as Token<Priority>>::parse(lexer);
-        match max_priority_state {
-            ParsingState::Finished(value) => ParsingState::Finished(Compressing {
-                max_priority: value,
-            }),
-            ParsingState::Error(msg) => ParsingState::Error(msg),
-            ParsingState::EOF => {
-                ParsingState::Error(format!("Parsing failed ({})", lexer.get_current_position()))
-            }
-        }
+    fn parse(lexer: &mut dyn Lexer) -> Result<Compressing, ASABRError> {
+        Ok(Compressing {
+            max_priority: Priority::parse(lexer)?,
+        })
     }
 }
 

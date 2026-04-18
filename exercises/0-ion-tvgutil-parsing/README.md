@@ -69,8 +69,8 @@ The `Node` structure is templated with some type `NM`. `NM` must implement the `
 
 ```rust
 pub struct ContactInfo {
-    pub tx_node: NodeID,
-    pub rx_node: NodeID,
+    pub tx_node_id: NodeID,
+    pub rx_node_id: NodeID,
     pub start: Date,
     pub end: Date,
 }

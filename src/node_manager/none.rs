@@ -1,4 +1,5 @@
-use crate::parsing::{DispatchParser, Lexer, Parser, ParsingState};
+use crate::errors::ASABRError;
+use crate::parsing::{DispatchParser, Lexer, Parser};
 
 #[cfg(any(feature = "node_proc", feature = "node_tx", feature = "node_rx"))]
 use crate::{bundle::Bundle, types::Date};
@@ -48,7 +49,7 @@ impl DispatchParser<NoManagement> for NoManagement {}
 
 /// The parser doesn't need to read tokens.
 impl Parser<NoManagement> for NoManagement {
-    fn parse(_lexer: &mut dyn Lexer) -> ParsingState<NoManagement> {
-        ParsingState::Finished(NoManagement {})
+    fn parse(_lexer: &mut dyn Lexer) -> Result<NoManagement, ASABRError> {
+        Ok(NoManagement {})
     }
 }

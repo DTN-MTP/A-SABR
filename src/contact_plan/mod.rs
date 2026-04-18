@@ -1,9 +1,9 @@
 use crate::contact::Contact;
 use crate::contact_manager::ContactManager;
 use crate::errors::ASABRError;
-use crate::node::Node;
 use crate::node_manager::NodeManager;
-use crate::types::VirtualNodeMap;
+use crate::vertex::Vertex;
+use crate::vnode::VirtualNodeMap;
 
 pub mod asabr_file_lexer;
 pub mod from_asabr_lexer;
@@ -17,13 +17,15 @@ pub mod from_tvgutil_file;
 ///   node's operations.
 /// - `CCM`: A type implementing the `ContactManager` trait, responsible for managing the
 ///   contact's operations.
-pub struct ContactPlan<NNM: NodeManager, CNM: NodeManager, CCM: ContactManager> {
-    pub nodes: Vec<Node<NNM>>,
-    pub contacts: Vec<Contact<CNM, CCM>>,
+pub struct ContactPlan<NM: NodeManager, CM: ContactManager> {
+    /// Vertices sorted by ID. All `VNode`s come after every `INode`s and `ENode`s.
+    pub vertices: Vec<Vertex<NM>>,
+    pub contacts: Vec<Contact<NM, CM>>,
+    /// Maps vnodes and the nodes they label.
     pub vnode_map: VirtualNodeMap,
 }
 
-impl<NNM: NodeManager, CNM: NodeManager, CCM: ContactManager> ContactPlan<NNM, CNM, CCM> {
+impl<NM: NodeManager, CM: ContactManager> ContactPlan<NM, CM> {
     /// Creates a new `ContactPlan`.
     ///
     /// # Parameters
@@ -36,12 +38,12 @@ impl<NNM: NodeManager, CNM: NodeManager, CCM: ContactManager> ContactPlan<NNM, C
     ///
     /// * `Self` - A new instance of `ContactPlan`.
     pub fn new(
-        nodes: Vec<Node<NNM>>,
-        contacts: Vec<Contact<CNM, CCM>>,
+        vertices: Vec<Vertex<NM>>,
+        contacts: Vec<Contact<NM, CM>>,
         vnode_map: Option<VirtualNodeMap>,
     ) -> Result<Self, ASABRError> {
         Ok(ContactPlan {
-            nodes,
+            vertices,
             contacts,
             vnode_map: vnode_map.unwrap_or_default(),
         })

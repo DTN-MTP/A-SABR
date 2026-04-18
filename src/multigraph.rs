@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::node::Node;
@@ -8,10 +9,11 @@ use crate::contact_plan::ContactPlan;
 use crate::errors::ASABRError;
 use crate::node_manager::NodeManager;
 use crate::types::*;
+use crate::vertex::{Vertex, VertexID};
 
 /// Represents a sender node in a routing system, with associated receivers.
 ///
-/// The `Sender` struct holds a reference to a sender node and a list of `Receiver`
+/// The `Sender` struct holds the ID of a sender vertex and a list of `Receiver`
 /// instances that represent the intended recipients for messages or routing actions.
 ///
 /// # Generic Parameters
@@ -19,8 +21,8 @@ use crate::types::*;
 /// - `CM`: A type implementing the `ContactManager` trait, responsible for managing contact-level operations.
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Sender<NM: NodeManager, CM: ContactManager> {
-    /// The node represented by this sender, wrapped in `Rc<RefCell<...>>` for shared ownership and mutability.
-    pub node: Rc<RefCell<Node<NM>>>,
+    /// The ID of the vertex represented by this sender.
+    pub vertex_id: VertexID,
     /// A list of receivers that this sender can communicate with or send data to.
     pub receivers: Vec<Receiver<NM, CM>>,
 }
@@ -35,12 +37,12 @@ pub struct Sender<NM: NodeManager, CM: ContactManager> {
 /// - `CM`: A type implementing the `ContactManager` trait, managing contact-level operations.
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Receiver<NM: NodeManager, CM: ContactManager> {
-    /// The node represented by this receiver, wrapped in `Rc<RefCell<...>>`.
-    pub node: Rc<RefCell<Node<NM>>>,
+    /// The ID of the vertex represented by this receiver.
+    pub vertex_id: VertexID,
     /// A list of contacts providing paths to this receiver.
     pub contacts_to_receiver: Vec<Rc<RefCell<Contact<NM, CM>>>>,
     /// The index of the next contact to be checked for relevance.
-    pub next: usize,
+    pub next: RefCell<usize>,
 }
 
 impl<NM: NodeManager, CM: ContactManager> Receiver<NM, CM> {
@@ -56,10 +58,11 @@ impl<NM: NodeManager, CM: ContactManager> Receiver<NM, CM> {
     /// # Returns
     /// - `Some(usize)`: The index of the first valid contact if found.
     /// - `None`: If no valid contact is found.
-    pub fn lazy_prune_and_get_first_idx(&mut self, current_time: Date) -> Option<usize> {
-        for (idx, contact) in self.contacts_to_receiver.iter().enumerate().skip(self.next) {
+    pub fn lazy_prune_and_get_first_idx(&self, current_time: Date) -> Option<usize> {
+        let mut next_mut = self.next.borrow_mut();
+        for (idx, contact) in self.contacts_to_receiver.iter().enumerate().skip(*next_mut) {
             if contact.borrow().info.end > current_time {
-                self.next = idx;
+                *next_mut = idx;
                 return Some(idx);
             }
         }
@@ -75,8 +78,12 @@ impl<NM: NodeManager, CM: ContactManager> Receiver<NM, CM> {
     /// # Returns
     /// - `true`: If the receiver node is excluded.
     /// - `false`: If the receiver node is included.
-    pub fn is_excluded(&self) -> bool {
-        return self.node.borrow().info.excluded;
+    pub fn is_excluded(&self, nodes: &[Rc<RefCell<Node<NM>>>]) -> bool {
+        if self.vertex_id as usize >= nodes.len() {
+            // It's a vnode
+            return false;
+        }
+        return nodes[self.vertex_id as usize].borrow().info.excluded;
     }
 }
 
@@ -85,10 +92,10 @@ impl<NM: NodeManager, CM: ContactManager> Receiver<NM, CM> {
 pub struct Multigraph<NM: NodeManager, CM: ContactManager> {
     /// The list of sender objects.
     pub senders: Vec<Sender<NM, CM>>,
-    /// * `nodes` - The list of node objects.
-    pub nodes: Vec<Rc<RefCell<Node<NM>>>>,
-    /// * `node_count` - The total number of nodes in the multigraph.
-    node_count: usize,
+    /// The list of node objects.
+    pub real_nodes: Vec<Rc<RefCell<Node<NM>>>>,
+    /// The total number of nodes in the multigraph.
+    vertex_count: usize,
 }
 
 impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
@@ -107,68 +114,106 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
     /// # Returns
     ///
     /// * `Self` - A new instance of `Multigraph`.
-    pub fn new(contact_plan: ContactPlan<NM, NM, CM>) -> Result<Self, ASABRError> {
-        let mut nodes = contact_plan.nodes;
-        let mut contacts = contact_plan.contacts;
-        // the contacts might not be sorted
-        // having a sorted list of contacts allow easy multigraph creation
-        let node_count = nodes.len();
-        let mut senders: Vec<Sender<NM, CM>> = Vec::with_capacity(node_count);
+    pub fn new(contact_plan: ContactPlan<NM, CM>) -> Result<Self, ASABRError> {
+        // work area
+        let vnodes_for_rid = contact_plan.vnode_map.get_rid_to_vnodes_map();
+        let vertex_count = contact_plan.vertices.len();
+        let virtual_node_count = contact_plan.vnode_map.get_vnode_to_rids_map().len();
+        let real_node_count = vertex_count - virtual_node_count;
+        #[allow(clippy::type_complexity)]
+        // Maps contacts to Sender vertex IDs and Receiver vertex IDs.
+        let mut snd_rcv_map: HashMap<
+            VertexID,
+            HashMap<VertexID, Vec<Rc<RefCell<Contact<NM, CM>>>>>,
+        > = HashMap::with_capacity(vertex_count);
+        let mut is_external = vec![false; vertex_count];
 
-        contacts.sort_unstable();
-        nodes.sort_unstable();
+        // output
+        let mut nodes = Vec::with_capacity(real_node_count);
+        let mut senders = Vec::with_capacity(vertex_count);
 
-        let mut all_refs = Vec::with_capacity(node_count);
+        // collect real nodes, track enodes, init senders
+        for ver in contact_plan.vertices {
+            if let Vertex::ENode(node) = &ver {
+                is_external[node.get_node_id() as usize] = true;
+            }
 
-        for node in nodes {
-            let node_ref = Rc::new(RefCell::new(node));
-            // to avoid realloc and preprocessing to get the perfect layout
-            // we just alloc with the worst case capacity and we shrink later
-            senders.push(Sender {
-                node: Rc::clone(&node_ref),
-                receivers: Vec::with_capacity(node_count),
-            });
-            all_refs.push(node_ref)
-        }
-
-        while let Some(last_contact) = contacts.last() {
-            let tx_id = last_contact.get_tx_node();
-            let rx_id = last_contact.get_rx_node();
-
-            let mut contact_count_to_drain = 0;
-
-            for contact in contacts.iter().rev() {
-                if contact.get_rx_node() != rx_id as NodeID
-                    || contact.get_tx_node() != tx_id as NodeID
-                {
-                    break;
+            let vertex_id = match ver {
+                Vertex::ENode(node) => {
+                    let id = node.get_node_id();
+                    nodes.push(Rc::new(RefCell::new(node)));
+                    id
                 }
-                contact_count_to_drain += 1;
-            }
+                Vertex::INode(node) => {
+                    let id = node.get_node_id();
+                    nodes.push(Rc::new(RefCell::new(node)));
+                    id
+                }
 
-            let first_to_drain = contacts.len() - contact_count_to_drain;
-            let mut contacts_to_receiver = Vec::with_capacity(contact_count_to_drain);
-            let drain = contacts.drain(first_to_drain..);
-
-            for contact in drain {
-                contacts_to_receiver.push(Rc::new(RefCell::new(contact)));
-            }
-
-            senders[tx_id as usize].receivers.push(Receiver {
-                node: all_refs[rx_id as usize].clone(),
-                contacts_to_receiver,
-                next: 0,
+                Vertex::VNode(vid) => vid,
+            };
+            senders.push(Sender {
+                vertex_id,
+                receivers: Vec::with_capacity(vertex_count),
             });
         }
 
-        for sender in &mut senders {
-            sender.receivers.shrink_to_fit();
+        // Fill contacts into vertex Sender and Receiver pairs (including vnodes) in the map.
+        for contact in contact_plan.contacts {
+            let real_tx_id = contact.get_tx_node_id();
+            let real_rx_id = contact.get_rx_node_id();
+
+            let contact_rc = Rc::new(RefCell::new(contact));
+
+            for t in vnodes_for_rid
+                .get(&real_tx_id)
+                .into_iter()
+                .flatten()
+                .chain(std::iter::once(&real_tx_id))
+            {
+                for r in vnodes_for_rid
+                    .get(&real_rx_id)
+                    .into_iter()
+                    .flatten()
+                    .chain(std::iter::once(&real_rx_id))
+                {
+                    // Only add inodes and vnodes as Sender/Receiver in the graph
+                    if !is_external[*t as usize] && !is_external[*r as usize] {
+                        snd_rcv_map
+                            .entry(*t)
+                            .or_default()
+                            .entry(*r)
+                            .or_default()
+                            .push(contact_rc.clone());
+                    }
+                }
+            }
+        }
+
+        // now "flatten" (move to linear data structure) and shrink receivers
+        for (t, receivers) in snd_rcv_map {
+            for (r, mut contacts) in receivers {
+                if (t as usize) < real_node_count && (r as usize) < real_node_count {
+                    contacts.sort_unstable();
+                } else {
+                    // A vnode Sender or Receiver's contacts must be sorted by time only, not by
+                    // Tx/Rx node ID.
+                    contacts.sort_unstable_by(|a, b| a.borrow().cmp_by_start(&b.borrow()))
+                }
+                let recver = Receiver {
+                    vertex_id: r,
+                    contacts_to_receiver: contacts,
+                    next: 0.into(),
+                };
+                senders[t as usize].receivers.push(recver);
+            }
+            senders[t as usize].receivers.shrink_to_fit();
         }
 
         Ok(Self {
             senders,
-            nodes: all_refs,
-            node_count,
+            real_nodes: nodes,
+            vertex_count,
         })
     }
 
@@ -190,23 +235,23 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
         let mut exclusion_idx = 0;
         let exclusion_len = exclusions.len();
 
-        for (node_id, sender) in self.senders.iter_mut().enumerate() {
+        for (node_id, node) in self.real_nodes.iter_mut().enumerate() {
             if exclusion_idx < exclusion_len && exclusions[exclusion_idx] as usize == node_id {
-                sender.node.try_borrow_mut()?.info.excluded = true;
+                node.try_borrow_mut()?.info.excluded = true;
                 exclusion_idx += 1;
             } else {
-                sender.node.try_borrow_mut()?.info.excluded = false;
+                node.try_borrow_mut()?.info.excluded = false;
             }
         }
         Ok(())
     }
 
-    /// Retrieves the total number of nodes in the multigraph.
+    /// Retrieves the total number of vertices in the multigraph.
     ///
     /// # Returns
     ///
-    /// * `usize` - The total number of nodes.
-    pub fn get_node_count(&self) -> usize {
-        self.node_count
+    /// * `usize` - The total number of vertices.
+    pub fn get_vertex_count(&self) -> usize {
+        self.vertex_count
     }
 }

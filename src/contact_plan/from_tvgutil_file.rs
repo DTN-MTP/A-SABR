@@ -13,6 +13,7 @@ use crate::{
     node::{Node, NodeInfo},
     node_manager::{NodeManager, none::NoManagement},
     types::{DataRate, Date, Duration, NodeID},
+    vertex::Vertex,
 };
 
 use std::{collections::HashMap, io};
@@ -24,19 +25,19 @@ use std::fs;
 pub struct TVGUtilContactData {
     tx_start: Date,
     tx_end: Date,
-    tx_node: NodeID,
-    rx_node: NodeID,
+    tx_node_id: NodeID,
+    rx_node_id: NodeID,
     delay: Duration,
     data_rate: DataRate,
     _confidence: f32,
 }
 
 fn contact_info_from_tvg_data(data: &TVGUtilContactData) -> ContactInfo {
-    ContactInfo::new(data.tx_node, data.rx_node, data.tx_start, data.tx_end)
+    ContactInfo::new(data.tx_node_id, data.rx_node_id, data.tx_start, data.tx_end)
 }
 
 pub trait FromTVGUtilContactData<NM: NodeManager, CM: ContactManager> {
-    fn tvg_convert(data: TVGUtilContactData) -> Option<Contact<NM, CM>>;
+    fn tvg_convert(data: TVGUtilContactData) -> Option<Contact<NoManagement, CM>>;
 }
 
 macro_rules! generate_for_evl_variants {
@@ -82,9 +83,9 @@ pub struct TVGUtilContactPlan {}
 impl TVGUtilContactPlan {
     pub fn parse<NM: NodeManager, CM: FromTVGUtilContactData<NM, CM> + ContactManager>(
         filename: &str,
-    ) -> io::Result<ContactPlan<NoManagement, NM, CM>> {
-        let mut nodes: Vec<Node<NoManagement>> = Vec::new();
-        let mut contacts: Vec<Contact<NM, CM>> = Vec::new();
+    ) -> io::Result<ContactPlan<NoManagement, CM>> {
+        let mut vertices: Vec<Vertex<NoManagement>> = Vec::new();
+        let mut contacts: Vec<Contact<NoManagement, CM>> = Vec::new();
 
         let mut map_id_map: HashMap<&str, NodeID> = HashMap::new();
 
@@ -94,7 +95,7 @@ impl TVGUtilContactPlan {
 
         for (node_id, (node_name, _node_data)) in json_nodes.iter().enumerate() {
             map_id_map.insert(node_name, node_id as NodeID);
-            nodes.push(
+            vertices.push(Vertex::ENode(
                 Node::try_new(
                     NodeInfo {
                         id: node_id as NodeID,
@@ -104,15 +105,15 @@ impl TVGUtilContactPlan {
                     NoManagement {},
                 )
                 .unwrap(),
-            );
+            ));
         }
 
         let json_contacts = parsed["edges"].as_array().unwrap();
         for nodes_pair in json_contacts {
             let data = nodes_pair.as_object().unwrap();
             let pair = data["vertices"].as_array().unwrap();
-            let tx_node = map_id_map.get(pair[0].as_str().unwrap()).unwrap();
-            let rx_node = map_id_map.get(pair[1].as_str().unwrap()).unwrap();
+            let tx_node_id = map_id_map.get(pair[0].as_str().unwrap()).unwrap();
+            let rx_node_id = map_id_map.get(pair[1].as_str().unwrap()).unwrap();
 
             for contact_data in data["contacts"].as_array().unwrap() {
                 let contact_array = contact_data.as_array().unwrap();
@@ -129,8 +130,8 @@ impl TVGUtilContactPlan {
                 let tvgcontact = TVGUtilContactData {
                     tx_start: start,
                     tx_end: end,
-                    tx_node: *tx_node,
-                    rx_node: *rx_node,
+                    tx_node_id: *tx_node_id,
+                    rx_node_id: *rx_node_id,
                     delay,
                     data_rate,
                     _confidence: confidence,
@@ -141,6 +142,6 @@ impl TVGUtilContactPlan {
                 contacts.push(contact);
             }
         }
-        Ok(ContactPlan::new(nodes, contacts, None)?)
+        Ok(ContactPlan::new(vertices, contacts, None)?)
     }
 }

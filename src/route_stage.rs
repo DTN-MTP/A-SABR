@@ -5,6 +5,7 @@ use crate::errors::ASABRError;
 use crate::node::Node;
 use crate::node_manager::NodeManager;
 use crate::types::{Date, Duration, HopCount, NodeID};
+use crate::vertex::VertexID;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -46,8 +47,8 @@ impl<NM: NodeManager, CM: ContactManager> Clone for ViaHop<NM, CM> {
 #[cfg_attr(feature = "debug", derive(derivative::Derivative))]
 #[cfg_attr(feature = "debug", derivative(Debug))]
 pub struct RouteStage<NM: NodeManager, CM: ContactManager> {
-    /// The ID of the destination node for this route stage.
-    pub to_node: NodeID,
+    /// The ID of the destination vertex for this route stage.
+    pub to_node: VertexID,
     /// The time at which this route stage is considered to be valid or relevant.
     pub at_time: Date,
     /// A flag that indicates if this stage of the route is disabled.
@@ -154,8 +155,9 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
     ///
     /// This function schedules the transmission by interacting with the contact manager and the nodes
     /// in the `node_list`. If node management is enabled (features node_rx, node_tx, and node_proc),
-    /// the nodes will be queried for their transmission and reception schedules. The function will return `true`
-    /// if the scheduling is successful and the bundle is scheduled, or `false` if any failure occurs.
+    /// the nodes will be queried for their transmission and reception schedules. The function will
+    /// return Ok(()) if the scheduling is successful and the bundle is scheduled, or an error if
+    /// any failure occurs.
     ///
     /// # Arguments
     ///

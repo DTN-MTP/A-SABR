@@ -32,5 +32,8 @@ fn main() {
         }
     };
 
-    println!("CP:\n{:#?}", (&contact_plan.nodes, &contact_plan.contacts));
+    println!(
+        "CP:\n{:#?}",
+        (&contact_plan.vertices, &contact_plan.contacts)
+    );
 }

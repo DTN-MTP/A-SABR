@@ -1,6 +1,9 @@
+use std::collections::HashMap;
+
 use crate::{
-    parsing::{Lexer, Parser, ParsingState},
-    types::{NodeID, NodeName, Token},
+    errors::ASABRError,
+    parsing::{Lexer, Parser},
+    types::{NodeID, NodeIDMap, NodeName, Token},
 };
 
 /// Represents information about a vnode in the network.
@@ -26,45 +29,65 @@ impl Parser<VirtualNodeInfo> for VirtualNodeInfo {
     ///
     /// # Returns
     ///
-    /// * `ParsingState<VirtualNodeInfo>` - The parsing state, which can be either finished with the parsed node info,
-    ///   an error, or an EOF state.
-    fn parse(lexer: &mut dyn Lexer) -> ParsingState<VirtualNodeInfo> {
-        let vid_state = NodeID::parse(lexer);
-        let vid: NodeID = match vid_state {
-            ParsingState::Finished(value) => value,
-            ParsingState::Error(msg) => return ParsingState::Error(msg),
-            ParsingState::EOF => {
-                return ParsingState::Error(format!(
-                    "Parsing failed ({})",
-                    lexer.get_current_position()
-                ));
-            }
-        };
+    /// * `Result<LexerOutput<VirtualNodeInfo>, ASABRError>` - The parsing state, which can be either
+    ///   finished with the parsed node info, an error, or an EOF state.
+    fn parse(lexer: &mut dyn Lexer) -> Result<VirtualNodeInfo, ASABRError> {
+        let vid: NodeID = NodeID::parse(lexer)?;
 
-        let name_state = NodeName::parse(lexer);
-        let name: NodeName = match name_state {
-            ParsingState::Finished(value) => value,
-            ParsingState::Error(msg) => return ParsingState::Error(msg),
-            ParsingState::EOF => {
-                return ParsingState::Error(format!(
-                    "Parsing failed ({})",
-                    lexer.get_current_position()
-                ));
-            }
-        };
+        let name: NodeName = NodeName::parse(lexer)?;
 
-        let rids_state = Vec::parse(lexer);
-        let rids: Vec<NodeID> = match rids_state {
-            ParsingState::Finished(value) => value,
-            ParsingState::Error(msg) => return ParsingState::Error(msg),
-            ParsingState::EOF => {
-                return ParsingState::Error(format!(
-                    "Parsing failed ({})",
-                    lexer.get_current_position()
-                ));
+        let rids: Vec<NodeID> = Vec::parse(lexer)?;
+        for i in 0..rids.len() {
+            for j in (i + 1)..rids.len() {
+                if rids[i] == rids[j] {
+                    return Err(ASABRError::ParsingError(format!(
+                        "Parsing failed: duplicate node ID in vnode definition ({})",
+                        lexer.get_current_position()
+                    )));
+                }
             }
-        };
+        }
 
-        ParsingState::Finished(VirtualNodeInfo { vid, name, rids })
+        Ok(VirtualNodeInfo { vid, name, rids })
+    }
+}
+
+/// Represents a HashMap wich stores virtual node IDs as keys and real node ID lists as values
+#[derive(Debug, Default)]
+pub struct VirtualNodeMap {
+    /// A vnode to nodes NodeIDMap.
+    vnode_to_rids_map: NodeIDMap,
+    rid_to_vnodes_map: NodeIDMap,
+}
+
+impl VirtualNodeMap {
+    pub fn new(
+        vnode_to_rids_map: HashMap<NodeID, Vec<NodeID>>,
+        rids_to_vnode_map: HashMap<NodeID, Vec<NodeID>>,
+    ) -> Self {
+        Self {
+            vnode_to_rids_map,
+            rid_to_vnodes_map: rids_to_vnode_map,
+        }
+    }
+
+    /// This method does no additional computations and returns a reference to the stored NodeIDMap
+    pub fn get_vnode_to_rids_map(&self) -> &NodeIDMap {
+        &self.vnode_to_rids_map
+    }
+
+    /// This method does no additional computations and returns a reference to the stored NodeIDMap
+    pub fn get_rid_to_vnodes_map(&self) -> &NodeIDMap {
+        &self.rid_to_vnodes_map
+    }
+
+    /// Returns the total number of vnodes in the vnode map.
+    ///
+    /// # Returns
+    ///
+    /// * `usize` - The total number of nodes.
+    #[inline(always)]
+    pub fn get_vnode_count(&self) -> usize {
+        self.vnode_to_rids_map.len()
     }
 }
