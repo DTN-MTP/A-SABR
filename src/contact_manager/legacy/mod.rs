@@ -2,6 +2,9 @@ pub mod eto;
 pub mod evl;
 pub mod qd;
 
+#[cfg(test)]
+pub(crate) mod test_helpers;
+
 /// Generates a legacy volume management structure and a part of its implementation based on the provided parameters. This
 /// macro is called by the generate_prio_volume_manager macro.
 ///
@@ -107,18 +110,18 @@ macro_rules! generate_struct_management {
 
             #[inline(always)]
             fn get_queue_size(&self, bundle: &$crate::bundle::Bundle) -> $crate::types::Volume {
-                    self.queue_size[bundle.priority as usize]
+                    self.queue_size[(bundle.priority as usize).min($prio_count - 1)]
             }
             #[inline(always)]
             fn enqueue(&mut self, bundle: &$crate::bundle::Bundle)  {
-                for prio in 0..bundle.priority as usize + 1 {
+                for prio in 0..(bundle.priority as usize + 1).min($prio_count) {
                     self.queue_size[prio] += bundle.size;
                 }
             }
             #[allow(dead_code)]
             #[inline(always)]
             fn dequeue(&mut self, bundle: &$crate::bundle::Bundle)  {
-                for prio in 0..bundle.priority as usize + 1 {
+                for prio in 0..(bundle.priority as usize + 1).min($prio_count) {
                     self.queue_size[prio] -= bundle.size;
                 }
             }
@@ -173,28 +176,29 @@ macro_rules! generate_struct_management {
 
             #[inline(always)]
             fn get_queue_size(&self, bundle: &$crate::bundle::Bundle) -> $crate::types::Volume {
-                    self.queue_size[bundle.priority as usize]
+                    self.queue_size[(bundle.priority as usize).min($prio_count - 1)]
             }
             #[inline(always)]
             fn enqueue(&mut self, bundle: &$crate::bundle::Bundle)  {
-                for prio in 0..bundle.priority as usize + 1 {
+                for prio in 0..(bundle.priority as usize + 1).min($prio_count) {
                     self.queue_size[prio] += bundle.size;
                 }
             }
             #[allow(dead_code)]
             #[inline(always)]
             fn dequeue(&mut self, bundle: &$crate::bundle::Bundle)  {
-                for prio in 0..bundle.priority as usize + 1 {
+                for prio in 0..(bundle.priority as usize + 1).min($prio_count) {
                     self.queue_size[prio] -= bundle.size;
                 }
             }
             #[inline(always)]
             fn get_budget(&self, bundle: &$crate::bundle::Bundle) -> $crate::types::Volume  {
-               return self.budgets[bundle.priority as usize];
+               return self.budgets[(bundle.priority as usize).min($prio_count - 1)];
             }
             #[inline(always)]
+
             fn build_parsing_output(rate: $crate::types::DataRate, delay: $crate::types::Duration, lexer: &mut dyn $crate::parsing::Lexer) -> Result<Self, $crate::errors::ASABRError>{
-                let mut budgets = [0.0; 3];
+                let mut budgets = [0.0; $prio_count];
                 for i in 0..$prio_count {
 
                     let budget = <$crate::types::Volume as $crate::types::Token<$crate::types::Volume>>::parse(lexer)?;
@@ -314,7 +318,7 @@ macro_rules! generate_prio_volume_manager {
             #[doc = concat!( "The queue volume will be updated by this method: ", stringify!($auto_update),"`.")]
             /// # Arguments
             ///
-            /// * `contact_data` - Reference to the contact information (unused in this implementation).
+            /// * `contact_data` - Reference to the contact information.
             /// * `at_time` - The current time for scheduling purposes.
             /// * `bundle` - The bundle to be transmitted.
             ///
