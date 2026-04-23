@@ -7,7 +7,14 @@ node 3 node4
 node 4 node5
 node 5 node6
 
-vnode 6 node7 [ 0 1 5 ]
+enode 6 node7
+enode 7 node8
+
+# Nodes 0, 1, and 5 are node passageways
+vnode 8 gateways_to_region_X [ 0 1 5 ]
+
+# Nodes 6, and 7, are external nodes, contacts with those nodes are contact passageways
+vnode 9 gateways_to_region_Y [ 6 7 ]
 
 # Dynamic parsing for contacts a marker should appear before the manager tokens:
 # contact <from> <to> <start> <end> <marker> ...
