@@ -30,6 +30,43 @@ pub fn init_pathfinding<
     )?))))
 }
 
+pub fn pretty_print_multigraph<NM: NodeManager, CM: ContactManager>(graph: &Multigraph<NM, CM>) {
+    let real_node_count = graph.real_nodes.len();
+    let label = |vid: crate::vertex::VertexID| -> String {
+        if (vid as usize) < real_node_count {
+            let node = graph.real_nodes[vid as usize].borrow();
+            format!("node {} \"{}\"", node.info.id, node.info.name)
+        } else {
+            format!("vnode {}", vid)
+        }
+    };
+
+    println!(
+        "Multigraph: {} vertices ({} real node(s), {} vnode(s))",
+        graph.get_vertex_count(),
+        real_node_count,
+        graph.get_vertex_count() - real_node_count,
+    );
+
+    for sender in &graph.senders {
+        println!("- Sender {}:", label(sender.vertex_id));
+        for receiver in &sender.receivers {
+            println!(
+                "    -> Receiver {} ({} contact(s)):",
+                label(receiver.vertex_id),
+                receiver.contacts_to_receiver.len(),
+            );
+            for contact_rc in &receiver.contacts_to_receiver {
+                let c = contact_rc.borrow();
+                println!(
+                    "        * tx={} rx={} [{}, {}]",
+                    c.info.tx_node_id, c.info.rx_node_id, c.info.start, c.info.end,
+                );
+            }
+        }
+    }
+}
+
 pub fn pretty_print<NM: NodeManager, CM: ContactManager>(route: SharedRouteStage<NM, CM>) {
     let mut backtrace: Vec<String> = Vec::new();
     println!(
