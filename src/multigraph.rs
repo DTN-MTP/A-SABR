@@ -178,7 +178,8 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
                     .chain(std::iter::once(&real_rx_id))
                 {
                     // Only add inodes and vnodes as Sender/Receiver in the graph
-                    if !is_external[*t as usize] && !is_external[*r as usize] {
+                    // AND if the Sender/Receiver IDs are different.
+                    if !is_external[*t as usize] && !is_external[*r as usize] && t != r {
                         snd_rcv_map
                             .entry(*t)
                             .or_default()
