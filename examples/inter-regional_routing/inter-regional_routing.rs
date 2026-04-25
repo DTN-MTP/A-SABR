@@ -8,16 +8,16 @@ use a_sabr::{
         segmentation::seg::SegmentationManager,
     },
     contact_plan::{asabr_file_lexer::FileLexer, from_asabr_lexer::ASABRContactPlan},
+    multigraph::Multigraph,
     node_manager::none::NoManagement,
     parsing::{ContactMarkerMap, coerce_cm},
     route_storage::cache::TreeCache,
     routing::{Router, aliases::SpsnHybridParenting},
-    utils::pretty_print,
+    utils::{pretty_print, pretty_print_multigraph},
 };
 
 fn main() {
-    let mut mylexer =
-        FileLexer::new("examples/inter-regional_routing/asabr_format_dynamic.cp").unwrap();
+    let cp_path = "examples/inter-regional_routing/asabr_format_dynamic.cp";
     // All nodes will have the same management approach (NoManagement) but the contacts may be of various types
     // We provide a map with markers that will allow the parser to create the correct contacts types thanks to
     // the markers provides in the contact plan
@@ -29,6 +29,7 @@ fn main() {
 
     // The manager type should be Box<dyn ContactManager>> (heap allocated, dynamically dispatched)
     // Replace None with a dispatching map for the contact_marker_map argument
+    let mut mylexer = FileLexer::new(cp_path).unwrap();
     let contact_plan = ASABRContactPlan::parse::<NoManagement, Box<dyn ContactManager>>(
         &mut mylexer,
         None,
@@ -44,6 +45,22 @@ fn main() {
     println!("Virtual nodes map:");
     dbg!(&contact_plan.vnode_map);
 
+    println!("\n---\n");
+
+    let graph = Multigraph::new(contact_plan).unwrap();
+    pretty_print_multigraph(&graph);
+
+    // Re-parse for the router, which consumes the contact plan to build its own multigraph.
+    let mut router_lexer = FileLexer::new(cp_path).unwrap();
+    let contact_plan = ASABRContactPlan::parse::<NoManagement, Box<dyn ContactManager>>(
+        &mut router_lexer,
+        None,
+        Some(&contact_dispatch),
+    )
+    .unwrap();
+
+    println!("\n---\n");
+
     // We create a storage for the Paths
     let table = Rc::new(RefCell::new(TreeCache::new(true, false, 10)));
     // We initialize the routing algorithm with the storage and the contacts/nodes created thanks to the parser
@@ -57,7 +74,7 @@ fn main() {
     // We will route a bundle
     let b = Bundle {
         source: 0,
-        destinations: vec![4],
+        destinations: vec![8],
         priority: 0,
         size: 1.0,
         expiration: 10000.0,
