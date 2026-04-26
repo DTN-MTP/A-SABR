@@ -1,8 +1,6 @@
-## Inter-regional routing
+## Inter-regional routing and static anycast support
 
 ### Run the example
-
-This example does not require any features yet, but we may add a `vnode_routing` (or similar) feature in the future:
 
 ```bash
 cargo run --example inter-regional_routing
@@ -10,40 +8,57 @@ cargo run --example inter-regional_routing
 
 ### Motivation
 
-Network authorities administer nodes in separate "regions" (this term lacks a reference). This leads to concerns about inter-regional routing: one authority may want to allows other authorities to cross its regions without exposing extensive informations internal to the regions, such as nodes, node managers, contacts, etc.
-This exposes the need to abstract regions as "black boxes", as well as the need for anycast routing, to the closest contact to a given region.
-Multiple approaches to the problem of inter-regional routing have surfaced (BIBE, node passageways, contact passageways). We focus on node passageways and contact passageways.
+Network authorities will administer nodes in separate autonomous systems, called here "regions", which may be managed by different actors. A-SABR proposes two regional interfacing methods.
 
-We wish to implement an abstraction over both.
-In terms of research, this could lead to results such as finding one approach to be a more general case, or inversely a degenerate case of the other.
-In turn we may find a common model in which both cases are degenerate cases of the model.
+The node passageway approach consists of allowing nodes to be part of two regions simultaneously. Inter-regional routing to a neighboring region can be processed as a unicast transmission to the closest (in time) node passageway part of this neighboring region. A node passageway must therefore manage the contact plans of two regions it bridges.
 
-We also use this abstraction to compare both approaches on various criteria.
+The contact passageway approach allows complete separation, only the contacts that bridge the two regions are shared. Inter-regional routing to a neighboring region can be processed as a unicast transmission to the closest (in time) egress contact with this region.
 
-### Principles
+### Prerequisites
 
-A-SABR introduces two contact plan elements: "virtual nodes" and "external nodes".
+This example only covers routing to neighbor regions, and A-SABR is not aware of EIDs, only the home region's contact plan will be presented, and middleware must be deployed above A-SABR for possible EID<->NodeID translations.
 
-Virtual nodes are labels. The relationship between virtual nodes and nodes is many-to-many.
-A virtual nodes names a set of nodes, and is used to specify an anycast source or destination.
-They are written `vnode` in the contact plan.
+The approach implements a static support for anycast, thanks to the assumption that regional membership will most likely be stable, allowing algorithmic optimization for "stable groups" described in the contact plan.
 
-External nodes are nodes, which can only be routed to or from using anycast, and thus must be labelled by at least one vnode.
-External nodes are an efficient representation of nodes that hold little information, or are of little interest for unicast routing, e.g. nodes of a foreign "region", as they are not added as Senders or Receivers in the graph. They only exist as contact Tx/Rx nodes.
-External nodes are expected to most often have a `NoManager` manager.
-They are written `enode` in the contact plan.
+This approach can be leveraged for intra-regional static anycast support, but a dynamic approach (that does not require specific contact plan entries) can be preferable for other use cases.
 
-These two elements are only available in the A-SABR contact plan format.
-A node (`node` in the contact plan) is called an "internal node" or "inode" to differentiate it from an enode.
+### Scenario
 
-Figure 1 below represents a contact plan with internal nodes 0–4, and external nodes 5–7. Regions are represented but virtual nodes are not represented.
+#### Target topology
+
+- The **B**lue region, administrated by **B**laise (local/home region)
+- The **R**ed region, administrated by **R**ose
+- The **G**reen region, administrated by **G**reg
+
 
 ![IRR contact plan](images/irr-cp.svg)
 
-Note that contacts still only point to real nodes (i.e. inodes or enodes), they cannot point to vnodes as they are only labels, not real nodes.
-During multigraph creation, the Sender/Receiver abstraction over the graph is extended with new vertices for each virtual node, whose set of contacts is the union of the contacts of the real nodes that the vnode labels.
-Thus when routing to a vnode, the next hop is the first available contact to any node labelled by this vnode.
+**B**laise organizes the bridging with the two neighboring regions **R** and **G**.
 
-Figure 2 below represents the graph built from the contact plan described in Figure 1, with vnode 8 labelling inodes 3 and 4 of region R, and vnode 9 labelling enodes 5–7.
+Sharing contact plans is acceptable for both **B**laise and **Rose**, and the bridging is organized with two node passageways, one owned by **B**laise (node 3) and one owned by **R**ose (node 4). Although not depicted, the node 3 of **B**laise sees all the contacts in region **R**, and the node **4** of **R**ose needs to see all the contacts depicted in the figure.
+
+However, **G**reg refuses to share internal information and agrees with **B**laise that only the contacts 2→7, 6→1, and 5→0 will be shared. Those contacts are referred to as contact passageways.
+
+
+#### Implementation
+
+
+
+A-SABR introduces two new contact plan elements to implement static anycast: "virtual nodes" and "external nodes".
 
 ![resulting graph](images/irr-graph.svg)
+Rather than labeling the nodes with anycast membership (this can be a good option for dynamic anycast), A-SABR introduces pathfinding optimization with virtual abstraction, aggregating the nodes sharing the same label. The relationship between virtual nodes and nodes is many-to-many.
+
+Declaring static anycast membership requires the `vnode` marker:
+
+`vnode <id> <alias> [ <id> <id> .. ]`
+
+The `enode` marker is also introduced for real nodes that are not members of the home region, called here external nodes. The IDs of the nodes abstracted by a vnode (the IDs between brackets) must be IDs of real nodes, either internal (`node`) or external (`enode`).
+
+The resulting multigraph will present one extra vertex per vnode, in a vertex contraction manner. The original vertices for the nodes are not removed after contraction. However, the policy contact reattachment depends on the nature of the nodes being abstracted:
+- For a contact from or to a `node`, the contact will be *duplicated*, to get one *copy* attached to the `vnode`. Contact *copies* are, in fact, references to the same contact to keep resource awareness consistent.
+- For a contact from or to a `enode`, the contact will be *reattached* to the vnode. As a result, the vertices associated with external nodes are *detached* in the graph.
+
+The motivation for such handling is performance:
+- With *duplication*, the original vertex of the `node` remains attached, routing to this node remains possible for intra-regional support.
+- *Reattaching* the contacts with the `vnode` in order to *detach* (disconnect) the `enode` from the graph  **de-facto reduces its size**, by pruning the graph from vertices that are useless. Indeed, the EIDs associated with external nodes are most likely not shared with the home region. Supporting direct routing to a specific `enode` is allegedly irrelevant.
