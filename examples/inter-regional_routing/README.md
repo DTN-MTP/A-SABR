@@ -46,7 +46,7 @@ A-SABR introduces two new contact plan elements to implement static anycast: "vi
 
 Rather than labeling the nodes with anycast membership (this can be a good option for dynamic anycast), A-SABR introduces pathfinding optimization with virtual node/vertex abstraction, aggregating the nodes sharing the same label. The relationship between virtual nodes and nodes is many-to-many.
 
-**A `vnode` carries a valid ID for routing, anycast routing is abstracted by routing to the according `vnode`.**
+**A `vnode` carries a valid ID for routing, anycast routing is abstracted by routing to the corresponding `vnode`.**
 
 Declaring static anycast membership requires the `vnode` marker:
 
@@ -57,7 +57,7 @@ The `enode` marker is also introduced for real nodes that are not members of the
 The resulting multigraph will present one extra vertex per vnode, in a vertex contraction manner. The original vertices of the nodes being merged are not removed after contraction. However, the contact reattachment policy depends on the nature of the nodes being merged:
 
 - For a contact from or to a `node`, the contact will be *duplicated*, to get one *copy* attached to the `vnode`. One contact *copy* remains attached to the original node. Contact *copies* are, in fact, references to the same contact to keep resource awareness consistent.
-- For a contact from or to a `enode`, the contact will be *reattached* to the vnode. As a result, the vertices associated with external nodes are *detached* in the graph.
+- For a contact from or to an `enode`, the contact will be *reattached* to the vnode. As a result, the vertices associated with external nodes are *detached* in the graph.
 
 The motivation for such handling is performance:
 
