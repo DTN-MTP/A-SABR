@@ -30,7 +30,6 @@ This approach can be leveraged for intra-regional static anycast support, but a 
 - The **R**ed region, administrated by **R**ose
 - The **G**reen region, administrated by **G**reg
 
-
 ![IRR contact plan](images/irr-cp.svg)
 
 **B**laise organizes the bridging with the two neighboring regions **R** and **G**.
@@ -39,10 +38,7 @@ Sharing contact plans is acceptable for both **B**laise and **R**ose, and the br
 
 However, **G**reg refuses to share internal information and agrees with **B**laise that only the contacts 2→7, 6→1, and 5→0 will be shared. Those contacts are referred to as contact passageways.
 
-
 #### Implementation
-
-
 
 A-SABR introduces two new contact plan elements to implement static anycast: "virtual nodes" and "external nodes".
 
@@ -59,16 +55,17 @@ Declaring static anycast membership requires the `vnode` marker:
 The `enode` marker is also introduced for real nodes that are not members of the home region, called here external nodes. The IDs of the nodes abstracted by a vnode (the IDs between brackets) must be IDs of real nodes, either internal (`node`) or external (`enode`).
 
 The resulting multigraph will present one extra vertex per vnode, in a vertex contraction manner. The original vertices of the nodes being merged are not removed after contraction. However, the contact reattachment policy depends on the nature of the nodes being merged:
+
 - For a contact from or to a `node`, the contact will be *duplicated*, to get one *copy* attached to the `vnode`. One contact *copy* remains attached to the original node. Contact *copies* are, in fact, references to the same contact to keep resource awareness consistent.
 - For a contact from or to a `enode`, the contact will be *reattached* to the vnode. As a result, the vertices associated with external nodes are *detached* in the graph.
 
 The motivation for such handling is performance:
+
 - With *duplication*, the original vertex of the `node` remains attached, routing to this node remains possible for intra-regional support.
 - *Reattaching* the contacts with the `vnode` in order to *detach* (disconnect) the `enode` from the graph  **de-facto reduces its size**, by pruning the graph from vertices that are useless. Indeed, the EIDs associated with external nodes are most likely not shared with the home region. Supporting direct routing to a specific `enode` is allegedly irrelevant.
 
-
 ### References
 
-[1] https://amslaurea.unibo.it/id/eprint/17468/1/tesi_alessi.pdf
+[1] <https://amslaurea.unibo.it/id/eprint/17468/1/tesi_alessi.pdf>
 
-[2] https://hal.science/hal-04711330/file/_Juan_Olivier__Inter_Regional_Routing_Architecture.pdf
+[2] <https://hal.science/hal-04711330/file/_Juan_Olivier__Inter_Regional_Routing_Architecture.pdf>

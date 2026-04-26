@@ -18,7 +18,7 @@ enode 7 node7_G
 # Declare virtual node for node passageways 3 and 4
 vnode 8 gateways_to_region_R [ 3 4 ]
 
-#  Declare virtual node for external nodes 5, 6, and 7
+# Declare virtual node for external nodes 5, 6, and 7
 vnode 9 gateways_to_region_G [ 5 6 7 ]
 
 # Contacts
