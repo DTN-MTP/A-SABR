@@ -14,6 +14,7 @@ use crate::{
     node_manager::{NodeManager, none::NoManagement},
     types::{DataRate, Date, Duration, NodeID},
     vertex::Vertex,
+    vnode::VirtualNodeMap,
 };
 
 use std::{collections::HashMap, io};
@@ -88,24 +89,67 @@ impl TVGUtilContactPlan {
         let mut contacts: Vec<Contact<NoManagement, CM>> = Vec::new();
 
         let mut map_id_map: HashMap<&str, NodeID> = HashMap::new();
+        let mut vnode_to_rids_map: HashMap<NodeID, Vec<NodeID>> = HashMap::new();
+        let mut rid_to_vnodes_map: HashMap<NodeID, Vec<NodeID>> = HashMap::new();
 
         let json_data = fs::read_to_string(filename)?;
         let parsed: Value = serde_json::from_str(&json_data).unwrap();
         let json_nodes = parsed["vertices"].as_object().unwrap();
 
-        for (node_id, (node_name, _node_data)) in json_nodes.iter().enumerate() {
+        for (node_id, (node_name, node_data)) in json_nodes.iter().enumerate() {
             map_id_map.insert(node_name, node_id as NodeID);
-            vertices.push(Vertex::ENode(
-                Node::try_new(
-                    NodeInfo {
-                        id: node_id as NodeID,
-                        name: node_name.to_string(),
-                        excluded: false,
-                    },
-                    NoManagement {},
-                )
-                .unwrap(),
-            ));
+            let node = Node::try_new(
+                NodeInfo {
+                    id: node_id as NodeID,
+                    name: node_name.to_string(),
+                    excluded: false,
+                },
+                NoManagement {},
+            )
+            .unwrap();
+            let vertex = match node_data["type"].as_str().unwrap_or("inode") {
+                "enode" => Vertex::ENode(node),
+                _ => Vertex::INode(node),
+            };
+            vertices.push(vertex);
+        }
+
+        let real_node_count = vertices.len();
+
+        if let Some(json_vnodes) = parsed["vnodes"].as_array() {
+            for (vnode_offset, vnode_data) in json_vnodes.iter().enumerate() {
+                let vid = (real_node_count + vnode_offset) as NodeID;
+                let vnode_obj = vnode_data.as_object().unwrap();
+                let members = vnode_obj["members"].as_array().unwrap();
+                let mut rids: Vec<NodeID> = Vec::new();
+                for member in members {
+                    let member_name = member.as_str().unwrap();
+                    let rid = *map_id_map.get(member_name).ok_or_else(|| {
+                        io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            format!("VNode member '{}' is not a known vertex", member_name),
+                        )
+                    })?;
+                    rids.push(rid);
+                    rid_to_vnodes_map.entry(rid).or_default().push(vid);
+                }
+                vnode_to_rids_map.insert(vid, rids);
+                vertices.push(Vertex::VNode(vid));
+            }
+        }
+
+        for vertex in &vertices {
+            if let Vertex::ENode(enode) = vertex
+                && !rid_to_vnodes_map.contains_key(&enode.info.id)
+            {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!(
+                        "ENode '{}' (id: {}) is not labeled by any vnode",
+                        enode.info.name, enode.info.id
+                    ),
+                ));
+            }
         }
 
         let json_contacts = parsed["edges"].as_array().unwrap();
@@ -142,6 +186,13 @@ impl TVGUtilContactPlan {
                 contacts.push(contact);
             }
         }
-        Ok(ContactPlan::new(vertices, contacts, None)?)
+
+        let vnode_map = if vnode_to_rids_map.is_empty() {
+            None
+        } else {
+            Some(VirtualNodeMap::new(vnode_to_rids_map, rid_to_vnodes_map))
+        };
+
+        Ok(ContactPlan::new(vertices, contacts, vnode_map)?)
     }
 }
