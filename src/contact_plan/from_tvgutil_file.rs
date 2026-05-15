@@ -95,7 +95,7 @@ impl TVGUtilContactPlan {
 
         for (node_id, (node_name, _node_data)) in json_nodes.iter().enumerate() {
             map_id_map.insert(node_name, node_id as NodeID);
-            vertices.push(Vertex::ENode(
+            vertices.push(Vertex::INode(
                 Node::try_new(
                     NodeInfo {
                         id: node_id as NodeID,
