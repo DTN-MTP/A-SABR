@@ -1,6 +1,6 @@
 extern crate alloc;
 
-use alloc::{vec::Vec, string::String, collections::BTreeMap as HashMap};
+use alloc::{collections::BTreeMap as HashMap, string::String, vec::Vec};
 use core::str::FromStr;
 
 use crate::{
@@ -63,7 +63,7 @@ impl<T: FromStr> Token<T> for T {
             LexerOutput::EOF => {
                 return Err(ASABRError::ParsingError(
                     "Expected token, found EOF",
-                    lexer.get_current_position()
+                    lexer.get_current_position(),
                 ));
             }
             LexerOutput::Finished(token) => token,
@@ -72,7 +72,7 @@ impl<T: FromStr> Token<T> for T {
             Ok(value) => Ok(value),
             Err(_) => Err(ASABRError::ParsingError(
                 "Parsing failed ({})",
-                lexer.get_current_position()
+                lexer.get_current_position(),
             )),
         }
     }

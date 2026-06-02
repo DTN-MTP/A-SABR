@@ -1,7 +1,10 @@
 extern crate alloc;
-use alloc::{collections::BinaryHeap,rc::Rc,vec::Vec,vec};
-use core::{cell::RefCell, cmp::{Ordering,Reverse}, marker::PhantomData};
-
+use alloc::{collections::BinaryHeap, rc::Rc, vec, vec::Vec};
+use core::{
+    cell::RefCell,
+    cmp::{Ordering, Reverse},
+    marker::PhantomData,
+};
 
 use crate::{
     bundle::Bundle,

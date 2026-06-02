@@ -6,7 +6,6 @@ use crate::parsing::{Lexer, Parser};
 use crate::route_stage::SharedRouteStage;
 use crate::types::{Date, NodeID, Token};
 
-
 use core::cell::RefCell;
 use core::cmp::Ordering;
 use core::marker::PhantomData;

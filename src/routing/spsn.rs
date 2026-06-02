@@ -11,8 +11,8 @@ use crate::{
 };
 
 extern crate alloc;
-use core::{cell::RefCell, marker::PhantomData};
 use alloc::rc::Rc;
+use core::{cell::RefCell, marker::PhantomData};
 
 use super::{Router, RoutingOutput, schedule_multicast, schedule_unicast};
 

@@ -164,7 +164,7 @@ macro_rules! implement_parser {
             fn parse(lexer: &mut dyn Lexer) -> Result<Box<dyn $manager_type>, ASABRError> {
                 Err(ASABRError::ParsingError(
                     "Unable to dispatch to the correct parser, the Dispatcher",
-                    lexer.get_current_position()
+                    lexer.get_current_position(),
                 ))
             }
         }
