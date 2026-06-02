@@ -80,10 +80,8 @@ pub fn benchmark(c: &mut Criterion) {
                     let file = File::open(ptvg_filepath).unwrap();
                     let json = serde_json::from_reader(file).unwrap();
                     let contact_plan =
-                        TVGUtilContactPlan::parse::<NoManagement, SegmentationManager>(
-                            json,
-                        )
-                        .unwrap();
+                        TVGUtilContactPlan::parse::<NoManagement, SegmentationManager>(json)
+                            .unwrap();
 
                     match build_generic_router(router_type, contact_plan, Some(spsn_opts.clone())) {
                         Ok(rter) => rter,

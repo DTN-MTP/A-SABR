@@ -171,7 +171,7 @@ impl IONContactPlan {
     >(
         content: T,
     ) -> Result<ContactPlan<NoManagement, CM>, ASABRError> {
-        let mut reader = content;
+        let reader = content;
         let mut map_id_map = HashMap::new();
 
         let mut ranges = vec![];
@@ -182,7 +182,7 @@ impl IONContactPlan {
         let mut contacts = vec![];
         let mut vertices = vec![];
 
-        while let Some(line) = reader.next() {
+        for line in reader {
             // Skip lines starting with '#'
             if line.trim_start().starts_with('#') {
                 continue;
@@ -200,8 +200,8 @@ impl IONContactPlan {
             if words[1] == "contact" {
                 let tx_start: Date = words[2].parse().unwrap();
                 let tx_end: Date = words[3].parse().unwrap();
-                let tx_node_id = manage_aliases(&mut map_id_map, &words[4], &mut vertices);
-                let rx_node_id = manage_aliases(&mut map_id_map, &words[5], &mut vertices);
+                let tx_node_id = manage_aliases(&mut map_id_map, words[4], &mut vertices);
+                let rx_node_id = manage_aliases(&mut map_id_map, words[5], &mut vertices);
                 let data_rate: DataRate = words[6].parse().unwrap();
                 let confidence = get_confidence(words.as_slice());
                 contact_count += 1;
@@ -222,8 +222,8 @@ impl IONContactPlan {
             if words[1] == "range" {
                 let tx_start: Date = words[2].parse().unwrap();
                 let tx_end: Date = words[3].parse().unwrap();
-                let tx_node_id = manage_aliases(&mut map_id_map, &words[4], &mut vertices);
-                let rx_node_id = manage_aliases(&mut map_id_map, &words[5], &mut vertices);
+                let tx_node_id = manage_aliases(&mut map_id_map, words[4], &mut vertices);
+                let rx_node_id = manage_aliases(&mut map_id_map, words[5], &mut vertices);
                 let delay: Duration = words[6].parse().unwrap();
                 ranges.push(IONRangeData {
                     tx_start,

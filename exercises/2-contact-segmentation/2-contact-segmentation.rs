@@ -1,4 +1,7 @@
-use std::{fs::File, io::{BufRead, BufReader}};
+use std::{
+    fs::File,
+    io::{BufRead, BufReader},
+};
 
 use a_sabr::{
     contact_manager::segmentation::seg::SegmentationManager,
@@ -14,7 +17,7 @@ fn main() {
     let cp_1 = "exercises/2-contact-segmentation/contact_plan.asabr";
     let file = File::open(cp_1).unwrap();
     let iter: Vec<_> = BufReader::new(file).lines().map(|s| s.unwrap()).collect();
-    
+
     let mut my_lexer = FileLexer::new(iter.iter().map(|s| s.as_str()));
 
     let contact_plan = match ASABRContactPlan::parse::<NoManagement, SegmentationManager>(

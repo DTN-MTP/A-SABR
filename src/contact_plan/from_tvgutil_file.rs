@@ -146,6 +146,6 @@ impl TVGUtilContactPlan {
                 contacts.push(contact);
             }
         }
-        Ok(ContactPlan::new(vertices, contacts, None)?)
+        ContactPlan::new(vertices, contacts, None)
     }
 }

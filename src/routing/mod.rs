@@ -1,6 +1,6 @@
 extern crate alloc;
-use core::{cell::RefCell};
-use alloc::{collections::BTreeMap as HashMap, rc::Rc, vec::Vec, vec};
+use alloc::{collections::BTreeMap as HashMap, rc::Rc, vec, vec::Vec};
+use core::cell::RefCell;
 
 use crate::{
     bundle::Bundle,

@@ -59,7 +59,7 @@ impl<'a, T: Iterator<Item = &'a str>> FileLexer<'a, T> {
     ///
     /// Returns an `io::Result<()>` indicating success or failure in reading the next line.
     fn read_next_line(&mut self) {
-        while let Some(line) = self.reader.next() {
+        for line in self.reader.by_ref() {
             self.lookup_current_line += 1;
 
             // Skip lines starting with '#'
