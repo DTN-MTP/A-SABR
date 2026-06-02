@@ -5,10 +5,13 @@ use crate::parsing::{Lexer, Parser};
 #[cfg(feature = "contact_work_area")]
 use crate::route_stage::SharedRouteStage;
 use crate::types::{Date, NodeID, Token};
-use std::cell::RefCell;
-use std::cmp::Ordering;
-use std::marker::PhantomData;
-use std::rc::Rc;
+
+
+use core::cell::RefCell;
+use core::cmp::Ordering;
+use core::marker::PhantomData;
+extern crate alloc;
+use alloc::rc::Rc;
 
 /// Represents basic information about a contact between two nodes.
 #[derive(Clone, Copy)]

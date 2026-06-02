@@ -13,7 +13,12 @@ use crate::{
     node_manager::NodeManager,
     parsing::{DispatchParser, Lexer, LexerOutput, parse_components},
 };
-use std::collections::{HashMap, HashSet};
+extern crate alloc;
+use alloc::{
+    collections::{BTreeMap as HashMap, BTreeSet as HashSet},
+    string::String,
+    vec::Vec,
+};
 
 enum RealNodeType {
     Node,
@@ -61,7 +66,8 @@ impl<NM: NodeManager, CM: ContactManager> Builder<NM, CM> {
     fn check_real_id(&self, id: NodeID) -> Result<(), ASABRError> {
         if (id as usize) >= self.real_nodes_count() {
             return Err(ASABRError::ParsingError(
-                "Contact tx/rx ids or virtual node rids must match an already declared real node id".to_string(),
+                "Contact tx/rx ids or virtual node rids must match an already declared real node id. ID,node_count:",
+                (id.into(), self.real_nodes_count()),
             ));
         }
         Ok(())
@@ -70,7 +76,8 @@ impl<NM: NodeManager, CM: ContactManager> Builder<NM, CM> {
     fn check_new_real_id(&self, id: NodeID) -> Result<(), ASABRError> {
         if (id as usize) != self.real_nodes_count() {
             return Err(ASABRError::ParsingError(
-                "Declare real nodes before virtual nodes, in increasing id order".to_string(),
+                "Declare real nodes before virtual nodes, in increasing id order. ID,node_count:",
+                (id.into(), self.real_nodes_count()),
             ));
         }
         Ok(())
@@ -79,7 +86,8 @@ impl<NM: NodeManager, CM: ContactManager> Builder<NM, CM> {
     fn check_new_virtual_id(&self, id: NodeID) -> Result<(), ASABRError> {
         if (id as usize) != self.vertices.len() {
             return Err(ASABRError::ParsingError(
-                "Declare virtual nodes after the real nodes, in increasing id order".to_string(),
+                "Declare virtual nodes after the real nodes, in increasing id order. ID,vertice_count:",
+                (id.into(), self.vertices.len()),
             ));
         }
         Ok(())
@@ -90,10 +98,10 @@ impl<NM: NodeManager, CM: ContactManager> Builder<NM, CM> {
             if let Vertex::ENode(enode) = vertex
                 && !self.rid_to_vnodes_map.contains_key(&enode.info.id)
             {
-                return Err(ASABRError::ParsingError(format!(
-                    "ENode '{}' (id: {}) is not labeled by any vnode",
-                    enode.info.name, enode.info.id,
-                )));
+                return Err(ASABRError::ParsingError(
+                    "an ENode is not labeled by any vnode. Id:",
+                    (enode.info.id.into(), 0),
+                ));
             }
         }
         Ok(())
@@ -104,7 +112,8 @@ impl<NM: NodeManager, CM: ContactManager> Builder<NM, CM> {
     fn register_name(&mut self, name: String) -> Result<(), ASABRError> {
         if !self.node_names.insert(name) {
             return Err(ASABRError::ParsingError(
-                "Another vertex shares this name".to_string(),
+                "Another vertex shares this name",
+                (0, 0),
             ));
         }
         Ok(())
@@ -163,10 +172,10 @@ impl ASABRContactPlan {
     ) -> Result<Node<NM>, ASABRError> {
         let (info, manager) = parse_components::<NodeInfo, NM>(lexer, *node_marker_map)?;
         let Some(node) = Node::try_new(info, manager) else {
-            return Err(ASABRError::ParsingError(format!(
+            return Err(ASABRError::ParsingError(
                 "Malformed node ({})",
-                lexer.get_current_position()
-            )));
+                lexer.get_current_position(),
+            ));
         };
         Ok(node)
     }
@@ -192,10 +201,10 @@ impl ASABRContactPlan {
                     let (info, manager) =
                         parse_components::<ContactInfo, CM>(lexer, contact_marker_map)?;
                     let Some(contact) = Contact::try_new(info, manager) else {
-                        return Err(ASABRError::ParsingError(format!(
+                        return Err(ASABRError::ParsingError(
                             "Malformed contact ({})",
-                            lexer.get_current_position()
-                        )));
+                            lexer.get_current_position(),
+                        ));
                     };
                     builder.add_contact(contact)?;
                 }
@@ -217,10 +226,10 @@ impl ASABRContactPlan {
                     builder.add_virtual_node(info)?;
                 }
                 _ => {
-                    return Err(ASABRError::ParsingError(format!(
+                    return Err(ASABRError::ParsingError(
                         "Unrecognized CP element ({})",
-                        lexer.get_current_position()
-                    )));
+                        lexer.get_current_position(),
+                    ));
                 }
             }
         }

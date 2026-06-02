@@ -1,3 +1,7 @@
+extern crate alloc;
+use alloc::{rc::Rc, vec, vec::Vec};
+use core::cell::RefCell;
+
 use crate::bundle::Bundle;
 use crate::contact::Contact;
 use crate::contact_manager::{ContactManager, ContactManagerTxData};
@@ -9,8 +13,6 @@ use crate::route_stage::ViaHop;
 use crate::route_stage::{RouteStage, SharedRouteStage};
 use crate::types::{Date, NodeID};
 use crate::vertex::VertexID;
-use std::cell::RefCell;
-use std::rc::Rc;
 
 #[cfg(feature = "contact_work_area")]
 pub mod contact_parenting;
@@ -279,8 +281,6 @@ mod tests {
     use crate::pathfinding::test_helpers::*;
     use crate::route_stage::RouteStage;
     use crate::vertex::VertexID;
-    use std::cell::RefCell;
-    use std::rc::Rc;
 
     #[track_caller]
     fn run_hop<NM: NodeManager>(

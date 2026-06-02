@@ -10,16 +10,17 @@ use crate::{
         segmentation::{Segment, seg::SegmentationManager},
     },
     contact_plan::ContactPlan,
+    errors::ASABRError,
     node::{Node, NodeInfo},
     node_manager::{NodeManager, none::NoManagement},
     types::{DataRate, Date, Duration, NodeID},
     vertex::Vertex,
 };
 
-use std::{collections::HashMap, io};
+extern crate alloc;
+use alloc::{collections::BTreeMap as HashMap, string::ToString, vec, vec::Vec};
 
 use serde_json::Value;
-use std::fs;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct TVGUtilContactData {
@@ -82,16 +83,17 @@ pub struct TVGUtilContactPlan {}
 
 impl TVGUtilContactPlan {
     pub fn parse<NM: NodeManager, CM: FromTVGUtilContactData<NM, CM> + ContactManager>(
-        filename: &str,
-    ) -> io::Result<ContactPlan<NoManagement, CM>> {
+        json_data: serde_json::Value,
+    ) -> Result<ContactPlan<NoManagement, CM>, ASABRError> {
         let mut vertices: Vec<Vertex<NoManagement>> = Vec::new();
         let mut contacts: Vec<Contact<NoManagement, CM>> = Vec::new();
 
         let mut map_id_map: HashMap<&str, NodeID> = HashMap::new();
 
-        let json_data = fs::read_to_string(filename)?;
-        let parsed: Value = serde_json::from_str(&json_data).unwrap();
-        let json_nodes = parsed["vertices"].as_object().unwrap();
+        let parsed: Value = json_data;
+        let json_nodes = parsed["vertices"]
+            .as_object()
+            .ok_or(ASABRError::ContactPlanError("no \"vertice\" in json"))?;
 
         for (node_id, (node_name, _node_data)) in json_nodes.iter().enumerate() {
             map_id_map.insert(node_name, node_id as NodeID);
@@ -108,7 +110,9 @@ impl TVGUtilContactPlan {
             ));
         }
 
-        let json_contacts = parsed["edges"].as_array().unwrap();
+        let json_contacts = parsed["edges"]
+            .as_array()
+            .ok_or(ASABRError::ContactPlanError("no \"edge\" in json"))?;
         for nodes_pair in json_contacts {
             let data = nodes_pair.as_object().unwrap();
             let pair = data["vertices"].as_array().unwrap();

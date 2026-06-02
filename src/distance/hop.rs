@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use core::cmp::Ordering;
 
 use crate::{
     contact_manager::ContactManager, node_manager::NodeManager,

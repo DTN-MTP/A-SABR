@@ -1,3 +1,7 @@
+use std::fs::File;
+use std::io::BufRead;
+use std::io::BufReader;
+
 use a_sabr::bundle::Bundle;
 use a_sabr::contact_manager::ContactManager;
 use a_sabr::contact_manager::legacy::eto::ETOManager;
@@ -10,7 +14,6 @@ use a_sabr::parsing::ContactMarkerMap;
 use a_sabr::parsing::coerce_cm;
 use a_sabr::routing::aliases::SpsnOptions;
 use a_sabr::routing::aliases::build_generic_router;
-use a_sabr::utils::pretty_print;
 
 fn main() {
     #[cfg(not(feature = "manual_queueing"))]
@@ -23,7 +26,10 @@ fn main() {
     contact_dispatch.add("qd", coerce_cm::<QDManager>);
 
     // We create a lexer to retrieve tokens from a file
-    let mut mylexer = FileLexer::new("examples/eto_management/contact_plan_1.cp").unwrap();
+    let file = File::open("examples/eto_management/contact_plan_1.cp").unwrap();
+    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
+
+    let mut mylexer = FileLexer::new(lines.iter().map(|s| s.as_str()));
 
     // We parse the contact plan (A-SABR format thanks to ASABRContactPlan) and the lexer
     let contact_plan = ASABRContactPlan::parse::<NoManagement, Box<dyn ContactManager>>(
@@ -62,8 +68,7 @@ fn main() {
     let (first_hop_contact, route) = out.lazy_get_for_unicast(3).unwrap();
 
     // Retain a ref to the first_hop manager
-
-    pretty_print(route);
+    println!("{}", route.borrow());
     // Enqueue the bundle_1
     #[cfg(feature = "manual_queueing")]
     println!(
@@ -89,7 +94,7 @@ fn main() {
         .unwrap()
         .unwrap();
     let (first_hop_contact, route) = out.lazy_get_for_unicast(3).unwrap();
-    pretty_print(route);
+    println!("{}", route.borrow());
 
     // Enqueue the bundle_2
     #[cfg(feature = "manual_queueing")]
@@ -137,7 +142,7 @@ fn main() {
         .unwrap()
         .unwrap();
     let (_, route) = out.lazy_get_for_unicast(4).unwrap();
-    pretty_print(route);
+    println!("{}", route.borrow());
 
     // === OUTPUT ===
     // Running with contact plan location=examples/dijkstra_accuracy/contact_plan_1.cp, and destination node=3

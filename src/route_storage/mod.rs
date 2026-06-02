@@ -1,4 +1,7 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+extern crate alloc;
+use alloc::{collections::BTreeMap as HashMap, rc::Rc, vec::Vec};
+
+use core::cell::RefCell;
 
 pub mod cache;
 pub mod table;

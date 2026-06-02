@@ -1,3 +1,5 @@
+#![no_std]
+
 /// Module containing the adaptive contact definition.
 pub mod contact;
 /// Module containing the variable component of a contact for resource management.

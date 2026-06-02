@@ -12,6 +12,14 @@ use crate::{
     types::{DataRate, Date, Duration, Priority},
 };
 
+extern crate alloc;
+
+// used as macro and not module. poor detection
+#[allow(unused_imports)]
+use alloc::vec;
+
+use alloc::vec::Vec;
+
 /// Priority-aware segmentation manager. Tracks bandwidth availability per priority level
 /// using booking intervals.
 #[cfg_attr(feature = "debug", derive(Debug))]

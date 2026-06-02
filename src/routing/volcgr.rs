@@ -10,8 +10,9 @@ use crate::{
     route_storage::{Route, RouteStorage},
     types::{Date, NodeID},
 };
-
-use std::{cell::RefCell, marker::PhantomData, rc::Rc};
+extern crate alloc;
+use alloc::rc::Rc;
+use core::{cell::RefCell, marker::PhantomData};
 
 use super::{Router, RoutingOutput, dry_run_unicast_path, schedule_unicast_path};
 

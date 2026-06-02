@@ -1,4 +1,7 @@
-use std::{cell::RefCell, collections::VecDeque, marker::PhantomData, rc::Rc};
+extern crate alloc;
+use alloc::{collections::VecDeque, rc::Rc, vec::Vec};
+
+use core::{cell::RefCell, marker::PhantomData};
 
 use crate::{
     bundle::Bundle,

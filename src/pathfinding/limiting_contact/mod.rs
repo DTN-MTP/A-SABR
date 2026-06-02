@@ -2,8 +2,10 @@ use crate::contact::Contact;
 use crate::contact_manager::ContactManager;
 use crate::node_manager::NodeManager;
 use crate::route_stage::SharedRouteStage;
-use std::cell::RefCell;
-use std::rc::Rc;
+use core::cell::RefCell;
+
+extern crate alloc;
+use alloc::rc::Rc;
 
 #[cfg(feature = "first_depleted")]
 pub mod first_depleted;
@@ -102,12 +104,12 @@ macro_rules! create_new_alternative_path_variant {
         > {
             /// The underlying pathfinding algorithm used to find individual paths.
             pathfinding: P,
-            suppression_map: Vec<Vec<std::rc::Rc<std::cell::RefCell<Contact<NM, CM>>>>>,
+            suppression_map: alloc::vec::Vec<alloc::vec::Vec<alloc::rc::Rc<core::cell::RefCell<Contact<NM, CM>>>>>,
 
             #[doc(hidden)]
-            _phantom_nm: std::marker::PhantomData<NM>,
+            _phantom_nm: core::marker::PhantomData<NM>,
             #[doc(hidden)]
-            _phantom_cm: std::marker::PhantomData<CM>,
+            _phantom_cm: core::marker::PhantomData<CM>,
         }
 
         impl<
@@ -128,15 +130,15 @@ macro_rules! create_new_alternative_path_variant {
             ///
             #[doc = concat!("* `Self` - A new instance of `", stringify!($struct_name), "`.")]
             fn new(
-                multigraph: std::rc::Rc<std::cell::RefCell<$crate::multigraph::Multigraph<NM, CM>>>
+                multigraph: alloc::rc::Rc<core::cell::RefCell<$crate::multigraph::Multigraph<NM, CM>>>
             ) -> Self {
                 let node_count = multigraph.borrow().get_vertex_count();
                 Self {
 
                     pathfinding: P::new(multigraph),
-                    suppression_map: vec![Vec::new(); node_count],
-                    _phantom_nm: std::marker::PhantomData,
-                    _phantom_cm: std::marker::PhantomData,
+                    suppression_map: alloc::vec![alloc::vec::Vec::new(); node_count],
+                    _phantom_nm: core::marker::PhantomData,
+                    _phantom_cm: core::marker::PhantomData,
                 }
             }
             /// Finds the next route based on the current state and available contacts.
@@ -198,7 +200,7 @@ macro_rules! create_new_alternative_path_variant {
             /// # Returns
             ///
             /// * A shared pointer to the multigraph.
-            fn get_multigraph(&self) -> std::rc::Rc<std::cell::RefCell<$crate::multigraph::Multigraph<NM, CM>>> {
+            fn get_multigraph(&self) -> alloc::rc::Rc<core::cell::RefCell<$crate::multigraph::Multigraph<NM, CM>>> {
                 return self.pathfinding.get_multigraph();
             }
         }

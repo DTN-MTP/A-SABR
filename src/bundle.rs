@@ -1,5 +1,6 @@
 use crate::types::{Date, NodeID, Priority, Volume};
-
+extern crate alloc;
+use alloc::vec::Vec;
 /// A structure representing a routing bundle containing essential information for pathfinding.
 ///
 /// The `Bundle` struct encapsulates the routing details required for determining optimal paths

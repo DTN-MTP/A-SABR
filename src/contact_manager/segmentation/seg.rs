@@ -12,6 +12,10 @@ use crate::{
     types::{DataRate, Date, Duration},
 };
 
+extern crate alloc;
+// used as macro and not module. poor detection
+#[allow(unused_imports)]
+use alloc::{vec, vec::Vec};
 /// Manages contact segments, where each segment may have a distinct data rate and delay.
 ///
 /// The `SegmentationManager` uses different segments to manage free intervals, rate intervals, and delay intervals,

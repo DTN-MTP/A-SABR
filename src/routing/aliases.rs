@@ -1,3 +1,5 @@
+extern crate alloc;
+
 use crate::{
     contact_manager::ContactManager,
     contact_plan::ContactPlan,
@@ -11,7 +13,8 @@ use crate::{
     route_storage::{cache::TreeCache, table::RoutingTable},
     routing::volcgr::VolCgr,
 };
-use std::{cell::RefCell, rc::Rc};
+use alloc::{rc::Rc,boxed::Box};
+use core::cell::RefCell;
 
 #[cfg(feature = "contact_suppression")]
 use super::cgr::Cgr;

@@ -1,3 +1,8 @@
+use std::{
+    fs::File,
+    io::{BufRead, BufReader},
+};
+
 use a_sabr::{
     bundle::Bundle,
     contact_manager::legacy::evl::EVLManager,
@@ -8,7 +13,7 @@ use a_sabr::{
         Pathfinding, hybrid_parenting::HybridParentingPath, node_parenting::NodeParentingPath,
     },
     types::NodeID,
-    utils::{init_pathfinding, pretty_print},
+    utils::init_pathfinding,
 };
 
 #[cfg(feature = "contact_work_area")]
@@ -22,41 +27,63 @@ fn edge_case_example(cp_path: &str, dest: NodeID) -> Result<(), ASABRError> {
         size: 0.0,
         expiration: 1000.0,
     };
+    let file = File::open(cp_path).unwrap();
+    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
 
     let mut node_graph = init_pathfinding::<
         NoManagement,
         EVLManager,
         NodeParentingPath<NoManagement, EVLManager, SABR>,
-    >(cp_path, None, None)?;
+        _,
+    >(lines.iter().map(|s| s.as_str()), None, None)?;
 
     #[cfg(feature = "contact_work_area")]
-    let mut contact_graph = init_pathfinding::<
-        NoManagement,
-        EVLManager,
-        ContactParentingPath<NoManagement, EVLManager, SABR>,
-    >(cp_path, None, None)?;
+    let mut contact_graph = {
+        let file = File::open(cp_path).unwrap();
+        let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
+
+        init_pathfinding::<
+            NoManagement,
+            EVLManager,
+            ContactParentingPath<NoManagement, EVLManager, SABR>,
+            _,
+        >(lines.iter().map(|s| s.as_str()), None, None)?
+    };
+
+    let file = File::open(cp_path).unwrap();
+    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
 
     let mut mpt_graph = init_pathfinding::<
         NoManagement,
         EVLManager,
         HybridParentingPath<NoManagement, EVLManager, SABR>,
-    >(cp_path, None, None)?;
+        _,
+    >(lines.iter().map(|s| s.as_str()), None, None)?;
 
     println!("\nRunning with contact plan location={cp_path}, and destination node={dest} ");
     let res = node_graph.get_next(0.0, 0, &bundle, &[]).unwrap();
     print!("\nWith NodeParentingPath pathfinding. ");
-    pretty_print(res.by_destination[dest as usize].clone().unwrap());
+    println!(
+        "{}",
+        res.by_destination[dest as usize].clone().unwrap().borrow()
+    );
 
     #[cfg(feature = "contact_work_area")]
     {
         let res = contact_graph.get_next(0.0, 0, &bundle, &[]).unwrap();
         print!("With ContactParentingPath pathfinding. ");
-        pretty_print(res.by_destination[dest as usize].clone().unwrap());
+        println!(
+            "{}",
+            res.by_destination[dest as usize].clone().unwrap().borrow()
+        );
     }
 
     let res = mpt_graph.get_next(0.0, 0, &bundle, &[]).unwrap();
     print!("With HybridParentingPath pathfinding. ");
-    pretty_print(res.by_destination[dest as usize].clone().unwrap());
+    println!(
+        "{}",
+        res.by_destination[dest as usize].clone().unwrap().borrow()
+    );
 
     Ok(())
 }

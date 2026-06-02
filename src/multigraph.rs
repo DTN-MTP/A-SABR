@@ -1,6 +1,8 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
+extern crate alloc;
+
+use alloc::{collections::BTreeMap as HashMap, rc::Rc, vec, vec::Vec};
+use core::cell::RefCell;
+use core::fmt::Display;
 
 use super::node::Node;
 use crate::contact::Contact;
@@ -121,13 +123,13 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
         let vertex_count = contact_plan.vertices.len();
         let virtual_node_count = contact_plan.vnode_map.get_vnode_to_rids_map().len();
         let real_node_count = vertex_count - virtual_node_count;
-        let mut virtual_nodes = Vec::new();
+        let mut virtual_nodes = Vec::with_capacity(virtual_node_count);
         #[allow(clippy::type_complexity)]
         // Maps contacts to Sender vertex IDs and Receiver vertex IDs.
         let mut snd_rcv_map: HashMap<
             VertexID,
             HashMap<VertexID, Vec<Rc<RefCell<Contact<NM, CM>>>>>,
-        > = HashMap::with_capacity(vertex_count);
+        > = HashMap::new();
         let mut is_external = vec![false; vertex_count];
 
         // output
@@ -174,13 +176,13 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
                 .get(&real_tx_id)
                 .into_iter()
                 .flatten()
-                .chain(std::iter::once(&real_tx_id))
+                .chain(core::iter::once(&real_tx_id))
             {
                 for r in vnodes_for_rid
                     .get(&real_rx_id)
                     .into_iter()
                     .flatten()
-                    .chain(std::iter::once(&real_rx_id))
+                    .chain(core::iter::once(&real_rx_id))
                 {
                     // Only add inodes and vnodes as Sender/Receiver in the graph
                     // AND if the Sender/Receiver IDs are different.
@@ -261,5 +263,49 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
     /// * `usize` - The total number of vertices.
     pub fn get_vertex_count(&self) -> usize {
         self.vertex_count
+    }
+}
+
+impl<NM: NodeManager, CM: ContactManager> Display for Multigraph<NM, CM> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let real_node_count = self.real_nodes.len();
+        let label =
+            |f: &mut core::fmt::Formatter, vid: crate::vertex::VertexID| -> core::fmt::Result {
+                if (vid as usize) < real_node_count {
+                    let node = self.real_nodes[vid as usize].borrow();
+                    write!(f, "node {} \"{}\"", node.info.id, node.info.name)?
+                } else {
+                    write!(f, "vnode {vid}")?
+                }
+                Ok(())
+            };
+
+        writeln!(
+            f,
+            "Multigraph: {} vertices ({} real node(s), {} vnode(s))",
+            self.get_vertex_count(),
+            real_node_count,
+            self.get_vertex_count() - real_node_count,
+        )?;
+
+        for sender in &self.senders {
+            write!(f, "- Sender ")?;
+            label(f, sender.vertex_id)?;
+            writeln!(f, ":")?;
+            for receiver in &sender.receivers {
+                write!(f, "    -> Receiver ")?;
+                label(f, receiver.vertex_id)?;
+                writeln!(f, " ({} contact(s)):", receiver.contacts_to_receiver.len(),)?;
+                for contact_rc in &receiver.contacts_to_receiver {
+                    let c = contact_rc.borrow();
+                    writeln!(
+                        f,
+                        "        * tx={} rx={} [{}, {}]",
+                        c.info.tx_node_id, c.info.rx_node_id, c.info.start, c.info.end,
+                    )?;
+                }
+            }
+        }
+        Ok(())
     }
 }

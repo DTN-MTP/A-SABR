@@ -1,4 +1,9 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{
+    cell::RefCell,
+    fs::File,
+    io::{BufRead, BufReader},
+    rc::Rc,
+};
 
 use a_sabr::{
     bundle::Bundle,
@@ -13,7 +18,6 @@ use a_sabr::{
     parsing::{ContactMarkerMap, coerce_cm},
     route_storage::cache::TreeCache,
     routing::{Router, aliases::SpsnHybridParenting},
-    utils::{pretty_print, pretty_print_multigraph},
 };
 
 fn main() {
@@ -29,7 +33,10 @@ fn main() {
 
     // The manager type should be Box<dyn ContactManager>> (heap allocated, dynamically dispatched)
     // Replace None with a dispatching map for the contact_marker_map argument
-    let mut mylexer = FileLexer::new(cp_path).unwrap();
+    let file = File::open(cp_path).unwrap();
+    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
+
+    let mut mylexer = FileLexer::new(lines.iter().map(|s| s.as_str()));
     let contact_plan = ASABRContactPlan::parse::<NoManagement, Box<dyn ContactManager>>(
         &mut mylexer,
         None,
@@ -48,10 +55,12 @@ fn main() {
     println!("\n---\n");
 
     let graph = Multigraph::new(contact_plan).unwrap();
-    pretty_print_multigraph(&graph);
+    println!("{graph}");
 
     // Re-parse for the router, which consumes the contact plan to build its own multigraph.
-    let mut router_lexer = FileLexer::new(cp_path).unwrap();
+    let file = File::open(cp_path).unwrap();
+    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
+    let mut router_lexer = FileLexer::new(lines.iter().map(|s| s.as_str()));
     let contact_plan = ASABRContactPlan::parse::<NoManagement, Box<dyn ContactManager>>(
         &mut router_lexer,
         None,
@@ -86,7 +95,7 @@ fn main() {
     if let Ok(Some(out)) = out {
         for (_contact, dest_routes) in out.first_hops.values() {
             for route_rc in dest_routes {
-                pretty_print(route_rc.clone());
+                println!("{}", route_rc.borrow());
             }
         }
     }

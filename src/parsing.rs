@@ -1,4 +1,8 @@
-use std::{collections::HashMap, str::FromStr};
+extern crate alloc;
+
+use core::str::FromStr;
+
+use alloc::{boxed::Box, collections::btree_map::BTreeMap as HashMap, string::String, vec::Vec};
 
 use crate::{contact_manager::ContactManager, errors::ASABRError, node_manager::NodeManager};
 
@@ -32,20 +36,20 @@ impl<T: FromStr> Parser<Vec<T>> for Vec<T> {
             let token = match lexer.consume_next_token()? {
                 LexerOutput::Finished(t) => t,
                 LexerOutput::EOF => {
-                    return Err(ASABRError::ParsingError(format!(
-                        "Parsing failed, expected ']' ({})",
-                        lexer.get_current_position()
-                    )));
+                    return Err(ASABRError::ParsingError(
+                        "Parsing failed, expected ']'",
+                        lexer.get_current_position(),
+                    ));
                 }
             };
             let token = token.trim();
 
             if !started {
                 if !token.starts_with('[') {
-                    return Err(ASABRError::ParsingError(format!(
-                        "Parsing failed, expected '[' ({})",
-                        lexer.get_current_position()
-                    )));
+                    return Err(ASABRError::ParsingError(
+                        "Parsing failed, expected '['",
+                        lexer.get_current_position(),
+                    ));
                 }
                 started = true;
             }
@@ -59,10 +63,10 @@ impl<T: FromStr> Parser<Vec<T>> for Vec<T> {
             };
 
             if !try_push(inner, &mut items) {
-                return Err(ASABRError::ParsingError(format!(
-                    "Parsing failed ({})",
-                    lexer.get_current_position()
-                )));
+                return Err(ASABRError::ParsingError(
+                    "Parsing failed",
+                    lexer.get_current_position(),
+                ));
             }
 
             if closes {
@@ -135,7 +139,7 @@ pub trait Lexer {
     /// Consumes and returns the next token from the input stream.
     fn consume_next_token(&mut self) -> Result<LexerOutput<String>, ASABRError>;
     /// Returns the current position in the input stream.
-    fn get_current_position(&self) -> String;
+    fn get_current_position(&self) -> (usize, usize);
 }
 
 /// Trait for parsing a generic type `T` from a lexer.
@@ -157,9 +161,10 @@ macro_rules! implement_parser {
     ($manager_type:ident) => {
         /// Dispatching is impossible for concrete Parser types.
         impl Parser<Box<dyn $manager_type>> for Box<dyn $manager_type> {
-            fn parse(_lexer: &mut dyn Lexer) -> Result<Box<dyn $manager_type>, ASABRError> {
+            fn parse(lexer: &mut dyn Lexer) -> Result<Box<dyn $manager_type>, ASABRError> {
                 Err(ASABRError::ParsingError(
-                    "Unable to dispatch to the correct parser, the Dispatcher".to_string(),
+                    "Unable to dispatch to the correct parser, the Dispatcher",
+                    lexer.get_current_position()
                 ))
             }
         }
@@ -258,26 +263,26 @@ macro_rules! implement_manager {
             ) -> Result<Box<dyn $manager_type>, ASABRError> {
                 let marker = match lexer.consume_next_token()? {
                     LexerOutput::EOF => {
-                        return Err(ASABRError::ParsingError(format!(
-                            "Marker expected ({})",
-                            lexer.get_current_position()
-                        )));
+                        return Err(ASABRError::ParsingError(
+                            "Marker expected",
+                            lexer.get_current_position(),
+                        ));
                     }
                     LexerOutput::Finished(marker) => marker,
                 };
 
                 let Some(marker_map) = marker_map_opt else {
-                    return Err(ASABRError::ParsingError(format!(
-                        "Dynamic parsing requires a map ({})",
-                        lexer.get_current_position()
-                    )));
+                    return Err(ASABRError::ParsingError(
+                        "Dynamic parsing requires a map",
+                        lexer.get_current_position(),
+                    ));
                 };
 
                 let Some(parse_fn) = marker_map.get(marker.as_str()) else {
-                    return Err(ASABRError::ParsingError(format!(
-                        "Unrecognized marker ({})",
-                        lexer.get_current_position()
-                    )));
+                    return Err(ASABRError::ParsingError(
+                        "Unrecognized marker",
+                        lexer.get_current_position(),
+                    ));
                 };
 
                 parse_fn(lexer)

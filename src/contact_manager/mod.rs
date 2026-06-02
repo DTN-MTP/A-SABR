@@ -5,6 +5,9 @@ use crate::{bundle::Bundle, contact::ContactInfo, types::Date};
 pub mod legacy;
 pub mod segmentation;
 
+extern crate alloc;
+use alloc::boxed::Box;
+
 /// Data structure representing the transmission (tx) start, end, and related timing information.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ContactManagerTxData {
@@ -200,7 +203,7 @@ macro_rules! define_contact_manager {
 }
 
 #[cfg(feature = "debug")]
-define_contact_manager!(std::fmt::Debug);
+define_contact_manager!(core::fmt::Debug);
 
 #[cfg(not(feature = "debug"))]
 define_contact_manager!();

@@ -1,3 +1,5 @@
+use std::fs::File;
+
 use a_sabr::{
     bundle::Bundle, contact_manager::segmentation::seg::SegmentationManager,
     contact_plan::from_tvgutil_file::TVGUtilContactPlan, node_manager::none::NoManagement,
@@ -75,9 +77,11 @@ pub fn benchmark(c: &mut Criterion) {
         group.bench_function(router_type, |b| {
             b.iter_batched(
                 || {
+                    let file = File::open(ptvg_filepath).unwrap();
+                    let json = serde_json::from_reader(file).unwrap();
                     let contact_plan =
                         TVGUtilContactPlan::parse::<NoManagement, SegmentationManager>(
-                            ptvg_filepath,
+                            json,
                         )
                         .unwrap();
 

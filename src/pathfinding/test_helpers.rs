@@ -1,3 +1,5 @@
+extern crate alloc;
+
 use crate::bundle::Bundle;
 use crate::contact::Contact;
 use crate::contact::ContactInfo;
@@ -15,9 +17,11 @@ use crate::route_stage::{RouteStage, SharedRouteStage};
 use crate::types::Date;
 use crate::vertex::Vertex;
 use crate::vnode::VirtualNodeMap;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
+use alloc::collections::BTreeMap as HashMap;
+use alloc::rc::Rc;
+use alloc::vec;
+use alloc::vec::Vec;
+use core::cell::RefCell;
 
 #[derive(Debug)]
 pub(crate) struct MockNodeManager {
