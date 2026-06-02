@@ -1,4 +1,7 @@
-use std::{collections::HashMap, str::FromStr};
+extern crate alloc;
+
+use alloc::{vec::Vec, string::String, collections::BTreeMap as HashMap};
+use core::str::FromStr;
 
 use crate::{
     errors::ASABRError,
@@ -20,7 +23,7 @@ pub type NodeName = String;
 /// Represents a duration in units (e.g., seconds).
 pub type Duration = f64;
 
-/// Represents a date (could represent days since a specific epoch).
+/// Represents a date (could represent days since a specific epoch).lo
 pub type Date = Duration;
 
 /// Represents the priority of a task or node.
@@ -58,19 +61,19 @@ impl<T: FromStr> Token<T> for T {
     fn parse(lexer: &mut dyn Lexer) -> Result<T, ASABRError> {
         let token = match lexer.consume_next_token()? {
             LexerOutput::EOF => {
-                return Err(ASABRError::ParsingError(format!(
-                    "Expected token, found EOF ({})",
+                return Err(ASABRError::ParsingError(
+                    "Expected token, found EOF",
                     lexer.get_current_position()
-                )));
+                ));
             }
             LexerOutput::Finished(token) => token,
         };
         match token.parse::<T>() {
             Ok(value) => Ok(value),
-            Err(_) => Err(ASABRError::ParsingError(format!(
+            Err(_) => Err(ASABRError::ParsingError(
                 "Parsing failed ({})",
                 lexer.get_current_position()
-            ))),
+            )),
         }
     }
 }

@@ -10,7 +10,9 @@ use crate::{
     types::{Date, NodeID},
 };
 
-use std::{cell::RefCell, marker::PhantomData, rc::Rc};
+extern crate alloc;
+use core::{cell::RefCell, marker::PhantomData};
+use alloc::rc::Rc;
 
 use super::{Router, RoutingOutput, schedule_multicast, schedule_unicast};
 

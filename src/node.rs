@@ -1,4 +1,6 @@
-use std::{cell::RefCell, cmp::Ordering, rc::Rc};
+extern crate alloc;
+use alloc::rc::Rc;
+use core::{cell::RefCell, cmp::Ordering};
 
 use crate::{
     errors::ASABRError,

@@ -17,11 +17,10 @@ use crate::{
     vertex::Vertex,
 };
 
-use std::{cmp::Ordering, collections::HashMap};
-use std::{
-    fs::File,
-    io::{self, BufRead, BufReader},
-};
+extern crate alloc;
+use alloc::{collections::BTreeMap as HashMap, string::ToString, vec, vec::Vec};
+
+use core::cmp::Ordering;
 
 pub struct IONContactData {
     tx_start: Date,
@@ -111,16 +110,16 @@ impl FromIONContactData<NoManagement, SegmentationManager> for SegmentationManag
 
 pub struct IONContactPlan {}
 
-fn manage_aliases(
-    map_id_map: &mut HashMap<String, NodeID>,
-    candidate_name: &String,
+fn manage_aliases<'a>(
+    map_id_map: &mut HashMap<&'a str, NodeID>,
+    candidate_name: &'a str,
     vertices: &mut Vec<Vertex<NoManagement>>,
 ) -> NodeID {
     if let Some(value) = map_id_map.get(candidate_name) {
         *value
     } else {
         let next = map_id_map.len() as NodeID;
-        map_id_map.insert(candidate_name.clone(), next);
+        map_id_map.insert(candidate_name, next);
         vertices.push(Vertex::INode(
             Node::try_new(
                 NodeInfo {
@@ -155,7 +154,7 @@ fn manage_contacts(
     }
 }
 
-fn get_confidence(vec: &[String]) -> f32 {
+fn get_confidence(vec: &[&str]) -> f32 {
     if vec.len() >= 8 {
         vec[7].parse::<f32>().unwrap()
     } else {
@@ -164,12 +163,16 @@ fn get_confidence(vec: &[String]) -> f32 {
 }
 
 impl IONContactPlan {
-    pub fn parse<NM: NodeManager, CM: FromIONContactData<NM, CM> + ContactManager>(
-        filename: &str,
-    ) -> io::Result<ContactPlan<NoManagement, CM>> {
-        let file = File::open(filename)?;
-        let mut reader = BufReader::new(file);
-        let mut map_id_map: HashMap<String, NodeID> = HashMap::new();
+    pub fn parse<
+        'a,
+        NM: NodeManager,
+        CM: FromIONContactData<NM, CM> + ContactManager,
+        T: Iterator<Item = &'a str>,
+    >(
+        content: T,
+    ) -> Result<ContactPlan<NoManagement, CM>, ASABRError> {
+        let mut reader = content;
+        let mut map_id_map = HashMap::new();
 
         let mut ranges = vec![];
         let mut contact_info_map: HashMap<NodeID, HashMap<NodeID, Vec<IONContactData>>> =
@@ -179,33 +182,28 @@ impl IONContactPlan {
         let mut contacts = vec![];
         let mut vertices = vec![];
 
-        loop {
-            let mut line = String::new();
-            let bytes_read = reader.read_line(&mut line)?;
-
-            if bytes_read == 0 {
-                break;
-            }
+        while let Some(line) = reader.next() {
             // Skip lines starting with '#'
             if line.trim_start().starts_with('#') {
                 continue;
             }
-            let words: Vec<String> = line.split_whitespace().map(String::from).collect();
+            let words: Vec<_> = line.split_whitespace().collect();
 
             if words.is_empty() {
                 continue;
             }
 
-            if words[0].as_str() != "a" {
+            if words[0] != "a" {
                 continue;
             }
-            if words[1].as_str() == "contact" {
+
+            if words[1] == "contact" {
                 let tx_start: Date = words[2].parse().unwrap();
                 let tx_end: Date = words[3].parse().unwrap();
                 let tx_node_id = manage_aliases(&mut map_id_map, &words[4], &mut vertices);
                 let rx_node_id = manage_aliases(&mut map_id_map, &words[5], &mut vertices);
                 let data_rate: DataRate = words[6].parse().unwrap();
-                let confidence = get_confidence(&words);
+                let confidence = get_confidence(words.as_slice());
                 contact_count += 1;
 
                 manage_contacts(
@@ -221,7 +219,7 @@ impl IONContactPlan {
                     },
                 );
             }
-            if words[1].as_str() == "range" {
+            if words[1] == "range" {
                 let tx_start: Date = words[2].parse().unwrap();
                 let tx_end: Date = words[3].parse().unwrap();
                 let tx_node_id = manage_aliases(&mut map_id_map, &words[4], &mut vertices);
@@ -235,7 +233,6 @@ impl IONContactPlan {
                     delay,
                 });
             }
-            continue;
         }
 
         for map in contact_info_map.values_mut() {
@@ -255,7 +252,7 @@ impl IONContactPlan {
                     } else {
                         return Err(ASABRError::ContactPlanError(
                             "This parser only supports one range per contact",
-                        ))?;
+                        ));
                     }
                 }
             }
@@ -264,9 +261,9 @@ impl IONContactPlan {
         if contacts.len() != contact_count {
             return Err(ASABRError::ContactPlanError(
                 "At least one contact has no range",
-            ))?;
+            ));
         }
 
-        Ok(ContactPlan::new(vertices, contacts, None)?)
+        ContactPlan::new(vertices, contacts, None)
     }
 }

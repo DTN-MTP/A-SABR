@@ -1,4 +1,6 @@
-use std::collections::HashMap;
+extern crate alloc;
+
+use alloc::{collections::BTreeMap as HashMap, vec::Vec};
 
 use crate::{
     errors::ASABRError,
@@ -40,10 +42,10 @@ impl Parser<VirtualNodeInfo> for VirtualNodeInfo {
         for i in 0..rids.len() {
             for j in (i + 1)..rids.len() {
                 if rids[i] == rids[j] {
-                    return Err(ASABRError::ParsingError(format!(
-                        "Parsing failed: duplicate node ID in vnode definition ({})",
-                        lexer.get_current_position()
-                    )));
+                    return Err(ASABRError::ParsingError(
+                        "Parsing failed: duplicate node ID in vnode definition",
+                        lexer.get_current_position(),
+                    ));
                 }
             }
         }

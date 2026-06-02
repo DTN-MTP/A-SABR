@@ -1,4 +1,8 @@
-use std::{cell::RefCell, cmp::Ordering, marker::PhantomData, rc::Rc};
+extern crate alloc;
+
+use alloc::{rc::Rc, vec, vec::Vec};
+
+use core::{cell::RefCell, cmp::Ordering, marker::PhantomData};
 
 use crate::{
     bundle::Bundle, contact_manager::ContactManager, distance::Distance, errors::ASABRError,

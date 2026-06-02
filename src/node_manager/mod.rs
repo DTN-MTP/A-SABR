@@ -1,6 +1,9 @@
+extern crate alloc;
+
+use alloc::boxed::Box;
+
 #[cfg(any(feature = "node_proc", feature = "node_tx", feature = "node_rx"))]
 use crate::{bundle::Bundle, types::Date};
-
 pub mod none;
 
 macro_rules! define_node_manager {
@@ -187,7 +190,7 @@ macro_rules! define_node_manager {
 }
 
 #[cfg(feature = "debug")]
-define_node_manager!(std::fmt::Debug);
+define_node_manager!(core::fmt::Debug);
 
 #[cfg(not(feature = "debug"))]
 define_node_manager!();

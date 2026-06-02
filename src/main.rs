@@ -1,3 +1,10 @@
+use std::alloc::System;
+
+#[global_allocator]
+static GLOBAL: System = System;
+
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 use std::{cell::RefCell, env, rc::Rc};
 
 use a_sabr::{
@@ -13,7 +20,6 @@ use a_sabr::{
     parsing::{ContactMarkerMap, coerce_cm},
     route_storage::cache::TreeCache,
     routing::{Router, aliases::SpsnHybridParenting},
-    utils::pretty_print,
 };
 
 fn main() -> Result<(), ASABRError> {
@@ -25,7 +31,9 @@ fn main() -> Result<(), ASABRError> {
     println!("Working with cp {}.", args[1]);
 
     // We create a lexer to retrieve tokens from a file
-    let mut mylexer = FileLexer::new(&args[1]).unwrap();
+    let file = File::open(&args[1]).unwrap();
+    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
+    let mut mylexer = FileLexer::new(lines.iter().map(|s| s.as_str()));
 
     // All nodes will have the same management approach (NoManagement) but the contacts may be of various types
     // We provide a map with markers that will allow the parser to create the correct contacts types thanks to
@@ -43,9 +51,12 @@ fn main() -> Result<(), ASABRError> {
         Some(&contact_dispatch),
     )
     .map_err(|e| match e {
-        ASABRError::ParsingError(e) => ASABRError::ParsingError(
-            format!("<cp_file> must be in ASABR format with NoManagement for nodes and dynamic management (evl, qd, eto or seg) for contacts. Error while parsing CP: {e}"),
-        ),
+        ASABRError::ParsingError(e,pos) => {
+            eprintln!("Parsing error: {e}");
+            ASABRError::ParsingError(
+            "<cp_file> must be in ASABR format with NoManagement for nodes and dynamic management (evl, qd, eto or seg) for contacts. Error while parsing CP",
+                    pos
+        )},
         _ => e,
     })?;
 
@@ -73,7 +84,7 @@ fn main() -> Result<(), ASABRError> {
     if let Ok(Some(out)) = out {
         for (_contact, dest_routes) in out.first_hops.values() {
             for route_rc in dest_routes {
-                pretty_print(route_rc.clone());
+                println!("{}", route_rc.borrow());
             }
         }
     }

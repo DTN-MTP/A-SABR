@@ -1,6 +1,6 @@
-use std::cell::{BorrowError, BorrowMutError};
-use std::error::Error;
-use std::fmt;
+use core::cell::{BorrowError, BorrowMutError};
+use core::error::Error;
+use core::fmt;
 
 #[derive(Debug)]
 pub enum ASABRError {
@@ -9,7 +9,7 @@ pub enum ASABRError {
     ScheduleError(&'static str),
     ContactPlanError(&'static str),
     MulticastUnsupportedError,
-    ParsingError(String),
+    ParsingError(&'static str, (usize, usize)),
 }
 
 impl From<BorrowError> for ASABRError {
@@ -26,14 +26,26 @@ impl From<BorrowMutError> for ASABRError {
 
 impl fmt::Display for ASABRError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{self:?}")
+        match *self {
+            ASABRError::BorrowMutError(s) => write!(f, "BorrowMutError in A-SABR: {}", s),
+            ASABRError::DryRunError(s) => write!(f, "DryRunError in A-SABR: {}", s),
+            ASABRError::ScheduleError(s) => write!(f, "ScheduleError in A-SABR: {}", s),
+            ASABRError::ContactPlanError(s) => write!(f, "ContactPlanError in A-SABR: {}", s),
+            ASABRError::MulticastUnsupportedError => {
+                write!(f, "Multicast is Unsupported in A-SABR")
+            }
+            ASABRError::ParsingError(s, l) => write!(
+                f,
+                "Parsing Error encountered at line {} tocken {} in A-SABR: {}",
+                l.0, l.1, s
+            ),
+        }
     }
 }
 
 impl Error for ASABRError {}
 
-impl From<ASABRError> for std::io::Error {
-    fn from(err: ASABRError) -> Self {
-        std::io::Error::other(err)
-    }
-}
+//     fn from(err: ASABRError) -> Self {
+//         std::io::Error::other(err)
+//     }
+// }

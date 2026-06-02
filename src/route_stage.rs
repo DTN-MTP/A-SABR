@@ -1,3 +1,7 @@
+extern crate alloc;
+
+use alloc::{collections::BTreeMap as HashMap, rc::Rc, vec::Vec};
+
 use crate::bundle::Bundle;
 use crate::contact::Contact;
 use crate::contact_manager::ContactManager;
@@ -6,9 +10,8 @@ use crate::node::Node;
 use crate::node_manager::NodeManager;
 use crate::types::{Date, Duration, HopCount, NodeID};
 use crate::vertex::VertexID;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
+use core::cell::RefCell;
+use core::fmt::Display;
 
 /// Represents an intermediate hop in a route, typically used for multi-hop communication or routing.
 ///
@@ -333,5 +336,44 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
             return Some(via.contact.clone());
         }
         None
+    }
+}
+
+impl<NM: NodeManager, CM: ContactManager> Display for RouteStage<NM, CM> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let mut backtrace = Vec::new();
+        writeln!(
+            f,
+            "Route to node {} at t={} with {} hop(s): ",
+            self.to_node, self.at_time, self.hop_count
+        )?;
+        // let mut curr_route_opt = Some(self);
+        // while let Some(curr_route_rc) = curr_route_opt.take() {
+        //     let curr_route = curr_route_rc;
+        //     backtrace.push((curr_route.to_node, curr_route.at_time, curr_route.hop_count));
+        //     match &curr_route.via {
+        //         Some(via_val) => curr_route_opt = Some(&*via_val.parent_route.clone().try_borrow().unwrap()),
+        //         None => curr_route_opt = None,
+        //     }
+        // }
+        //
+        fn back<CM: ContactManager, NM: NodeManager>(
+            backtrace: &mut Vec<(u16, f64, u16)>,
+            route: &RouteStage<NM, CM>,
+        ) {
+            backtrace.push((route.to_node, route.at_time, route.hop_count));
+            if let Some(via) = &route.via {
+                back(backtrace, &*via.parent_route.borrow());
+            }
+        }
+        back(&mut backtrace, self);
+        for data in backtrace.iter().rev() {
+            writeln!(
+                f,
+                "\t- Reach node {} at t={} with {} hop(s)",
+                data.0, data.1, data.2
+            )?;
+        }
+        Ok(())
     }
 }

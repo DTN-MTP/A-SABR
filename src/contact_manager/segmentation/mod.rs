@@ -1,3 +1,7 @@
+extern crate alloc;
+
+use alloc::vec::Vec;
+
 use crate::contact::ContactInfo;
 use crate::errors::ASABRError;
 use crate::parsing::{Lexer, LexerOutput};
@@ -249,7 +253,7 @@ pub trait BaseSegmentationManager {
 /// Returns a `Result<LexerOutput<T>, ASABRError>`:
 /// - `Finished((start, end, val))` if the interval is successfully parsed.
 /// - An error from Date::parse(), or if an unexpected end-of-file is encountered during parsing.
-fn parse_interval<T: std::str::FromStr>(
+fn parse_interval<T: core::str::FromStr>(
     lexer: &mut dyn Lexer,
 ) -> Result<(Date, Date, T), ASABRError> {
     let start: Date = Date::parse(lexer)?;

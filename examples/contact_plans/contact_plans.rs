@@ -1,3 +1,8 @@
+use std::{
+    fs::File,
+    io::{BufRead, BufReader},
+};
+
 use a_sabr::{
     contact_manager::{
         ContactManager,
@@ -18,8 +23,11 @@ use a_sabr::{
 
 fn main() {
     // ION, with contact segmentation
-    let contact_plan = IONContactPlan::parse::<NoManagement, SegmentationManager>(
-        "examples/contact_plans/ion_format.cp",
+    let file = File::open("examples/contact_plans/ion_format.cp").unwrap();
+    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
+
+    let contact_plan = IONContactPlan::parse::<NoManagement, SegmentationManager, _>(
+        lines.iter().map(|s| s.as_str()),
     )
     .unwrap();
     println!(
@@ -28,8 +36,11 @@ fn main() {
         contact_plan.contacts.len()
     );
     // ION, with EVL
+    let file = File::open("examples/contact_plans/ion_format.cp").unwrap();
+    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
+
     let contact_plan =
-        IONContactPlan::parse::<NoManagement, EVLManager>("examples/contact_plans/ion_format.cp")
+        IONContactPlan::parse::<NoManagement, EVLManager, _>(lines.iter().map(|s| s.as_str()))
             .unwrap();
     println!(
         "ION CP parsed, found {} nodes (no management) & {} contacts (EVL)",
@@ -38,8 +49,11 @@ fn main() {
     );
 
     // ION, with EVL + priorities
+    let file = File::open("examples/contact_plans/ion_format.cp").unwrap();
+    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
+
     let contact_plan =
-        IONContactPlan::parse::<NoManagement, PEVLManager>("examples/contact_plans/ion_format.cp")
+        IONContactPlan::parse::<NoManagement, PEVLManager, _>(lines.iter().map(|s| s.as_str()))
             .unwrap();
     println!(
         "ION CP parsed, found {} nodes (no management) & {} contacts (EVL with priorities)",
@@ -48,10 +62,11 @@ fn main() {
     );
 
     // tvg-util, with contact segmentation
-    let contact_plan = TVGUtilContactPlan::parse::<NoManagement, SegmentationManager>(
-        "examples/contact_plans/tvgutil_format.cp",
-    )
-    .unwrap();
+    let file = File::open("examples/contact_plans/tvgutil_format.cp").unwrap();
+    let json: serde_json::Value = serde_json::from_reader(file).unwrap();
+
+    let contact_plan =
+        TVGUtilContactPlan::parse::<NoManagement, SegmentationManager>(json.clone()).unwrap();
     println!(
         "Tvg-util CP parsed, found {} nodes (no management) & {} contacts (segmentation)",
         contact_plan.vertices.len(),
@@ -59,10 +74,7 @@ fn main() {
     );
 
     // tvg-util, with EVL
-    let contact_plan = TVGUtilContactPlan::parse::<NoManagement, EVLManager>(
-        "examples/contact_plans/tvgutil_format.cp",
-    )
-    .unwrap();
+    let contact_plan = TVGUtilContactPlan::parse::<NoManagement, EVLManager>(json.clone()).unwrap();
     println!(
         "Tvg-util CP parsed, found {} nodes (no management) & {} contacts (EVL)",
         contact_plan.vertices.len(),
@@ -70,17 +82,16 @@ fn main() {
     );
 
     // tvg-util, with QD + priorities
-    let contact_plan = TVGUtilContactPlan::parse::<NoManagement, PQDManager>(
-        "examples/contact_plans/tvgutil_format.cp",
-    )
-    .unwrap();
+    let contact_plan = TVGUtilContactPlan::parse::<NoManagement, PQDManager>(json).unwrap();
     println!(
         "Tvg-util CP parsed, found {} nodes (no management) & {} contacts (queue-delay with priorities)",
         contact_plan.vertices.len(),
         contact_plan.contacts.len()
     );
+    let file = File::open("examples/contact_plans/asabr_format_static.cp").unwrap();
+    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
 
-    let mut mylexer = FileLexer::new("examples/contact_plans/asabr_format_static.cp").unwrap();
+    let mut mylexer = FileLexer::new(lines.iter().map(|s| s.as_str()));
     let contact_plan =
         ASABRContactPlan::parse::<NoManagement, EVLManager>(&mut mylexer, None, None).unwrap();
     println!(
@@ -91,7 +102,10 @@ fn main() {
 
     // A new lexer must be initialized
     // The CP format is shared for all legacy contact managers, no CP modification required
-    let mut mylexer = FileLexer::new("examples/contact_plans/asabr_format_static.cp").unwrap();
+    let file = File::open("examples/contact_plans/asabr_format_static.cp").unwrap();
+    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
+
+    let mut mylexer = FileLexer::new(lines.iter().map(|s| s.as_str()));
     let contact_plan =
         ASABRContactPlan::parse::<NoManagement, QDManager>(&mut mylexer, None, None).unwrap();
     println!(
@@ -99,8 +113,10 @@ fn main() {
         contact_plan.vertices.len(),
         contact_plan.contacts.len()
     );
+    let file = File::open("examples/contact_plans/asabr_format_dynamic.cp").unwrap();
+    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
 
-    let mut mylexer = FileLexer::new("examples/contact_plans/asabr_format_dynamic.cp").unwrap();
+    let mut mylexer = FileLexer::new(lines.iter().map(|s| s.as_str()));
     // All nodes will have the same management approach (NoManagement) but the contacts may be of various types
     // We provide a map with markers that will allow the parser to create the correct contacts types thanks to
     // the markers provides in the contact plan

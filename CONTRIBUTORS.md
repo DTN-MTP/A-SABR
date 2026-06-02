@@ -4,3 +4,4 @@ This project is open to contributions, including documentation, testing, bug rep
 ## Acknowledgments
 - Nicolas Le Borgne - code contributions
 - Isaac Lluís - code reviews
+- Louwen Fricout - No-std port

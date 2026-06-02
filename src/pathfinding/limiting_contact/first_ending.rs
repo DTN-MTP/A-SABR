@@ -1,3 +1,5 @@
+extern crate alloc;
+
 use crate::{
     contact::Contact, contact_manager::ContactManager, create_new_alternative_path_variant,
     node_manager::NodeManager,

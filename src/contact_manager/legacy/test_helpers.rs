@@ -11,6 +11,10 @@ pub(crate) const BUDGET_P0: Volume = 2000.0;
 pub(crate) const BUDGET_P1: Volume = 5000.0;
 pub(crate) const BUDGET_P2: Volume = TOTAL_VOL;
 
+extern crate alloc;
+
+use alloc::vec;
+
 pub(crate) fn make_contact_info(start: Date, end: Date) -> ContactInfo {
     ContactInfo::new(0, 1, start, end)
 }

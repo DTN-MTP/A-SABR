@@ -1,7 +1,6 @@
-use std::{
-    cell::RefCell, cmp::Ordering, cmp::Reverse, collections::BinaryHeap, marker::PhantomData,
-    rc::Rc,
-};
+extern crate alloc;
+use alloc::{collections::BinaryHeap, rc::Rc};
+use core::{cell::RefCell, cmp::Ordering, cmp::Reverse, marker::PhantomData};
 
 use crate::{
     bundle::Bundle,

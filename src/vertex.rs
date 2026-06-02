@@ -1,3 +1,6 @@
+extern crate alloc;
+use alloc::string::String;
+
 use crate::{node::Node, node_manager::NodeManager, types::NodeID};
 
 /// Represents the unique inner identifier of a Vertex in the Multigraph.

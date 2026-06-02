@@ -1,5 +1,9 @@
-use std::cmp::Ordering;
-use std::{cell::RefCell, marker::PhantomData, rc::Rc};
+extern crate alloc;
+
+use alloc::rc::Rc;
+
+use core::cmp::Ordering;
+use core::{cell::RefCell, marker::PhantomData};
 
 use crate::node_manager::NodeManager;
 use crate::{contact_manager::ContactManager, route_stage::RouteStage};
@@ -64,7 +68,7 @@ impl<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> DistanceWrapper<N
 }
 
 impl<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> Ord for DistanceWrapper<NM, CM, D> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> Ordering {
         D::cmp(&self.0.borrow(), &other.0.borrow())
     }
 }
@@ -72,7 +76,7 @@ impl<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> Ord for DistanceW
 impl<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> PartialOrd
     for DistanceWrapper<NM, CM, D>
 {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }

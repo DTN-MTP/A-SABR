@@ -1,4 +1,6 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+extern crate alloc;
+use core::{cell::RefCell};
+use alloc::{collections::BTreeMap as HashMap, rc::Rc, vec::Vec, vec};
 
 use crate::{
     bundle::Bundle,

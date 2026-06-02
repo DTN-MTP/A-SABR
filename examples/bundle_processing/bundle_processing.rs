@@ -1,3 +1,6 @@
+use std::fs::File;
+use std::io::{BufRead, BufReader};
+
 use a_sabr::bundle::Bundle;
 use a_sabr::contact_manager::legacy::evl::EVLManager;
 use a_sabr::distance::sabr::SABR;
@@ -13,7 +16,7 @@ use a_sabr::pathfinding::hybrid_parenting::HybridParentingPath;
 use a_sabr::types::Date;
 use a_sabr::types::Priority;
 use a_sabr::types::Token;
-use a_sabr::utils::{init_pathfinding, pretty_print};
+use a_sabr::utils::init_pathfinding;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Compressing {
@@ -92,12 +95,15 @@ fn edge_case_example<NM: NodeManager + Parser<NM> + DispatchParser<NM>>(
         size: 100.0,
         expiration: 1000.0,
     };
+    let file = File::open(cp_path).unwrap();
+    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
 
     let mut mpt_graph = init_pathfinding::<
         NM,
         EVLManager,
         HybridParentingPath<NM, EVLManager, SABR>,
-    >(cp_path, node_marker_map, None)?;
+        _,
+    >(lines.iter().map(|s| s.as_str()), node_marker_map, None)?;
 
     println!(
         "\nRunning with contact plan location={cp_path}, destination node=3, and bundle priority={bundle_priority}"
@@ -106,7 +112,7 @@ fn edge_case_example<NM: NodeManager + Parser<NM> + DispatchParser<NM>>(
     let res = mpt_graph.get_next(0.0, 0, &bundle, &[]).unwrap();
 
     match res.by_destination[3].clone() {
-        Some(route) => pretty_print(route),
+        Some(route) => print!("{}", route.borrow()),
         _ => println!("No route found to node 3."),
     }
 
