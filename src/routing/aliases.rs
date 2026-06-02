@@ -13,7 +13,7 @@ use crate::{
     route_storage::{cache::TreeCache, table::RoutingTable},
     routing::volcgr::VolCgr,
 };
-use alloc::{rc::Rc,boxed::Box};
+use alloc::{boxed::Box, rc::Rc};
 use core::cell::RefCell;
 
 #[cfg(feature = "contact_suppression")]

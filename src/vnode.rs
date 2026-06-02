@@ -2,11 +2,7 @@ extern crate alloc;
 
 use alloc::{collections::BTreeMap as HashMap, vec::Vec};
 
-use crate::{
-    errors::ASABRError,
-    parsing::{Lexer, Parser},
-    types::{NodeID, NodeIDMap, NodeName, Token},
-};
+use crate::types::{NodeID, NodeIDMap, NodeName};
 
 /// Represents information about a vnode in the network.
 ///
@@ -15,42 +11,19 @@ use crate::{
 /// * `vid` - The unique identifier for the vnode.
 /// * `name` - The name associated with the vnode.
 /// * `rids` - A vector of the identifiers of each real node associated with the vnode.
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct VirtualNodeInfo {
     pub vid: NodeID,
     pub name: NodeName,
     pub rids: Vec<NodeID>,
 }
 
-impl Parser<VirtualNodeInfo> for VirtualNodeInfo {
-    /// Parses a `VirtualNodeInfo` from the provided lexer.
-    ///
-    /// # Parameters
-    ///
-    /// * `lexer` - The lexer used to read the vnode information.
-    ///
-    /// # Returns
-    ///
-    /// * `Result<LexerOutput<VirtualNodeInfo>, ASABRError>` - The parsing state, which can be either
-    ///   finished with the parsed node info, an error, or an EOF state.
-    fn parse(lexer: &mut dyn Lexer) -> Result<VirtualNodeInfo, ASABRError> {
-        let vid: NodeID = NodeID::parse(lexer)?;
+pub type VNodeInfoParse = (NodeID, (NodeName, Vec<NodeID>));
 
-        let name: NodeName = NodeName::parse(lexer)?;
-
-        let rids: Vec<NodeID> = Vec::parse(lexer)?;
-        for i in 0..rids.len() {
-            for j in (i + 1)..rids.len() {
-                if rids[i] == rids[j] {
-                    return Err(ASABRError::ParsingError(
-                        "Parsing failed: duplicate node ID in vnode definition",
-                        lexer.get_current_position(),
-                    ));
-                }
-            }
-        }
-
-        Ok(VirtualNodeInfo { vid, name, rids })
+impl From<VNodeInfoParse> for VirtualNodeInfo {
+    fn from(value: VNodeInfoParse) -> Self {
+        let (vid, (name, rids)) = value;
+        VirtualNodeInfo { vid, name, rids }
     }
 }
 

@@ -3,10 +3,8 @@ use alloc::rc::Rc;
 use core::{cell::RefCell, cmp::Ordering};
 
 use crate::{
-    errors::ASABRError,
     node_manager::NodeManager,
-    parsing::{Lexer, Parser},
-    types::{NodeID, NodeName, Token},
+    types::{NodeID, NodeName},
 };
 
 /// Represents information about a node in the network.
@@ -16,11 +14,25 @@ use crate::{
 /// * `id` - The unique identifier for the node.
 /// * `name` - The name associated with the node.
 /// * `excluded` - Indicates whether the node is excluded from routing operations.
-#[cfg_attr(feature = "debug", derive(Debug))]
+
+#[derive(Clone, Debug)]
 pub struct NodeInfo {
     pub id: NodeID,
     pub name: NodeName,
     pub excluded: bool,
+}
+
+pub type NodeInfoParse = (NodeID, NodeName);
+
+impl From<NodeInfoParse> for NodeInfo {
+    fn from(value: NodeInfoParse) -> Self {
+        let (id, name) = value;
+        NodeInfo {
+            id,
+            name,
+            excluded: false,
+        }
+    }
 }
 
 /// Represents a node in the network, including its information and associated manager.
@@ -28,7 +40,7 @@ pub struct NodeInfo {
 /// # Type parameters
 /// - `NM`: A type implementing the `NodeManager` trait, responsible for managing the
 ///   node's operations.
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct Node<NM: NodeManager> {
     /// The information about the node, including its ID and name.
     pub info: NodeInfo,
@@ -74,13 +86,7 @@ impl<NM: NodeManager> Node<NM> {
 
 impl<NM: NodeManager> Ord for Node<NM> {
     fn cmp(&self, other: &Self) -> Ordering {
-        if self.info.id > other.info.id {
-            return Ordering::Greater;
-        }
-        if self.info.id < other.info.id {
-            return Ordering::Less;
-        }
-        Ordering::Equal
+        self.info.id.cmp(&other.info.id)
     }
 }
 
@@ -96,27 +102,3 @@ impl<NM: NodeManager> PartialEq for Node<NM> {
     }
 }
 impl<NM: NodeManager> Eq for Node<NM> {}
-
-impl Parser<NodeInfo> for NodeInfo {
-    /// Parses a `NodeInfo` from the provided lexer.
-    ///
-    /// # Parameters
-    ///
-    /// * `lexer` - The lexer used to read the node information.
-    ///
-    /// # Returns
-    ///
-    /// * `Result<LexerOutput<NodeInfo>, ASABRError>` - The parsing state, which can be either finished with the parsed node info,
-    ///   an error, or an EOF state.
-    fn parse(lexer: &mut dyn Lexer) -> Result<NodeInfo, ASABRError> {
-        let id: NodeID = NodeID::parse(lexer)?;
-
-        let name: NodeName = NodeName::parse(lexer)?;
-
-        Ok(NodeInfo {
-            id,
-            name,
-            excluded: false,
-        })
-    }
-}

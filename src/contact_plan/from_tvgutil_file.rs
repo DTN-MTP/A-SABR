@@ -18,11 +18,11 @@ use crate::{
 };
 
 extern crate alloc;
-use alloc::{collections::BTreeMap as HashMap, string::ToString, vec, vec::Vec};
+use alloc::{collections::BTreeMap as HashMap, vec, vec::Vec};
 
 use serde_json::Value;
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct TVGUtilContactData {
     tx_start: Date,
     tx_end: Date,
@@ -101,7 +101,7 @@ impl TVGUtilContactPlan {
                 Node::try_new(
                     NodeInfo {
                         id: node_id as NodeID,
-                        name: node_name.to_string(),
+                        name: node_name.into(),
                         excluded: false,
                     },
                     NoManagement {},
@@ -146,6 +146,6 @@ impl TVGUtilContactPlan {
                 contacts.push(contact);
             }
         }
-        Ok(ContactPlan::new(vertices, contacts, None)?)
+        Ok(ContactPlan::new(vertices, contacts, None))
     }
 }

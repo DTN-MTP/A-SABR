@@ -1,5 +1,5 @@
 extern crate alloc;
-use alloc::{collections::BinaryHeap, rc::Rc, vec, vec::Vec,borrow::ToOwned};
+use alloc::{borrow::ToOwned, collections::BinaryHeap, rc::Rc, vec, vec::Vec};
 
 use core::{
     cell::RefCell,

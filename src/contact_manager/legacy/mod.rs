@@ -1,5 +1,8 @@
+extern crate alloc;
+
 pub mod eto;
 pub mod evl;
+pub mod lex;
 pub mod qd;
 
 #[cfg(test)]
@@ -21,7 +24,7 @@ pub(crate) mod test_helpers;
 macro_rules! generate_struct_management {
     ($manager_name:ident, 1, false) => {
         /// Macro-generated.
-        #[cfg_attr(feature = "debug", derive(Debug))]
+        #[derive(Debug)]
         pub struct $manager_name {
             /// The data transmission rate.
             rate: $crate::types::DataRate,
@@ -68,15 +71,11 @@ macro_rules! generate_struct_management {
             fn get_budget(&self, _bundle: &$crate::bundle::Bundle) -> $crate::types::Volume  {
                return self.original_volume;
             }
-            #[inline(always)]
-            fn build_parsing_output(rate: $crate::types::DataRate, delay: $crate::types::Duration, _lexer: &mut dyn $crate::parsing::Lexer) -> Result<Self, $crate::errors::ASABRError>{
-                return Ok($manager_name::new(rate, delay));
-            }
         }
     };
     ($manager_name:ident, $prio_count:tt, false) => {
 
-        #[cfg_attr(feature = "debug", derive(Debug))]
+        #[derive(Debug)]
         pub struct $manager_name {
             /// The data transmission rate.
             rate: $crate::types::DataRate,
@@ -129,16 +128,12 @@ macro_rules! generate_struct_management {
             fn get_budget(&self, _bundle: &$crate::bundle::Bundle) -> $crate::types::Volume  {
                return self.original_volume;
             }
-            #[inline(always)]
-            fn build_parsing_output(rate: $crate::types::DataRate, delay: $crate::types::Duration, _lexer: &mut dyn $crate::parsing::Lexer) -> Result<Self, $crate::errors::ASABRError>{
-                return Ok($manager_name::new(rate, delay));
-            }
         }
     };
     // if the priority count is different than one, queue_size is an array
     ($manager_name:ident, $prio_count:tt, true) => {
 
-        #[cfg_attr(feature = "debug", derive(Debug))]
+        #[derive(Debug)]
         pub struct $manager_name {
             /// The data transmission rate.
             rate: $crate::types::DataRate,
@@ -194,16 +189,6 @@ macro_rules! generate_struct_management {
             #[inline(always)]
             fn get_budget(&self, bundle: &$crate::bundle::Bundle) -> $crate::types::Volume  {
                return self.budgets[(bundle.priority as usize).min($prio_count - 1)];
-            }
-            #[inline(always)]
-            fn build_parsing_output(rate: $crate::types::DataRate, delay: $crate::types::Duration, lexer: &mut dyn $crate::parsing::Lexer) -> Result<Self, $crate::errors::ASABRError>{
-                let mut budgets = [0.0; $prio_count];
-                for i in 0..$prio_count {
-                    let budget = <$crate::types::Volume as $crate::types::Token<$crate::types::Volume>>::parse(lexer)?;
-                    budgets[i] = budget;
-                }
-
-                return Ok($manager_name::new(rate, delay, budgets));
             }
         }
     };
@@ -363,29 +348,5 @@ macro_rules! generate_prio_volume_manager {
             }
         }
 
-        /// Implements the DispatchParser to allow dynamic parsing.
-        impl $crate::parsing::DispatchParser<$manager_name> for $manager_name {}
-
-        #[doc = concat!("Implements the `Parser` trait for ", stringify!($manager_name),"`, allowing the manager to be parsed from a lexer.")]
-        impl $crate::parsing::Parser<$manager_name> for $manager_name {
-            #[doc = concat!("Parses a `", stringify!($manager_name),"` from the lexer, extracting the rate and delay intervals.")]
-            ///
-            /// # Arguments
-            ///
-            /// * `lexer` - The lexer used for parsing tokens.
-            /// * `_sub` - An optional map for handling custom parsing logic (unused here).
-            ///
-            /// # Returns
-            ///
-            /// Returns a `Result<LexerOutput<T>, ASABRError>` indicating whether parsing was successful
-            /// (`Finished`) or encountered an error.
-            fn parse(
-                lexer: &mut dyn $crate::parsing::Lexer,
-            ) -> Result<$manager_name, $crate::errors::ASABRError> {
-                let rate = <$crate::types::DataRate as $crate::types::Token<$crate::types::DataRate>>::parse(lexer)?;
-                let delay = <$crate::types::Duration as $crate::types::Token<$crate::types::Duration>>::parse(lexer)?;
-                return Self::build_parsing_output(rate, delay, lexer);
-            }
-        }
     }
 }

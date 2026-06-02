@@ -10,6 +10,7 @@ use crate::node::Node;
 use crate::node_manager::NodeManager;
 use crate::types::{Date, Duration, HopCount, NodeID};
 use crate::vertex::VertexID;
+use cfg_if::cfg_if;
 use core::cell::RefCell;
 use core::fmt::Display;
 
@@ -17,7 +18,7 @@ use core::fmt::Display;
 ///
 /// This struct encapsulates the `Contact` and parent `RouteStage` information necessary to move from
 /// one stage to the next.
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct ViaHop<NM: NodeManager, CM: ContactManager> {
     /// A reference to the contact for this hop, representing the intermediate node.
     pub contact: Rc<RefCell<Contact<NM, CM>>>,
@@ -47,8 +48,8 @@ impl<NM: NodeManager, CM: ContactManager> Clone for ViaHop<NM, CM> {
 ///   contact's operations.
 /// - `NM`: A type implementing the `NodeManager` trait, responsible for managing the
 ///   node's operations.
-#[cfg_attr(feature = "debug", derive(derivative::Derivative))]
-#[cfg_attr(feature = "debug", derivative(Debug))]
+#[derive(derivative::Derivative)]
+#[derivative(Debug)]
 pub struct RouteStage<NM: NodeManager, CM: ContactManager> {
     /// The ID of the destination vertex for this route stage.
     pub to_node: VertexID,
@@ -67,7 +68,7 @@ pub struct RouteStage<NM: NodeManager, CM: ContactManager> {
     /// A flag indicating whether the route has been fully initialized and is ready for routing.
     pub route_initialized: bool,
     /// A hashmap that maps destination node IDs to their respective next route stages.
-    #[cfg_attr(feature = "debug", derivative(Debug = "ignore"))]
+    #[derivative(Debug = "ignore")]
     // avoid cyclic print with debug formatting
     pub next_for_destination: HashMap<NodeID, SharedRouteStage<NM, CM>>,
 
@@ -180,10 +181,13 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
         let info = contact_borrowed.info;
 
         // If bundle processing is enabled, a mutable bundle copy is required to be attached to the RouteStage.
-        #[cfg(feature = "node_proc")]
-        let mut bundle_to_consider = bundle.clone();
-        #[cfg(not(feature = "node_proc"))]
-        let bundle_to_consider = bundle;
+        cfg_if! {
+            if #[cfg(feature = "node_proc")] {
+                let mut bundle_to_consider = bundle.clone();
+            } else {
+                let bundle_to_consider = bundle;
+            }
+        }
 
         #[allow(unused_mut)]
         #[cfg(any(feature = "node_tx", feature = "node_proc"))]
@@ -191,13 +195,16 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
         #[cfg(feature = "node_rx")]
         let mut rx_node = via.rx_node.try_borrow_mut()?;
 
-        #[cfg(feature = "node_proc")]
-        let sending_time = tx_node
-            .manager
-            .schedule_process(at_time, &mut bundle_to_consider);
-        #[cfg(not(feature = "node_proc"))]
-        let sending_time = at_time;
-
+        cfg_if! {
+            if #[cfg(feature = "node_proc")] {
+                let sending_time = tx_node
+                    .manager
+                    .schedule_process(at_time, &mut bundle_to_consider);
+            } else {
+                let sending_time = at_time;
+            }
+        }
+        #[allow(clippy::needless_borrow)]
         let Some(res) =
             contact_borrowed
                 .manager
@@ -277,23 +284,28 @@ impl<NM: NodeManager, CM: ContactManager> RouteStage<NM, CM> {
         }
 
         // If bundle processing is enabled, a mutable bundle copy is required to be attached to the RouteStage.
-        #[cfg(feature = "node_proc")]
-        let mut bundle_to_consider = bundle.clone();
-        #[cfg(not(feature = "node_proc"))]
-        let bundle_to_consider = bundle;
-
+        cfg_if! {
+            if #[cfg(feature = "node_proc")] {
+                let mut bundle_to_consider = bundle.clone();
+            } else {
+                let bundle_to_consider = bundle;
+            }
+        }
         #[cfg(any(feature = "node_tx", feature = "node_proc"))]
         let tx_node = via.tx_node.try_borrow_mut()?;
         #[cfg(feature = "node_rx")]
         let rx_node = via.rx_node.try_borrow_mut()?;
-        #[cfg(feature = "node_proc")]
-        let sending_time = tx_node
-            .manager
-            .dry_run_process(at_time, &mut bundle_to_consider);
+        cfg_if! {
+            if #[cfg(feature = "node_proc")] {
+                let sending_time = tx_node
+                    .manager
+                    .dry_run_process(at_time, &mut bundle_to_consider);
+            } else {
+                let sending_time = at_time;
+            }
+        }
 
-        #[cfg(not(feature = "node_proc"))]
-        let sending_time = at_time;
-
+        #[allow(clippy::needless_borrow)]
         let Some(res) =
             contact_borrowed
                 .manager

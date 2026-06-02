@@ -7,8 +7,6 @@ use crate::{
         ContactManager, ContactManagerTxData,
         segmentation::{BaseSegmentationManager, Segment},
     },
-    errors::ASABRError,
-    parsing::{DispatchParser, Lexer, Parser},
     types::{DataRate, Date, Duration},
 };
 
@@ -20,7 +18,7 @@ use alloc::{vec, vec::Vec};
 ///
 /// The `SegmentationManager` uses different segments to manage free intervals, rate intervals, and delay intervals,
 /// which are applied in contact scheduling and transmission simulation.
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct SegmentationManager {
     /// A list of segments representing free intervals available for transmission.
     free_intervals: Vec<Segment<()>>,
@@ -217,26 +215,6 @@ impl ContactManager for SegmentationManager {
     #[cfg(feature = "first_depleted")]
     fn get_original_volume(&self) -> Volume {
         self.original_volume
-    }
-}
-
-/// Implements the DispatchParser to allow dynamic parsing.
-impl DispatchParser<SegmentationManager> for SegmentationManager {}
-
-/// Implements the `Parser` trait for `SegmentationManager`, allowing the manager to be parsed from a lexer.
-impl Parser<SegmentationManager> for SegmentationManager {
-    /// Parses a `SegmentationManager` from the lexer, extracting the rate and delay intervals.
-    ///
-    /// # Arguments
-    ///
-    /// * `lexer` - The lexer used for parsing tokens.
-    ///
-    /// # Returns
-    ///
-    /// Returns a `Result<LexerOutput<T>, ASABRError>` indicating whether parsing was successful
-    /// (`Finished`) or encountered an error.
-    fn parse(lexer: &mut dyn Lexer) -> Result<SegmentationManager, ASABRError> {
-        super::parse::<SegmentationManager>(lexer)
     }
 }
 

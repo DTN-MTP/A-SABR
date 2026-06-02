@@ -32,7 +32,7 @@ mod test_helpers;
 ///
 /// * `NM` - A generic type that implements the `NodeManager` trait.
 /// * `CM` - A generic type that implements the `ContactManager` trait.
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct PathFindingOutput<NM: NodeManager, CM: ContactManager> {
     /// The `Bundle` for which the pathfinding is being performed.
     pub bundle: Bundle,
@@ -206,6 +206,7 @@ fn try_make_hop<NM: NodeManager, CM: ContactManager>(
         if let Some(hop) = contact_borrowed.manager.dry_run_tx(
             &contact_borrowed.info,
             sending_time,
+            #[allow(clippy::needless_borrow)] //depend on feature
             &bundle_to_consider,
         ) {
             let tx_node = &nodes[contact_borrowed.info.tx_node_id as usize];

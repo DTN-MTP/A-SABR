@@ -4,14 +4,9 @@ use std::io::BufReader;
 
 use a_sabr::bundle::Bundle;
 use a_sabr::contact_manager::ContactManager;
-use a_sabr::contact_manager::legacy::eto::ETOManager;
-use a_sabr::contact_manager::legacy::evl::EVLManager;
-use a_sabr::contact_manager::legacy::qd::QDManager;
-use a_sabr::contact_plan::asabr_file_lexer::FileLexer;
-use a_sabr::contact_plan::from_asabr_lexer::ASABRContactPlan;
+use a_sabr::contact_plan::asabr_file_lexer::parse_from_iter;
 use a_sabr::node_manager::none::NoManagement;
-use a_sabr::parsing::ContactMarkerMap;
-use a_sabr::parsing::coerce_cm;
+use a_sabr::parsing::CMDynStandard;
 use a_sabr::routing::aliases::SpsnOptions;
 use a_sabr::routing::aliases::build_generic_router;
 
@@ -20,27 +15,16 @@ fn main() {
     panic!("Please enable the 'manual_queueing' feature.");
 
     // We want variations for contact management, register ETO and EVL
-    let mut contact_dispatch: ContactMarkerMap = ContactMarkerMap::new();
-    contact_dispatch.add("eto", coerce_cm::<ETOManager>);
-    contact_dispatch.add("evl", coerce_cm::<EVLManager>);
-    contact_dispatch.add("qd", coerce_cm::<QDManager>);
 
     // We create a lexer to retrieve tokens from a file
     let file = File::open("examples/eto_management/contact_plan_1.cp").unwrap();
-    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
-
-    let mut mylexer = FileLexer::new(lines.iter().map(|s| s.as_str()));
+    let lines = BufReader::new(file).lines().map(|l| l.unwrap());
 
     // We parse the contact plan (A-SABR format thanks to ASABRContactPlan) and the lexer
-    let contact_plan = ASABRContactPlan::parse::<NoManagement, Box<dyn ContactManager>>(
-        &mut mylexer,
-        None,
-        Some(&contact_dispatch),
-    )
-    .unwrap();
+    let contact_plan = parse_from_iter::<_, _, NoManagement, CMDynStandard>(lines).unwrap();
 
     // Let's use the build helper for convenience
-    let mut router = build_generic_router::<NoManagement, Box<dyn ContactManager>>(
+    let mut router = build_generic_router(
         "SpsnHybridParenting",
         contact_plan,
         Some(SpsnOptions {

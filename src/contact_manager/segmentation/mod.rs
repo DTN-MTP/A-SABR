@@ -3,15 +3,14 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use crate::contact::ContactInfo;
-use crate::errors::ASABRError;
-use crate::parsing::{Lexer, LexerOutput};
-use crate::types::{DataRate, Date, Duration, Token, Volume};
+use crate::types::{DataRate, Date, Duration, Volume};
 
+pub mod lex;
 pub mod pseg;
 pub mod seg;
 
 /// A segment represents a time interval with an associated value of type `T`.
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct Segment<T> {
     /// The start time of the segment.
     pub start: Date,
@@ -19,6 +18,15 @@ pub struct Segment<T> {
     pub end: Date,
     /// The value associated with the time interval, which could represent rate, delay, or any other characteristic.
     pub val: T,
+}
+
+pub type SegmentParse<T> = (Date, (Date, T));
+
+impl<T> From<SegmentParse<T>> for Segment<T> {
+    fn from(value: SegmentParse<T>) -> Self {
+        let (start, (end, val)) = value;
+        Segment { start, end, val }
+    }
 }
 
 /// Determines the delay based on the transmission end time (`tx_end`) and the available delay intervals.
@@ -231,82 +239,4 @@ pub trait BaseSegmentationManager {
     /// A new instance of the implementing type.
     fn new(rate_intervals: Vec<Segment<DataRate>>, delay_intervals: Vec<Segment<Duration>>)
     -> Self;
-}
-
-/// Parses an interval, consisting of a start date, end date, and a value of type `T`, from the lexer.
-///
-/// The interval is expected to have three components in the following order:
-/// 1. Start date (`Date`)
-/// 2. End date (`Date`)
-/// 3. Value of type `T` (e.g., `DataRate`, `Duration`)
-///
-/// # Arguments
-///
-/// * `lexer` - A mutable reference to the lexer that will provide the tokens to parse.
-///
-/// # Type Parameters
-///
-/// * `T` - The type of the value to be parsed for the interval. It must implement the `FromStr` trait to allow parsing from a string.
-///
-/// # Returns
-///
-/// Returns a `Result<LexerOutput<T>, ASABRError>`:
-/// - `Finished((start, end, val))` if the interval is successfully parsed.
-/// - An error from Date::parse(), or if an unexpected end-of-file is encountered during parsing.
-fn parse_interval<T: core::str::FromStr>(
-    lexer: &mut dyn Lexer,
-) -> Result<(Date, Date, T), ASABRError> {
-    let start: Date = Date::parse(lexer)?;
-
-    let end: Date = Date::parse(lexer)?;
-
-    let val: T = T::parse(lexer)?;
-
-    Ok((start, end, val))
-}
-
-/// Parses a `BaseSegmentationManager` from the lexer, extracting the rate and delay intervals.
-///
-/// # Arguments
-///
-/// * `lexer` - The lexer used for parsing tokens.
-///
-/// # Returns
-///
-/// Returns a `Result<LexerOutput<T>, ASABRError>` indicating whether parsing was successful (`Finished`)
-/// or encountered an error.
-fn parse<M: BaseSegmentationManager>(lexer: &mut dyn Lexer) -> Result<M, ASABRError> {
-    let mut rate_intervals: Vec<Segment<DataRate>> = Vec::new();
-    let mut delay_intervals: Vec<Segment<Duration>> = Vec::new();
-
-    loop {
-        let interval_type = match lexer.lookup()? {
-            LexerOutput::EOF => break,
-            LexerOutput::Finished(t) => t,
-        };
-        match interval_type.as_str() {
-            "delay" => {
-                lexer.consume_next_token()?;
-                let (start, end, delay) = parse_interval::<Duration>(lexer)?;
-                delay_intervals.push(Segment {
-                    start,
-                    end,
-                    val: delay,
-                });
-            }
-            "rate" => {
-                lexer.consume_next_token()?;
-                let (start, end, rate) = parse_interval::<DataRate>(lexer)?;
-                rate_intervals.push(Segment {
-                    start,
-                    end,
-                    val: rate,
-                });
-            }
-            _ => {
-                break;
-            }
-        }
-    }
-    Ok(M::new(rate_intervals, delay_intervals))
 }

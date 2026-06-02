@@ -1,3 +1,4 @@
+// #![feature(min_specialization)]
 #![no_std]
 
 /// Module containing the adaptive contact definition.
@@ -42,3 +43,6 @@ pub mod distance;
 pub mod parsing;
 
 pub mod utils;
+
+#[macro_use]
+extern crate static_assertions;

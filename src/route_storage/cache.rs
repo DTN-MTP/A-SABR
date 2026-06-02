@@ -19,7 +19,7 @@ use super::TreeStorage;
 ///
 /// The `Cache` struct provides a mechanism to store multiple `PathFindingOutput` instances
 /// while enforcing limits on the number of entries based on size and priority checks.
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct TreeCache<NM: NodeManager, CM: ContactManager> {
     /// A boolean indicating whether to check the size of bundles in the cache.
     check_size: bool,

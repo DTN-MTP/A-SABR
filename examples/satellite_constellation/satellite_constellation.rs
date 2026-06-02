@@ -3,22 +3,22 @@ use std::io::BufRead;
 use std::io::BufReader;
 
 use a_sabr::bundle::Bundle;
+use a_sabr::choices;
 use a_sabr::contact_manager::legacy::evl::EVLManager;
 use a_sabr::distance::sabr::SABR;
 use a_sabr::errors::ASABRError;
 use a_sabr::node_manager::NodeManager;
 use a_sabr::node_manager::none::NoManagement;
-use a_sabr::parsing::NodeMarkerMap;
-use a_sabr::parsing::coerce_nm;
-use a_sabr::parsing::{DispatchParser, Lexer, Parser, StaticMarkerMap};
+use a_sabr::parse_transparent;
+use a_sabr::parsing::LexFrom;
 use a_sabr::pathfinding::Pathfinding;
 use a_sabr::pathfinding::hybrid_parenting::HybridParentingPath;
+use a_sabr::transparent_NM;
 use a_sabr::types::Date;
 use a_sabr::types::Duration;
-use a_sabr::types::Token;
 use a_sabr::utils::init_pathfinding;
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 struct NoRetention {
     max_proc_time: Duration,
 }
@@ -62,22 +62,45 @@ impl NodeManager for NoRetention {
     }
 }
 
-/// Implements the DispatchParser to allow dynamic parsing.
-impl DispatchParser<NoRetention> for NoRetention {}
-
-impl Parser<NoRetention> for NoRetention {
-    fn parse(lexer: &mut dyn Lexer) -> Result<NoRetention, ASABRError> {
-        // read the next token as a Duration (alias for f64)
-        Ok(NoRetention {
-            max_proc_time: Duration::parse(lexer)?,
-        })
+impl From<Duration> for NoRetention {
+    fn from(value: Duration) -> Self {
+        NoRetention {
+            max_proc_time: value,
+        }
     }
 }
 
-fn edge_case_example<NM: NodeManager + Parser<NM> + DispatchParser<NM>>(
-    cp_path: &str,
-    node_marker_map: Option<&StaticMarkerMap<NM>>,
-) -> Result<(), ASABRError> {
+parse_transparent!(NoRetention, Duration);
+
+#[derive(Debug)]
+struct NoRetOrNone(Box<dyn NodeManager>);
+
+transparent_NM!(NoRetOrNone);
+
+choices!(choice, Choice, (Void, NoManagement), (NoRet, NoRetention));
+
+impl TryFrom<&str> for choice::Kinds {
+    type Error = ();
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "none" => Ok(Self::Void),
+            "noret" => Ok(Self::NoRet),
+            _ => Err(()),
+        }
+    }
+}
+
+impl From<choice::Choice> for NoRetOrNone {
+    fn from(value: choice::Choice) -> Self {
+        NoRetOrNone(match value {
+            choice::Choice::Void(no_management) => Box::new(no_management),
+            choice::Choice::NoRet(noret) => Box::new(noret),
+        })
+    }
+}
+parse_transparent!(NoRetOrNone, choice::Choice);
+/// Implements the DispatchParser to allow dynamic parsing.
+fn edge_case_example<NM: NodeManager + LexFrom<str>>(cp_path: &str) -> Result<(), ASABRError> {
     let bundle = Bundle {
         source: 0,
         destinations: vec![2],
@@ -86,14 +109,10 @@ fn edge_case_example<NM: NodeManager + Parser<NM> + DispatchParser<NM>>(
         expiration: 1000.0,
     };
     let file = File::open(cp_path).unwrap();
-    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
+    let lines = BufReader::new(file).lines().map(|l| l.unwrap());
 
-    let mut mpt_graph = init_pathfinding::<
-        NM,
-        EVLManager,
-        HybridParentingPath<NM, EVLManager, SABR>,
-        _,
-    >(lines.iter().map(|s| s.as_str()), node_marker_map, None)?;
+    let mut mpt_graph =
+        init_pathfinding::<NM, EVLManager, HybridParentingPath<NM, EVLManager, SABR>, _, _>(lines)?;
 
     println!("\nRunning with contact plan location={cp_path}, and destination node=2 ");
 
@@ -111,15 +130,8 @@ fn main() -> Result<(), ASABRError> {
     #[cfg(not(feature = "node_tx"))]
     panic!("Please enable the 'node_tx' feature.");
 
-    let mut node_dispatch: NodeMarkerMap = NodeMarkerMap::new();
-    node_dispatch.add("noret", coerce_nm::<NoRetention>);
-    node_dispatch.add("none", coerce_nm::<NoManagement>);
-
-    edge_case_example::<NoManagement>("examples/satellite_constellation/contact_plan_1.cp", None)?;
-    edge_case_example::<Box<dyn NodeManager>>(
-        "examples/satellite_constellation/contact_plan_2.cp",
-        Some(&node_dispatch),
-    )?;
+    edge_case_example::<NoManagement>("examples/satellite_constellation/contact_plan_1.cp")?;
+    edge_case_example::<NoRetOrNone>("examples/satellite_constellation/contact_plan_2.cp")?;
 
     Ok(())
 

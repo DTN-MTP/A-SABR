@@ -5,19 +5,15 @@ static GLOBAL: System = System;
 
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use std::process::exit;
 use std::{cell::RefCell, env, rc::Rc};
 
+use a_sabr::contact_plan::{ContactPlan, asabr_file_lexer};
+use a_sabr::parsing::CMDynStandard;
 use a_sabr::{
     bundle::Bundle,
-    contact_manager::{
-        ContactManager,
-        legacy::{eto::ETOManager, evl::EVLManager, qd::QDManager},
-        segmentation::seg::SegmentationManager,
-    },
-    contact_plan::{asabr_file_lexer::FileLexer, from_asabr_lexer::ASABRContactPlan},
     errors::ASABRError,
     node_manager::none::NoManagement,
-    parsing::{ContactMarkerMap, coerce_cm},
     route_storage::cache::TreeCache,
     routing::{Router, aliases::SpsnHybridParenting},
 };
@@ -30,44 +26,22 @@ fn main() -> Result<(), ASABRError> {
     }
     println!("Working with cp {}.", args[1]);
 
-    // We create a lexer to retrieve tokens from a file
     let file = File::open(&args[1]).unwrap();
-    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
-    let mut mylexer = FileLexer::new(lines.iter().map(|s| s.as_str()));
 
-    // All nodes will have the same management approach (NoManagement) but the contacts may be of various types
-    // We provide a map with markers that will allow the parser to create the correct contacts types thanks to
-    // the markers provides in the contact plan
-    let mut contact_dispatch: ContactMarkerMap = ContactMarkerMap::new();
-    contact_dispatch.add("evl", coerce_cm::<EVLManager>);
-    contact_dispatch.add("qd", coerce_cm::<QDManager>);
-    contact_dispatch.add("eto", coerce_cm::<ETOManager>);
-    contact_dispatch.add("seg", coerce_cm::<SegmentationManager>);
-
-    // We parse the contact plan (A-SABR format thanks to ASABRContactPlan) and the lexer
-    let contact_plan = ASABRContactPlan::parse::<NoManagement, Box<dyn ContactManager>>(
-        &mut mylexer,
-        None,
-        Some(&contact_dispatch),
-    )
-    .map_err(|e| match e {
-        ASABRError::ParsingError(e,pos) => {
-            eprintln!("Parsing error: {e}");
-            ASABRError::ParsingError(
-            "<cp_file> must be in ASABR format with NoManagement for nodes and dynamic management (evl, qd, eto or seg) for contacts. Error while parsing CP",
-                    pos
-        )},
-        _ => e,
-    })?;
+    // We parse the contact plan (A-SABR format thanks to ASABRContactPlan)
+    let contact_plan: ContactPlan<NoManagement, CMDynStandard> =
+        asabr_file_lexer::parse_from_iter(BufReader::new(file).lines().map(|r| {
+            r.map_err(|e| {
+                eprintln!("Error while reading file: {e}");
+                exit(-1)
+            })
+            .unwrap()
+        }))?;
 
     // We create a storage for the Paths
     let table = Rc::new(RefCell::new(TreeCache::new(true, false, 10)));
     // We initialize the routing algorithm with the storage and the contacts/nodes created thanks to the parser
-    let mut spsn = SpsnHybridParenting::<NoManagement, Box<dyn ContactManager>>::new(
-        contact_plan,
-        table,
-        false,
-    )?;
+    let mut spsn = SpsnHybridParenting::new(contact_plan, table, false)?;
 
     // We will route a bundle
     let b = Bundle {

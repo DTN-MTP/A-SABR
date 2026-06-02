@@ -28,37 +28,40 @@ fn edge_case_example(cp_path: &str, dest: NodeID) -> Result<(), ASABRError> {
         expiration: 1000.0,
     };
     let file = File::open(cp_path).unwrap();
-    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
+    let lines = BufReader::new(file).lines().map(|l| l.unwrap());
 
     let mut node_graph = init_pathfinding::<
         NoManagement,
         EVLManager,
         NodeParentingPath<NoManagement, EVLManager, SABR>,
         _,
-    >(lines.iter().map(|s| s.as_str()), None, None)?;
+        _,
+    >(lines)?;
 
     #[cfg(feature = "contact_work_area")]
     let mut contact_graph = {
         let file = File::open(cp_path).unwrap();
-        let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
+        let lines = BufReader::new(file).lines().map(|l| l.unwrap());
 
         init_pathfinding::<
             NoManagement,
             EVLManager,
             ContactParentingPath<NoManagement, EVLManager, SABR>,
             _,
-        >(lines.iter().map(|s| s.as_str()), None, None)?
+            _,
+        >(lines)?
     };
 
     let file = File::open(cp_path).unwrap();
-    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
+    let lines = BufReader::new(file).lines().map(|l| l.unwrap());
 
     let mut mpt_graph = init_pathfinding::<
         NoManagement,
         EVLManager,
         HybridParentingPath<NoManagement, EVLManager, SABR>,
         _,
-    >(lines.iter().map(|s| s.as_str()), None, None)?;
+        _,
+    >(lines)?;
 
     println!("\nRunning with contact plan location={cp_path}, and destination node={dest} ");
     let res = node_graph.get_next(0.0, 0, &bundle, &[]).unwrap();

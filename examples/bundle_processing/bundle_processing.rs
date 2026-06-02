@@ -1,3 +1,7 @@
+static_assertions::assert_cfg!(feature = "node_proc");
+static_assertions::assert_cfg!(not(feature = "node_tx"));
+static_assertions::assert_cfg!(not(feature = "node_rx"));
+
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
@@ -7,18 +11,16 @@ use a_sabr::distance::sabr::SABR;
 use a_sabr::errors::ASABRError;
 use a_sabr::node_manager::NodeManager;
 use a_sabr::node_manager::none::NoManagement;
-use a_sabr::parsing::coerce_nm;
-use a_sabr::parsing::{DispatchParser, Lexer, Parser};
-use a_sabr::parsing::{NodeMarkerMap, StaticMarkerMap};
+use a_sabr::parsing::LexFrom;
 use a_sabr::pathfinding::Pathfinding;
 use a_sabr::pathfinding::hybrid_parenting::HybridParentingPath;
 #[cfg(any(feature = "node_rx", feature = "node_proc", feature = "node_rx"))]
 use a_sabr::types::Date;
 use a_sabr::types::Priority;
-use a_sabr::types::Token;
 use a_sabr::utils::init_pathfinding;
+use a_sabr::{choices, parse_transparent, transparent_NM};
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 struct Compressing {
     max_priority: Priority,
 }
@@ -47,7 +49,7 @@ impl NodeManager for Compressing {
     // The following 4 implementations are provided just to make the rust_analyzer happy
     #[cfg(feature = "node_tx")]
     fn dry_run_tx(&self, _waiting_since: Date, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        panic!("Please disable the 'node_tx' and 'node_rx' features.");
+        unreachable!()
     }
 
     #[cfg(feature = "node_tx")]
@@ -58,35 +60,65 @@ impl NodeManager for Compressing {
         _end: Date,
         _bundle: &Bundle,
     ) -> bool {
-        panic!("Please disable the 'node_tx' and 'node_rx' features.");
+        unreachable!();
     }
 
     #[cfg(feature = "node_rx")]
     fn dry_run_rx(&self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        panic!("Please disable the 'node_tx' and 'node_rx' features.");
+        unreachable!();
     }
     #[cfg(feature = "node_rx")]
     fn schedule_rx(&mut self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        panic!("Please disable the 'node_tx' and 'node_rx' features.");
+        unreachable!();
     }
 }
 
-/// Implements the DispatchParser to allow dynamic parsing.
-impl DispatchParser<Compressing> for Compressing {}
+impl From<Priority> for Compressing {
+    fn from(value: Priority) -> Self {
+        Compressing {
+            max_priority: value,
+        }
+    }
+}
 
-/// The parser reads a maximum priority
-impl Parser<Compressing> for Compressing {
-    fn parse(lexer: &mut dyn Lexer) -> Result<Compressing, ASABRError> {
-        Ok(Compressing {
-            max_priority: Priority::parse(lexer)?,
+parse_transparent!(Compressing, Priority);
+
+#[derive(Debug)]
+struct CompressingOrNone(Box<dyn NodeManager>);
+
+transparent_NM!(CompressingOrNone);
+
+choices!(
+    choice,
+    Choice,
+    (Void, NoManagement),
+    (Compress, Compressing)
+);
+
+impl TryFrom<&str> for choice::Kinds {
+    type Error = ();
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "none" => Ok(Self::Void),
+            "compress" => Ok(Self::Compress),
+            _ => Err(()),
+        }
+    }
+}
+
+impl From<choice::Choice> for CompressingOrNone {
+    fn from(value: choice::Choice) -> Self {
+        CompressingOrNone(match value {
+            choice::Choice::Void(no_management) => Box::new(no_management),
+            choice::Choice::Compress(compressing) => Box::new(compressing),
         })
     }
 }
+parse_transparent!(CompressingOrNone, choice::Choice);
 
-fn edge_case_example<NM: NodeManager + Parser<NM> + DispatchParser<NM>>(
+fn edge_case_example<NM: NodeManager + LexFrom<str>>(
     cp_path: &str,
     bundle_priority: Priority,
-    node_marker_map: Option<&StaticMarkerMap<NM>>,
 ) -> Result<(), ASABRError> {
     let bundle = Bundle {
         source: 0,
@@ -96,14 +128,12 @@ fn edge_case_example<NM: NodeManager + Parser<NM> + DispatchParser<NM>>(
         expiration: 1000.0,
     };
     let file = File::open(cp_path).unwrap();
-    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
-
-    let mut mpt_graph = init_pathfinding::<
-        NM,
-        EVLManager,
-        HybridParentingPath<NM, EVLManager, SABR>,
-        _,
-    >(lines.iter().map(|s| s.as_str()), node_marker_map, None)?;
+    let lines = BufReader::new(file).lines().map(|l| {
+        l.map_err(|e| eprintln!("Error while reading file: {e}"))
+            .unwrap()
+    });
+    let mut mpt_graph =
+        init_pathfinding::<NM, EVLManager, HybridParentingPath<NM, EVLManager, SABR>, _, _>(lines)?;
 
     println!(
         "\nRunning with contact plan location={cp_path}, destination node=3, and bundle priority={bundle_priority}"
@@ -120,24 +150,9 @@ fn edge_case_example<NM: NodeManager + Parser<NM> + DispatchParser<NM>>(
 }
 
 fn main() -> Result<(), ASABRError> {
-    #[cfg(not(feature = "node_proc"))]
-    panic!("Please enable the 'node_proc' feature.");
-
-    let mut node_dispatch: NodeMarkerMap = NodeMarkerMap::new();
-    node_dispatch.add("compress", coerce_nm::<Compressing>);
-    node_dispatch.add("none", coerce_nm::<NoManagement>);
-
-    edge_case_example::<NoManagement>("examples/bundle_processing/contact_plan_1.cp", 0, None)?;
-    edge_case_example::<Box<dyn NodeManager>>(
-        "examples/bundle_processing/contact_plan_2.cp",
-        0,
-        Some(&node_dispatch),
-    )?;
-    edge_case_example::<Box<dyn NodeManager>>(
-        "examples/bundle_processing/contact_plan_2.cp",
-        2,
-        Some(&node_dispatch),
-    )?;
+    edge_case_example::<NoManagement>("examples/bundle_processing/contact_plan_1.cp", 0)?;
+    edge_case_example::<CompressingOrNone>("examples/bundle_processing/contact_plan_2.cp", 0)?;
+    edge_case_example::<CompressingOrNone>("examples/bundle_processing/contact_plan_2.cp", 2)?;
 
     Ok(())
 

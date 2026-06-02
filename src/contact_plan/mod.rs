@@ -3,7 +3,6 @@ use alloc::vec::Vec;
 
 use crate::contact::Contact;
 use crate::contact_manager::ContactManager;
-use crate::errors::ASABRError;
 use crate::node_manager::NodeManager;
 use crate::vertex::Vertex;
 use crate::vnode::VirtualNodeMap;
@@ -44,11 +43,11 @@ impl<NM: NodeManager, CM: ContactManager> ContactPlan<NM, CM> {
         vertices: Vec<Vertex<NM>>,
         contacts: Vec<Contact<NM, CM>>,
         vnode_map: Option<VirtualNodeMap>,
-    ) -> Result<Self, ASABRError> {
-        Ok(ContactPlan {
+    ) -> Self {
+        ContactPlan {
             vertices,
             contacts,
             vnode_map: vnode_map.unwrap_or_default(),
-        })
+        }
     }
 }
