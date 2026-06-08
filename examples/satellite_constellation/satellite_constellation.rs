@@ -1,3 +1,5 @@
+assert_cfg!(feature = "node_tx");
+
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
@@ -17,6 +19,7 @@ use a_sabr::transparent_NM;
 use a_sabr::types::Date;
 use a_sabr::types::Duration;
 use a_sabr::utils::init_pathfinding;
+use static_assertions::assert_cfg;
 
 #[derive(Debug)]
 struct NoRetention {
@@ -24,12 +27,10 @@ struct NoRetention {
 }
 
 impl NodeManager for NoRetention {
-    #[cfg(feature = "node_tx")]
     fn dry_run_tx(&self, waiting_since: Date, start: Date, _end: Date, _bundle: &Bundle) -> bool {
         start - waiting_since < self.max_proc_time
     }
 
-    #[cfg(feature = "node_tx")]
     fn schedule_tx(
         &mut self,
         waiting_since: Date,
@@ -127,9 +128,6 @@ fn edge_case_example<NM: NodeManager + LexFrom<str>>(cp_path: &str) -> Result<()
 }
 
 fn main() -> Result<(), ASABRError> {
-    #[cfg(not(feature = "node_tx"))]
-    panic!("Please enable the 'node_tx' feature.");
-
     edge_case_example::<NoManagement>("examples/satellite_constellation/contact_plan_1.cp")?;
     edge_case_example::<NoRetOrNone>("examples/satellite_constellation/contact_plan_2.cp")?;
 

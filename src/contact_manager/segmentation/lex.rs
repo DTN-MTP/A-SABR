@@ -47,8 +47,7 @@ impl Parse for SegmentInfo {
     fn parse(p: Self::Parser) -> Result<Self, &'static str> {
         let (p, delays, rates) = p;
         match p {
-            Some(_) => panic!("{p:?},{delays:?},{rates:?}"),
-            // Err("Last segment is not finished"),
+            Some(_) => Err("Last segment is not finished"),
             None => Ok(SegmentInfo { delays, rates }),
         }
     }

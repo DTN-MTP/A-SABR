@@ -14,7 +14,6 @@ use a_sabr::node_manager::none::NoManagement;
 use a_sabr::parsing::LexFrom;
 use a_sabr::pathfinding::Pathfinding;
 use a_sabr::pathfinding::hybrid_parenting::HybridParentingPath;
-#[cfg(any(feature = "node_rx", feature = "node_proc", feature = "node_rx"))]
 use a_sabr::types::Date;
 use a_sabr::types::Priority;
 use a_sabr::utils::init_pathfinding;
@@ -26,7 +25,6 @@ struct Compressing {
 }
 
 impl NodeManager for Compressing {
-    #[cfg(feature = "node_proc")]
     fn dry_run_process(&self, at_time: Date, bundle: &mut Bundle) -> Date {
         let mut earliest_tx_time = at_time;
         if bundle.priority <= self.max_priority {
@@ -36,7 +34,6 @@ impl NodeManager for Compressing {
         earliest_tx_time
     }
 
-    #[cfg(feature = "node_proc")]
     fn schedule_process(&self, at_time: Date, bundle: &mut Bundle) -> Date {
         let mut earliest_tx_time = at_time;
         if bundle.priority <= self.max_priority {

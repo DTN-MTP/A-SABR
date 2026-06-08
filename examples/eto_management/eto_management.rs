@@ -1,3 +1,5 @@
+assert_cfg!(feature = "manual_queueing");
+
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
@@ -9,11 +11,9 @@ use a_sabr::node_manager::none::NoManagement;
 use a_sabr::parsing::CMDynStandard;
 use a_sabr::routing::aliases::SpsnOptions;
 use a_sabr::routing::aliases::build_generic_router;
+use static_assertions::assert_cfg;
 
 fn main() {
-    #[cfg(not(feature = "manual_queueing"))]
-    panic!("Please enable the 'manual_queueing' feature.");
-
     // We want variations for contact management, register ETO and EVL
 
     // We create a lexer to retrieve tokens from a file
@@ -54,7 +54,6 @@ fn main() {
     // Retain a ref to the first_hop manager
     println!("{}", route.borrow());
     // Enqueue the bundle_1
-    #[cfg(feature = "manual_queueing")]
     println!(
         "Enqueueing bundle_1 status : {}",
         first_hop_contact
@@ -81,7 +80,6 @@ fn main() {
     println!("{}", route.borrow());
 
     // Enqueue the bundle_2
-    #[cfg(feature = "manual_queueing")]
     println!(
         "Enqueueing bundle_2 status : {}",
         first_hop_contact
@@ -112,7 +110,6 @@ fn main() {
     println!(
         "Simulate transmission success of bundle_1, Contact 0 should not be a blocker anymore"
     );
-    #[cfg(feature = "manual_queueing")]
     println!(
         "Dequeueing bundle_1, status : {}",
         first_hop_contact
