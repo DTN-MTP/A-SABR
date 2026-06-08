@@ -3,13 +3,12 @@ use core::mem;
 
 use alloc::{collections::BTreeMap as HashMap, vec::Vec};
 
-use crate::contact::{ContactInfo, ContactInfoParse};
-use crate::node::{NodeInfo, NodeInfoParse};
+use crate::contact::ContactInfo;
+use crate::node::NodeInfo;
 use crate::node_manager::NodeManager;
 use crate::node_manager::none::NoManagement;
 use crate::parse_single_tok;
-use crate::parsing::{CMDynStandard, EOF, LexFrom, MORON};
-use crate::vnode::VNodeInfoParse;
+use crate::parsing::{CMDynStandard, EOF, INVALID_STATE, LexFrom};
 use crate::{
     contact::Contact,
     contact_manager::ContactManager,
@@ -171,10 +170,10 @@ impl TryFrom<&str> for ASABRPlanInfoKind {
 enum InBuild<NM: NodeManager + Parse, CM: ContactManager + Parse> {
     #[default]
     None,
-    VNode(<VNodeInfoParse as Parse>::Parser),
-    RNode(RealNodeType, <NodeInfoParse as Parse>::Parser),
+    VNode(<VirtualNodeInfo as Parse>::Parser),
+    RNode(RealNodeType, <NodeInfo as Parse>::Parser),
     NM(RealNodeType, NodeInfo, NM::Parser),
-    Contact(<ContactInfoParse as Parse>::Parser),
+    Contact(<ContactInfo as Parse>::Parser),
     CM(ContactInfo, CM::Parser),
 }
 
@@ -194,11 +193,11 @@ impl<NM: NodeManager + Parse, CM: ContactManager + Parse> Default for ASABRParse
 
 #[derive(Clone)]
 pub enum ASABRTokens<NMTok: Clone, CMTok: Clone> {
-    VNode(<VNodeInfoParse as Parse>::Token),
-    RNode(<NodeInfoParse as Parse>::Token),
+    VNode(<VirtualNodeInfo as Parse>::Token),
+    RNode(<NodeInfo as Parse>::Token),
     NM(NMTok),
     CM(CMTok),
-    Contact(<ContactInfoParse as Parse>::Token),
+    Contact(<ContactInfo as Parse>::Token),
     Keywords(ASABRPlanInfoKind),
 }
 
@@ -229,25 +228,25 @@ impl<NM: NodeManager + Parse, CM: ContactManager + Parse> Parse for ContactPlan<
             },
 
             (InBuild::VNode(sub), ASABRTokens::VNode(tok)) => {
-                if VNodeInfoParse::feed(tok, sub)? {
+                if VirtualNodeInfo::feed(tok, sub)? {
                     let InBuild::VNode(sub) = mem::replace(&mut parser.in_build, InBuild::None)
                     else {
                         unreachable!()
                     };
                     parser
                         .builder
-                        .add_virtual_node(VNodeInfoParse::parse(sub)?.into())?;
+                        .add_virtual_node(VirtualNodeInfo::parse(sub)?)?;
                 }
             }
             (InBuild::RNode(_, sub), ASABRTokens::RNode(tok)) => {
-                if NodeInfoParse::feed(tok, sub)? {
+                if NodeInfo::feed(tok, sub)? {
                     let InBuild::RNode(ty, sub) = mem::replace(&mut parser.in_build, InBuild::None)
                     else {
                         unreachable!()
                     };
 
                     if NM::NOFEED {
-                        let node = NodeInfoParse::parse(sub)?.into();
+                        let node = NodeInfo::parse(sub)?;
                         let manager = NM::parse(Default::default())?;
                         parser.builder.add_real_node(
                             Node::try_new(node, manager).ok_or("Could not build the node")?,
@@ -255,15 +254,14 @@ impl<NM: NodeManager + Parse, CM: ContactManager + Parse> Parse for ContactPlan<
                         )?;
                         parser.in_build = InBuild::None
                     } else {
-                        parser.in_build =
-                            InBuild::NM(ty, NodeInfoParse::parse(sub)?.into(), Default::default())
+                        parser.in_build = InBuild::NM(ty, NodeInfo::parse(sub)?, Default::default())
                     }
                 }
             }
             (InBuild::Contact(sub), ASABRTokens::Contact(tok)) => {
-                if ContactInfoParse::feed(tok, sub)? {
+                if ContactInfo::feed(tok, sub)? {
                     if CM::NOFEED {
-                        let contact = ContactInfoParse::parse(*sub)?.into();
+                        let contact = ContactInfo::parse(*sub)?;
                         let manager = CM::parse(Default::default())?;
                         parser.builder.add_contact(
                             Contact::try_new(contact, manager)
@@ -272,7 +270,7 @@ impl<NM: NodeManager + Parse, CM: ContactManager + Parse> Parse for ContactPlan<
                         parser.in_build = InBuild::None
                     } else {
                         parser.in_build =
-                            InBuild::CM(ContactInfoParse::parse(*sub)?.into(), Default::default());
+                            InBuild::CM(ContactInfo::parse(*sub)?, Default::default());
                     }
                 }
             }
@@ -302,7 +300,7 @@ impl<NM: NodeManager + Parse, CM: ContactManager + Parse> Parse for ContactPlan<
                     )?
                 }
             }
-            _ => return Err(MORON),
+            _ => return Err(INVALID_STATE),
         }
         Ok(false)
     }
@@ -312,19 +310,19 @@ impl<T: ?Sized, NM: NodeManager + Parse, CM: ContactManager + Parse> LexFrom<T>
     for ContactPlan<NM, CM>
 where
     ASABRPlanInfoKind: LexFrom<T>,
-    VNodeInfoParse: LexFrom<T>,
-    NodeInfoParse: LexFrom<T>,
+    VirtualNodeInfo: LexFrom<T>,
+    NodeInfo: LexFrom<T>,
     NM: LexFrom<T>,
-    ContactInfoParse: LexFrom<T>,
+    ContactInfo: LexFrom<T>,
     CM: LexFrom<T>,
 {
     fn lex(t: &T, p: &Self::Parser) -> Result<Self::Token, &'static str> {
         Ok(match &p.in_build {
             InBuild::None => ASABRTokens::Keywords(ASABRPlanInfoKind::lex(t, &None)?),
-            InBuild::VNode(p) => ASABRTokens::VNode(VNodeInfoParse::lex(t, p)?),
-            InBuild::RNode(_, p) => ASABRTokens::RNode(NodeInfoParse::lex(t, p)?),
+            InBuild::VNode(p) => ASABRTokens::VNode(VirtualNodeInfo::lex(t, p)?),
+            InBuild::RNode(_, p) => ASABRTokens::RNode(NodeInfo::lex(t, p)?),
             InBuild::NM(_, _, p) => ASABRTokens::NM(NM::lex(t, p)?),
-            InBuild::Contact(p) => ASABRTokens::Contact(ContactInfoParse::lex(t, p)?),
+            InBuild::Contact(p) => ASABRTokens::Contact(ContactInfo::lex(t, p)?),
             InBuild::CM(_, p) => ASABRTokens::CM(CM::lex(t, p)?),
         })
     }

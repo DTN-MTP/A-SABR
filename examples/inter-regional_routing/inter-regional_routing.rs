@@ -25,7 +25,7 @@ fn main() {
     let file = File::open(cp_path).unwrap();
     let lines = BufReader::new(file).lines().map(|l| l.unwrap());
 
-    let contact_plan = parse_from_iter::<_, _, NoManagement, CMDynStandard>(lines).unwrap();
+    let contact_plan = parse_from_iter::<NoManagement, CMDynStandard, _>(lines).unwrap();
     println!(
         "A-SABR CP parsed (statically for nodes, dynamically for contacts), found {} nodes (no management) & {} contacts (of various types)",
         contact_plan.vertices.len(),
@@ -44,7 +44,7 @@ fn main() {
     let file = File::open(cp_path).unwrap();
     let lines = BufReader::new(file).lines().map(|l| l.unwrap());
 
-    let contact_plan = parse_from_iter::<_, _, NoManagement, CMDynStandard>(lines).unwrap();
+    let contact_plan = parse_from_iter::<NoManagement, CMDynStandard, _>(lines).unwrap();
 
     println!("\n---\n");
 

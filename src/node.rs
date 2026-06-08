@@ -4,6 +4,7 @@ use core::{cell::RefCell, cmp::Ordering};
 
 use crate::{
     node_manager::NodeManager,
+    parse_transparent,
     types::{NodeID, NodeName},
 };
 
@@ -22,11 +23,9 @@ pub struct NodeInfo {
     pub excluded: bool,
 }
 
-pub type NodeInfoParse = (NodeID, NodeName);
-
-impl From<NodeInfoParse> for NodeInfo {
-    fn from(value: NodeInfoParse) -> Self {
-        let (id, name) = value;
+parse_transparent!(NodeInfo, (NodeID, NodeName));
+impl From<(NodeID, NodeName)> for NodeInfo {
+    fn from((id, name): (NodeID, NodeName)) -> Self {
         NodeInfo {
             id,
             name,

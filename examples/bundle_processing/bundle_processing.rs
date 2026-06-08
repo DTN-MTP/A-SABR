@@ -80,7 +80,6 @@ impl From<Priority> for Compressing {
 
 parse_transparent!(Compressing, Priority);
 
-#[derive(Debug)]
 struct CompressingOrNone(Box<dyn NodeManager>);
 
 transparent_NM!(CompressingOrNone);

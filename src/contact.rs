@@ -1,5 +1,6 @@
 use crate::contact_manager::ContactManager;
 use crate::node_manager::NodeManager;
+use crate::parse_transparent;
 #[cfg(feature = "contact_work_area")]
 use crate::route_stage::SharedRouteStage;
 use crate::types::{Date, NodeID};
@@ -23,11 +24,10 @@ pub struct ContactInfo {
     pub end: Date,
 }
 
-pub type ContactInfoParse = (NodeID, (NodeID, (Date, Date)));
+parse_transparent!(ContactInfo, (NodeID, NodeID, Date, Date));
 
-impl From<ContactInfoParse> for ContactInfo {
-    fn from(value: ContactInfoParse) -> Self {
-        let (tx_node_id, (rx_node_id, (start, end))) = value;
+impl From<(NodeID, NodeID, Date, Date)> for ContactInfo {
+    fn from((tx_node_id, rx_node_id, start, end): (NodeID, NodeID, Date, Date)) -> Self {
         ContactInfo {
             tx_node_id,
             rx_node_id,

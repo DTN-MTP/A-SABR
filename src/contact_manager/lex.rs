@@ -10,7 +10,6 @@ use crate::contact_manager::segmentation::pseg::PSegmentationManager;
 use crate::contact_manager::segmentation::seg::SegmentationManager;
 use crate::{choices, parse_transparent, transparent_CM};
 
-#[derive(Debug)]
 /// The base dynamic contact wrapper, which can be parsed from &str or any type implementing the correct conversion.
 pub struct StandardManagersDyn(Box<dyn ContactManager>);
 

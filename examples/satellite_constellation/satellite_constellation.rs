@@ -73,7 +73,6 @@ impl From<Duration> for NoRetention {
 
 parse_transparent!(NoRetention, Duration);
 
-#[derive(Debug)]
 struct NoRetOrNone(Box<dyn NodeManager>);
 
 transparent_NM!(NoRetOrNone);

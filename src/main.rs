@@ -1,3 +1,4 @@
+//setup the allocator for the no-std lib
 use std::alloc::System;
 
 #[global_allocator]
@@ -28,7 +29,7 @@ fn main() -> Result<(), ASABRError> {
 
     let file = File::open(&args[1]).unwrap();
 
-    // We parse the contact plan (A-SABR format thanks to ASABRContactPlan)
+    // We parse the contact plan (A-SABR format)
     let contact_plan: ContactPlan<NoManagement, CMDynStandard> =
         asabr_file_lexer::parse_from_iter(BufReader::new(file).lines().map(|r| {
             r.map_err(|e| {

@@ -21,7 +21,7 @@ fn main() {
     let lines = BufReader::new(file).lines().map(|l| l.unwrap());
 
     // We parse the contact plan (A-SABR format thanks to ASABRContactPlan) and the lexer
-    let contact_plan = parse_from_iter::<_, _, NoManagement, CMDynStandard>(lines).unwrap();
+    let contact_plan = parse_from_iter::<NoManagement, CMDynStandard, _>(lines).unwrap();
 
     // Let's use the build helper for convenience
     let mut router = build_generic_router(

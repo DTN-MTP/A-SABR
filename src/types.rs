@@ -1,10 +1,8 @@
 extern crate alloc;
 
-use core::{fmt::Display, marker::PhantomData, str::FromStr};
-
-use alloc::{collections::BTreeMap as HashMap, string::String, vec::Vec};
-
 use crate::parse_single_tok;
+use alloc::{collections::BTreeMap as HashMap, string::String, vec::Vec};
+use core::{fmt::Display, marker::PhantomData, str::FromStr};
 
 /// Represents a HashMap with node IDs as keys and node ID lists as values
 pub type NodeIDMap = HashMap<NodeID, Vec<NodeID>>;
@@ -32,7 +30,7 @@ pub type DataRate = f64;
 pub type HopCount = u16;
 
 /// Represent an value encompassing all of the above, typically for use in parser
-// Must implement FromStr and TryInto to all the above
+//  Must implement FromStr and TryInto to all the above
 #[derive(Clone, Copy, Debug)]
 pub struct AnyNumber(i64);
 assert_impl_all!(
@@ -44,6 +42,8 @@ assert_impl_all!(
     Into<HopCount>,
 );
 
+/// The name of a node. Use the "debug" feature to populate it with usefull data
+/// Can be created from a &str, and displayed
 #[derive(Clone, Debug)]
 pub struct NodeName {
     #[cfg(feature = "debug")]
@@ -82,7 +82,7 @@ impl From<AnyNumber> for u16 {
     }
 }
 
-parse_single_tok!(NodeName, NodeName);
+parse_single_tok!(NodeName);
 
 impl Display for NodeName {
     #[allow(unused_variables)]

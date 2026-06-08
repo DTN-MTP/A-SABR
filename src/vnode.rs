@@ -2,7 +2,10 @@ extern crate alloc;
 
 use alloc::{collections::BTreeMap as HashMap, vec::Vec};
 
-use crate::types::{NodeID, NodeIDMap, NodeName};
+use crate::{
+    parse_transparent,
+    types::{NodeID, NodeIDMap, NodeName},
+};
 
 /// Represents information about a vnode in the network.
 ///
@@ -18,12 +21,11 @@ pub struct VirtualNodeInfo {
     pub rids: Vec<NodeID>,
 }
 
-pub type VNodeInfoParse = (NodeID, (NodeName, Vec<NodeID>));
+parse_transparent!(VirtualNodeInfo, (NodeID, NodeName, Vec<NodeID>));
 
-impl From<VNodeInfoParse> for VirtualNodeInfo {
-    fn from(value: VNodeInfoParse) -> Self {
-        let (vid, (name, rids)) = value;
-        VirtualNodeInfo { vid, name, rids }
+impl From<(NodeID, NodeName, Vec<NodeID>)> for VirtualNodeInfo {
+    fn from((vid, name, rids): (NodeID, NodeName, Vec<NodeID>)) -> Self {
+        Self { vid, name, rids }
     }
 }
 

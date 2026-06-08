@@ -1,5 +1,4 @@
 extern crate alloc;
-use core::fmt::Debug;
 
 #[cfg(any(feature = "node_proc", feature = "node_tx", feature = "node_rx"))]
 use crate::{bundle::Bundle, types::Date};
@@ -11,7 +10,7 @@ pub mod none;
 /// of processing, transmission (tx), and reception (rx) of a `Bundle` at specified times.
 /// This trait is useful for implementing custom logic for nodes that need to manage bundle
 /// processing and data transfer in a time-dependent manner.
-pub trait NodeManager: Debug {
+pub trait NodeManager {
     /// Simulates processing a `Bundle` at a specified time.
     ///
     /// This method performs a dry run to estimate the processing time of a bundle without
@@ -105,7 +104,7 @@ pub trait NodeManager: Debug {
 }
 
 /// Implementation of `NodeManager` for boxed types that implement `NodeManager`.
-impl<T: AsRef<dyn NodeManager> + Debug> NodeManager for T {
+impl<T: AsRef<dyn NodeManager>> NodeManager for T {
     /// Delegates the dry_run method to the boxed object.
     #[cfg(feature = "node_proc")]
     fn dry_run_process(&self, at_time: Date, bundle: &mut Bundle) -> Date {

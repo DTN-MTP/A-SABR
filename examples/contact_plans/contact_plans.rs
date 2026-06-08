@@ -89,7 +89,7 @@ fn main() {
 
     let file = File::open("examples/contact_plans/asabr_format_static.cp").unwrap();
     let lines = BufReader::new(file).lines().map(|l| l.unwrap());
-    let contact_plan = parse_from_iter::<_, _, NoManagement, EVLManager>(lines).unwrap();
+    let contact_plan = parse_from_iter::<NoManagement, EVLManager, _>(lines).unwrap();
     println!(
         "A-SABR CP parsed (statically for nodes & contacts), found {} nodes (no management) & {} contacts (EVL)",
         contact_plan.vertices.len(),
@@ -100,7 +100,7 @@ fn main() {
     // The CP format is shared for all legacy contact managers, no CP modification required
     let file = File::open("examples/contact_plans/asabr_format_static.cp").unwrap();
     let lines = BufReader::new(file).lines().map(|l| l.unwrap());
-    let contact_plan = parse_from_iter::<_, _, NoManagement, QDManager>(lines).unwrap();
+    let contact_plan = parse_from_iter::<NoManagement, QDManager, _>(lines).unwrap();
     println!(
         "A-SABR CP parsed (statically for nodes & contacts), found {} nodes (no management) & {} contacts (queue-delay)",
         contact_plan.vertices.len(),
@@ -111,7 +111,7 @@ fn main() {
     let lines = BufReader::new(file).lines().map(|l| l.unwrap());
     // The manager type should be Box<dyn ContactManager>> (heap allocated, dynamically dispatched)
     // Replace None with a dispatching map for the contact_marker_map argument
-    let contact_plan = parse_from_iter::<_, _, NoManagement, CMDynStandard>(lines).unwrap();
+    let contact_plan = parse_from_iter::<NoManagement, CMDynStandard, _>(lines).unwrap();
     println!(
         "A-SABR CP parsed (statically for nodes, dynamically for contacts), found {} nodes (no management) & {} contacts (of various types)",
         contact_plan.vertices.len(),

@@ -27,7 +27,7 @@ pub struct ContactManagerTxData {
 }
 
 /// Trait for managing contact resources and scheduling data transmissions.
-pub trait ContactManager: Debug {
+pub trait ContactManager {
     /// Simulate the transmission of a bundle to a contact at a given time.
     ///
     /// # Arguments
@@ -114,8 +114,8 @@ pub trait ContactManager: Debug {
     fn try_init(&mut self, contact_data: &ContactInfo) -> bool;
 }
 
-/// Implementation of `ContactManager` for boxed dynamic types (`Box<dyn ContactManager>`).
-impl<T: AsMut<dyn ContactManager> + AsRef<dyn ContactManager> + Debug> ContactManager for T {
+/// Implementation of `ContactManager` for dynamic types (eg `Box<dyn ContactManager>`).
+impl<T: AsMut<dyn ContactManager> + AsRef<dyn ContactManager>> ContactManager for T {
     /// Delegates the dry run method to the boxed object.
     fn dry_run_tx(
         &self,
@@ -157,8 +157,11 @@ impl<T: AsMut<dyn ContactManager> + AsRef<dyn ContactManager> + Debug> ContactMa
     }
 }
 
+// Check that the above work, in particular, for Boxes
 assert_impl_all! {Box<dyn ContactManager>: ContactManager}
 
+/// This macro implement the ContactManager trait for you on a wrapper struct where the element 0 is the underlying
+/// contact manager, by forwarding all calls to it
 #[macro_export]
 macro_rules! transparent_CM {
     ($T:ty) => {

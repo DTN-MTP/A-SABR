@@ -1,5 +1,5 @@
 extern crate alloc;
-use core::mem::{MaybeUninit, take};
+use core::mem::{self, MaybeUninit, take};
 
 use alloc::vec::Vec;
 use itertools::Either;
@@ -8,20 +8,82 @@ use replace_with::replace_with_or_default_and_return as replace_with;
 pub use crate::contact_manager::lex::StandardManagersDyn as CMDynStandard;
 use crate::types::AnyNumber;
 
-/// Types for which it is usefull to implement Parse<T> TryInto<T> in order to parse a full contact plan.
+/// re-export of types for which it is usefull to implement Parse<T> TryInto<T> in order to parse a full contact plan.
 pub mod parsables {
-    // pub use crate::{
-    // contact::ContactInfo,
-    // contact_manager::{
-    //     legacy::lex::{Budget as CMLegacyBudget, Info as CMLegacyInfo, Kind as CMLegacyKind},
-    //     segmentation::lex::{Info as CMSegmentInfo, Kind as CMSegmenKind},
-    // },
-    // node::NodeInfo,
-    // types::AnyNumber,
-    // vnode::VirtualNodeInfo,
-    // };
+    pub use super::Delimiter;
+    pub use crate::contact_manager::lex::StandardManagersKinds;
+    pub use crate::contact_plan::from_asabr_lexer::ASABRPlanInfoKind;
+    pub use crate::types::{AnyNumber, NodeID, NodeName};
 }
 
+// ***
+// # Traits
+// ***
+
+/// The main parsing trait, building data from tokens.
+/// Usually, you want to implement this trait using one of the macros in this crate, and not directly.
+/// If you need to anyway, look at the doc of each of the members.
+/// See also the LexFrom trait.
+/// # Macro to implement the trait:
+/// - `empty_parse` to make something not consume any token
+/// - `choices` to recognise a identifier followed by matching data (basically an enum)
+/// - `parse_single_tok` for data on a single token
+/// - `parse_transparent` to parse something directly from something else (usefull using the types bellow to compose)
+/// # Types wich already auto-implement the trait when the components does:
+/// - Vec<T> when T: Parse  (Lexing require T and Delimiter)
+/// - [T;N] when T: Parse
+/// - Tupples, up to 20 elements each Parse-able
+pub trait Parse: Sized {
+    /// The kind of tokens needeed to build Self. Usually, a fitting enum.
+    /// Implementing LexFrom will require to produce these
+    type Token: Clone;
+    /// The thing storing data during parsing.
+    /// It need to implement Default
+    type Parser: Default;
+
+    /// Wether parse should actually be parsed directly, before feeding any token to this parser
+    /// Usually reserved to empty_parse, but sometimes used when composing several ones too.
+    const NOFEED: bool = false;
+
+    /// This method is to bee called whenever feed return true, or if NOFEED=true.
+    /// Consume the parser to produce a Self
+    ///
+    /// It is considered a logic error to call parse if NOFEED is false and `feed` did not return true yet.
+    fn parse(p: Self::Parser) -> Result<Self, &'static str>;
+
+    /// The function doing all the hard work.
+    /// Take a token, and update the parser from it
+    /// If all the desired token were received, return true in order to triger a call to `parse`
+    /// If more token are desired, return false
+    ///
+    /// It is considered a logic error to feed something wich already returned true or
+    /// have the NOFEED flag set
+    fn feed(tok: Self::Token, parser: &mut Self::Parser) -> Result<bool, &'static str>;
+}
+
+/// Trait making it possible to construct Self from some T (&T really),
+/// by converting &T into the appropriate Token for Parse-ing (See the Parse trait).
+///
+/// If you used the macro to implement Parse, this should always be auto-implemented from the relevants &T: TryInto<Self::Token>,
+/// meaning you should probably avoid implementing this by hand.
+pub trait LexFrom<T: ?Sized>: Parse {
+    /// Take a T, wich may be impratical to parse directly, and convert it into a suitable Token to parse Self. (See the Parse trait)
+    /// You are given a view on the Parser if the Parser state is needed to know how to parse the token.
+    fn lex(t: &T, p: &Self::Parser) -> Result<Self::Token, &'static str>;
+}
+
+/// Error typically fired when there is a conversion error while trying to produce a token.
+pub const ETYPE: &str = "Wrong type for the next token.";
+/// Error fired on end of stream if feed did not yet return true.
+pub const EOF: &str = "Unexpected end of input while declaration was unfinished";
+/// Error fired on internal error, either from a bug or misuse of the Parse API.
+pub const INVALID_STATE: &str = "This parser is in a improper state or was feed an improper token for the attempted operation. \nPlease report a bug or check your usage of the Parse API";
+
+// ***
+// # Structs
+// ***
+
+/// Data associated to a location.
 #[derive(Clone, Copy, Debug)]
 pub struct Located<T> {
     pub data: T,
@@ -29,6 +91,7 @@ pub struct Located<T> {
     pub(crate) toknum: usize,
 }
 
+/// The delimiters used to parse lists (Vectors)
 #[derive(Clone, Copy, Debug)]
 pub enum Delimiter {
     Open,
@@ -49,6 +112,7 @@ impl TryFrom<&str> for Delimiter {
 }
 
 impl<T> Located<T> {
+    /// Convenience function to locate an error at the location of something else
     pub fn err(self, e: &'static str) -> Located<&'static str> {
         Located {
             data: e,
@@ -58,44 +122,47 @@ impl<T> Located<T> {
     }
 }
 
-pub trait Parse: Sized {
-    type Token: Clone;
-    type Parser: Default;
-
-    const NOFEED: bool = false;
-
-    /// Finalise a Parser to get self or an error
-    fn parse(p: Self::Parser) -> Result<Self, &'static str>;
-
-    /// Get a token and update the parser accordingly. return Ok(false) if more token needed, or Ok(true) to parse.
-    fn feed(tok: Self::Token, parser: &mut Self::Parser) -> Result<bool, &'static str>;
-}
-
-pub trait LexFrom<T: ?Sized>: Parse {
-    fn lex(t: &T, p: &Self::Parser) -> Result<Self::Token, &'static str>;
-}
-
-pub const ETYPE: &str = "Wrong type for next tocken.";
-pub const EOF: &str = "Unexpected end of input while declaration was unfinished";
-pub const MORON: &str = "This parser is in a improper state or was feed an improper token for the attempted operation. Please report a bug or stop playing with them directly";
-
+/// Used to parse Tupples. Avoid using directly
+#[doc(hidden)]
 #[derive(Clone, Copy, Debug)]
 pub enum Partial<T1: Parse, T2: Parse> {
     None(T1::Parser),
     Fst(T1, T2::Parser),
 }
 
+/// Token type for lists of T. Avoid using directly
+#[doc(hidden)]
 #[derive(Clone, Copy, Debug)]
 pub enum Delimited<T> {
     Delim(Delimiter),
     Val(T),
 }
 
-impl<T1: Parse, T2: Parse> Default for Partial<T1, T2> {
-    fn default() -> Self {
-        Self::None(Default::default())
+/// Parser type for lists of T. Avoid using directly
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct VecBuilder<T: Parse> {
+    parser: Option<T::Parser>,
+    delim: bool,
+    vec: Vec<T>,
+}
+
+/// Parser type for arrays of T. Avoid using directly
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct ArrayParser<T: Parse, const N: usize>(T::Parser, [MaybeUninit<T>; N], usize);
+
+impl<T: Parse, const N: usize> Drop for ArrayParser<T, N> {
+    fn drop(&mut self) {
+        for elt in self.1.iter_mut().take(self.2) {
+            unsafe { elt.assume_init_drop() };
+        }
     }
 }
+
+// ***
+// # Parse implem for classic types
+// ***
 
 impl<T1: Parse, T2: Parse> Parse for (T1, T2) {
     type Token = Either<T1::Token, T2::Token>;
@@ -124,40 +191,10 @@ impl<T1: Parse, T2: Parse> Parse for (T1, T2) {
             (Partial::Fst(fst, mut sub), Either::Right(tok)) => {
                 (T2::feed(tok, &mut sub), Partial::Fst(fst, sub))
             }
-            (parser, _) => (Err(MORON), parser),
+            (parser, _) => (Err(INVALID_STATE), parser),
         })
     }
     const NOFEED: bool = T1::NOFEED && T2::NOFEED;
-}
-
-impl<T1: Parse, T2: Parse, Src: ?Sized> LexFrom<Src> for (T1, T2)
-where
-    T1: LexFrom<Src>,
-    T2: LexFrom<Src>,
-{
-    fn lex(t: &Src, p: &Self::Parser) -> Result<Self::Token, &'static str> {
-        match p {
-            Partial::None(parser) => Ok(Either::Left(T1::lex(t, parser)?)),
-            Partial::Fst(_, parser) => Ok(Either::Right(T2::lex(t, parser)?)),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct VecBuilder<T: Parse> {
-    parser: Option<T::Parser>,
-    delim: bool,
-    vec: Vec<T>,
-}
-
-impl<T: Parse> Default for VecBuilder<T> {
-    fn default() -> Self {
-        VecBuilder {
-            parser: None,
-            delim: false,
-            vec: Vec::new(),
-        }
-    }
 }
 
 impl<T: Parse> Parse for Vec<T> {
@@ -178,7 +215,7 @@ impl<T: Parse> Parse for Vec<T> {
             (Delimited::Delim(Delimiter::Close), _) => Ok(true),
             (Delimited::Delim(Delimiter::Separator), VecBuilder { parser, delim, .. }) => {
                 if *delim {
-                    Err(MORON)
+                    Err(INVALID_STATE)
                 } else {
                     *delim = true;
                     *parser = Some(Default::default());
@@ -189,7 +226,7 @@ impl<T: Parse> Parse for Vec<T> {
                 *delim = false;
                 match parser {
                     None => {
-                        return Err(MORON);
+                        return Err(INVALID_STATE);
                     }
                     Some(par) => {
                         if T::feed(tok, par)? {
@@ -204,6 +241,60 @@ impl<T: Parse> Parse for Vec<T> {
     }
 }
 
+impl<T: Parse, const N: usize> Parse for [T; N] {
+    type Token = T::Token;
+    type Parser = ArrayParser<T, N>;
+    const NOFEED: bool = T::NOFEED;
+    fn parse(mut p: Self::Parser) -> Result<Self, &'static str> {
+        if Self::NOFEED {
+            let mut arr: [_; _] = MaybeUninit::uninit().into();
+            for i in 0..N {
+                match T::parse(T::Parser::default()) {
+                    Err(e) => {
+                        for old in arr.iter_mut().take(i) {
+                            unsafe { old.assume_init_drop() };
+                        }
+
+                        return Err(e);
+                    }
+                    Ok(t) => arr[i].write(t),
+                };
+            }
+
+            let arr: MaybeUninit<_> = arr.into();
+            Ok(unsafe { arr.assume_init() })
+        } else {
+            if p.2 != N {
+                return Err("Array terminated while elements remain to be parsed");
+            }
+            p.2 = 0; // So Drop do nothing
+            let res: MaybeUninit<_> = mem::replace(&mut p.1, MaybeUninit::uninit().into()).into();
+            Ok(unsafe { res.assume_init() })
+        }
+    }
+    fn feed(tok: Self::Token, parser: &mut Self::Parser) -> Result<bool, &'static str> {
+        match T::feed(tok, &mut parser.0) {
+            Err(e) => Err(e),
+            Ok(true) => {
+                let p = take(&mut parser.0);
+                match T::parse(p) {
+                    Err(e) => Err(e),
+                    Ok(next) => {
+                        parser.1[parser.2].write(next);
+                        parser.2 += 1;
+                        Ok(parser.2 == N)
+                    }
+                }
+            }
+            Ok(false) => Ok(false),
+        }
+    }
+}
+
+// ***
+// # Non-trivial LexFrom impls
+// ***
+
 impl<T: Parse, D: ?Sized> LexFrom<D> for Vec<T>
 where
     T: LexFrom<D>,
@@ -212,7 +303,7 @@ where
     fn lex(t: &D, p: &Self::Parser) -> Result<Self::Token, &'static str> {
         match (&p.parser, p.delim) {
             (None, false) => Ok(Delimited::Delim(Delimiter::lex(t, &None)?)),
-            (None, true) => Err(MORON),
+            (None, true) => Err(INVALID_STATE),
             (Some(p), true) => match Delimiter::lex(t, &None) {
                 Ok(Delimiter::Close) => Ok(Delimited::Delim(Delimiter::Close)),
                 _ => Ok(Delimited::Val(T::lex(t, p)?)),
@@ -221,7 +312,25 @@ where
         }
     }
 }
+impl<T1: Parse, T2: Parse, Src: ?Sized> LexFrom<Src> for (T1, T2)
+where
+    T1: LexFrom<Src>,
+    T2: LexFrom<Src>,
+{
+    fn lex(t: &Src, p: &Self::Parser) -> Result<Self::Token, &'static str> {
+        match p {
+            Partial::None(parser) => Ok(Either::Left(T1::lex(t, parser)?)),
+            Partial::Fst(_, parser) => Ok(Either::Right(T2::lex(t, parser)?)),
+        }
+    }
+}
 
+// ***
+// # Macros
+// ***
+
+/// empty_parse!(T) make the type T parsable without consuming any token
+/// T must implement Default, and the default value will be returned each time it is parsed
 #[macro_export]
 macro_rules! empty_parse {
     ($T: ty) => {
@@ -232,7 +341,7 @@ macro_rules! empty_parse {
                 Ok(core::default::Default::default())
             }
             fn feed(_tok: (), _parser: &mut ()) -> Result<bool, &'static str> {
-                Err($crate::parsing::MORON)
+                Err($crate::parsing::INVALID_STATE)
             }
             const NOFEED: bool = true;
         }
@@ -246,15 +355,21 @@ macro_rules! empty_parse {
 
 empty_parse!(());
 
+/// parse_single_tok!(T) make T parsable by lexing to it directly.
+/// A long form parse_single_tok!(T,Tok) is also available, to Lex toward a Tok,
+/// and the convert to a T using try_into()
 #[macro_export]
 macro_rules! parse_single_tok {
+    ($T: ty) => {
+        parse_single_tok!($T,$T);
+    };
     ($T: ty,$Tok: ty) => {
         impl $crate::parsing::Parse for $T {
             type Token = $Tok;
             type Parser = core::option::Option<$Tok>;
             fn parse(p: core::option::Option<$Tok>) -> core::result::Result<Self,&'static str> {
                 match p.map(|tok| tok.try_into()) {
-                    None => Err($crate::parsing::MORON),
+                    None => Err($crate::parsing::INVALID_STATE),
                     Some(Err(_)) => Err(stringify!(Could not parse this $Tok into a $T)),
                     Some(Ok(val)) => Ok(val)
                 }
@@ -281,14 +396,20 @@ macro_rules! parse_single_tok {
 parse_single_tok!(u16, AnyNumber);
 parse_single_tok!(i8, AnyNumber);
 parse_single_tok!(f64, AnyNumber);
-parse_single_tok!(Delimiter, Delimiter);
+parse_single_tok!(Delimiter);
 
+/// choices!(modname,ResultName,[List]) where List is a comma-separated list of (Name, Type)
+/// Create a new Parseable enum, ResultName, which can parse any of the Type, by first recognising wich one
+/// by recognising a which Kind it is.
+///
+/// TODO: WIP:
+/// Subject to further proc-macro rewrite to have a better interface
 #[macro_export]
 macro_rules! choices {
     ($modname:ident,$name:ident,$(($names:ident,$types:ty)),*) => {
      pub mod $modname {
             use super::*;
-            use $crate::{parse_single_tok, parsing::{LexFrom, MORON, Parse}};
+            use $crate::{parse_single_tok, parsing::{LexFrom, INVALID_STATE, Parse}};
 
             #[derive(Debug,Clone)]
             #[doc = stringify!(The diffenrent kinds of $name. Implement TryFrom<T> to parse them)]
@@ -337,7 +458,7 @@ macro_rules! choices {
                         $(
                             (Parser::$names(parser),Token::$names(tok)) => <$types as Parse>::feed(tok,parser),
                         )*
-                        _ => Err(MORON),
+                        _ => Err(INVALID_STATE),
                     }
                 }
             }
@@ -358,9 +479,12 @@ macro_rules! choices {
     };
 }
 
+/// parse_transparent!(T,P) implement Parse for T by recognising a P (which must be Parsable) and then
+/// converting the P into a T with try_into() (must be implemented too)
+///
+/// Especially usefull to parse a combination of Parseable things (into a tupple, array, vec, ...)
+/// and combine them into a greater whole.
 #[macro_export]
-/// Use to implement Parse for a type whenever you want to parse as something else the try to convert using TryInto
-/// parse_transparent(Dest,From) implement Parse for Dest, where From: Parse and Frop: TryInto<Dest>
 macro_rules! parse_transparent {
     ($TD:ty,$TF:ty$(,$($Template:tt)*)?)  => {
 
@@ -391,82 +515,8 @@ macro_rules! parse_transparent {
     };
 }
 
-#[derive(Debug)]
-pub struct ArrayParser<T: Parse, const N: usize>(T::Parser, [MaybeUninit<T>; N], pub usize);
-
-impl<T: Parse, const N: usize> Default for ArrayParser<T, N> {
-    fn default() -> Self {
-        Self(Default::default(), MaybeUninit::uninit().into(), 0)
-    }
-}
-
-impl<T: Parse, const N: usize> ArrayParser<T, N> {
-    fn clear(&mut self, i: usize) {
-        for j in 0..i {
-            unsafe {
-                self.1[j].assume_init_drop();
-            }
-        }
-    }
-}
-
-impl<T: Parse, const N: usize> Parse for [T; N] {
-    type Token = T::Token;
-    type Parser = ArrayParser<T, N>;
-    const NOFEED: bool = T::NOFEED;
-    fn parse(mut p: Self::Parser) -> Result<Self, &'static str> {
-        if Self::NOFEED {
-            for i in 0..N {
-                match T::parse(T::Parser::default()) {
-                    Err(e) => {
-                        p.clear(i);
-                        return Err(e);
-                    }
-                    Ok(t) => p.1[i].write(t),
-                };
-            }
-            let arr: MaybeUninit<_> = p.1.into();
-            Ok(unsafe { arr.assume_init() })
-        } else {
-            if p.2 != N {
-                p.clear(p.2);
-                return Err("Array terminated while elements remain to be parsed");
-            }
-            Ok(unsafe { <_ as Into<MaybeUninit<_>>>::into(p.1).assume_init() })
-        }
-    }
-    fn feed(tok: Self::Token, parser: &mut Self::Parser) -> Result<bool, &'static str> {
-        match T::feed(tok, &mut parser.0) {
-            Err(e) => {
-                parser.clear(parser.2);
-                Err(e)
-            }
-            Ok(true) => {
-                let p = take(&mut parser.0);
-                match T::parse(p) {
-                    Err(e) => {
-                        parser.clear(parser.2);
-                        Err(e)
-                    }
-                    Ok(next) => {
-                        parser.1[parser.2].write(next);
-                        parser.2 += 1;
-                        Ok(parser.2 == N)
-                    }
-                }
-            }
-            Ok(false) => Ok(false),
-        }
-    }
-}
-
-impl<S: ?Sized, T: LexFrom<S>, const N: usize> LexFrom<S> for [T; N] {
-    fn lex(t: &S, p: &Self::Parser) -> Result<Self::Token, &'static str> {
-        T::lex(t, &p.0)
-    }
-}
-
-// well, two element tupple are ok, but what about 3? 4? more ? here it is (all based on the two elements implementation)
+// well, two element tupple are ok, but what about 3? 4? more ?
+// here it is (all based on the two elements implementation)
 macro_rules! tupples_joy {
     ($Tf:ident,$($T:ident),*) => {
         impl<$($T:Parse, )* $Tf:Parse> Parse for ($($T,)* $Tf) {
@@ -495,6 +545,36 @@ macro_rules! tupples_joy {
             }
         }
     };
+}
+
+// **********
+// # Boilerplate: Tupple spam, and trivial Default and LexFrom impls
+// **********
+
+impl<T1: Parse, T2: Parse> Default for Partial<T1, T2> {
+    fn default() -> Self {
+        Self::None(Default::default())
+    }
+}
+impl<T: Parse> Default for VecBuilder<T> {
+    fn default() -> Self {
+        VecBuilder {
+            parser: None,
+            delim: false,
+            vec: Vec::new(),
+        }
+    }
+}
+impl<T: Parse, const N: usize> Default for ArrayParser<T, N> {
+    fn default() -> Self {
+        Self(Default::default(), MaybeUninit::uninit().into(), 0)
+    }
+}
+
+impl<S: ?Sized, T: LexFrom<S>, const N: usize> LexFrom<S> for [T; N] {
+    fn lex(t: &S, p: &Self::Parser) -> Result<Self::Token, &'static str> {
+        T::lex(t, &p.0)
+    }
 }
 
 tupples_joy!(T1, T2, T3);

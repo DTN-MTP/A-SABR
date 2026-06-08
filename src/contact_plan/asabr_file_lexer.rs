@@ -7,11 +7,12 @@ use crate::{
 };
 
 /// Take an iterator over strings assumed to be lines, and parse a ContactPlan from it.
+/// Templated over a NodeManager and a ContactManager, wich must be compatible with the file syntax
+/// to successfully parse from it
 pub fn parse_from_iter<
-    D: AsRef<str>,
-    I: Iterator<Item = D>,
     NM: NodeManager + LexFrom<str>,
     CM: ContactManager + LexFrom<str>,
+    I: Iterator<Item: AsRef<str>>,
 >(
     iter: I,
 ) -> Result<ContactPlan<NM, CM>, ASABRError> {
