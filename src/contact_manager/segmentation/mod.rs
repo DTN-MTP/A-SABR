@@ -3,6 +3,8 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use crate::contact::ContactInfo;
+use crate::parse_transparent;
+use crate::parsing::Parse;
 use crate::types::{DataRate, Date, Duration, Volume};
 
 pub mod lex;
@@ -28,6 +30,8 @@ impl<T> From<SegmentParse<T>> for Segment<T> {
         Segment { start, end, val }
     }
 }
+
+parse_transparent!(Segment<Tt>,SegmentParse<Tt>,Tt: Parse);
 
 /// Determines the delay based on the transmission end time (`tx_end`) and the available delay intervals.
 ///
