@@ -1,8 +1,5 @@
-extern crate alloc;
-
 pub mod eto;
 pub mod evl;
-pub mod lex;
 pub mod qd;
 
 #[cfg(test)]
@@ -72,6 +69,12 @@ macro_rules! generate_struct_management {
                return self.original_volume;
             }
         }
+        $crate::parse_transparent!($manager_name,($crate::types::DataRate,$crate::types::Duration));
+        impl From<($crate::types::DataRate,$crate::types::Duration)> for $manager_name {
+            fn from((rate,delay): ($crate::types::DataRate,$crate::types::Duration)) -> Self {
+                $manager_name::new(rate, delay)
+            }
+        }
     };
     ($manager_name:ident, $prio_count:tt, false) => {
 
@@ -127,6 +130,12 @@ macro_rules! generate_struct_management {
             #[inline(always)]
             fn get_budget(&self, _bundle: &$crate::bundle::Bundle) -> $crate::types::Volume  {
                return self.original_volume;
+            }
+        }
+        $crate::parse_transparent!($manager_name,($crate::types::DataRate,$crate::types::Duration));
+        impl From<($crate::types::DataRate,$crate::types::Duration)> for $manager_name {
+            fn from((rate,delay): ($crate::types::DataRate,$crate::types::Duration)) -> Self {
+                $manager_name::new(rate, delay)
             }
         }
     };
@@ -189,6 +198,12 @@ macro_rules! generate_struct_management {
             #[inline(always)]
             fn get_budget(&self, bundle: &$crate::bundle::Bundle) -> $crate::types::Volume  {
                return self.budgets[(bundle.priority as usize).min($prio_count - 1)];
+            }
+        }
+        $crate::parse_transparent!($manager_name,($crate::types::DataRate,$crate::types::Duration,[$crate::types::Volume;$prio_count]));
+        impl From<($crate::types::DataRate,$crate::types::Duration,[$crate::types::Volume;$prio_count])> for $manager_name {
+            fn from((rate,delay,budgets): ($crate::types::DataRate,$crate::types::Duration,[$crate::types::Volume;$prio_count])) -> Self {
+                $manager_name::new(rate, delay, budgets)
             }
         }
     };

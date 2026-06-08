@@ -1,5 +1,5 @@
 extern crate alloc;
-use core::cell::UnsafeCell;
+use core::mem::{MaybeUninit, take};
 
 use alloc::vec::Vec;
 use itertools::Either;
@@ -33,6 +33,7 @@ pub struct Located<T> {
 pub enum Delimiter {
     Open,
     Close,
+    Separator,
 }
 
 impl TryFrom<&str> for Delimiter {
@@ -41,6 +42,7 @@ impl TryFrom<&str> for Delimiter {
         match value {
             "[" => Ok(Delimiter::Open),
             "]" => Ok(Delimiter::Close),
+            "," => Ok(Delimiter::Separator),
             _ => Err(()),
         }
     }
@@ -141,16 +143,19 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct VecBuilder<T: Parse> {
-    parser: UnsafeCell<Option<T::Parser>>,
-    vec: Option<Vec<T>>,
+    parser: Option<T::Parser>,
+    delim: bool,
+    vec: Vec<T>,
 }
 
 impl<T: Parse> Default for VecBuilder<T> {
     fn default() -> Self {
         VecBuilder {
-            parser: None.into(),
-            vec: None,
+            parser: None,
+            delim: false,
+            vec: Vec::new(),
         }
     }
 }
@@ -161,34 +166,35 @@ impl<T: Parse> Parse for Vec<T> {
     type Parser = VecBuilder<T>;
 
     fn parse(p: VecBuilder<T>) -> Result<Self, &'static str> {
-        match (p.parser.into_inner(), p.vec) {
-            (None, None) => Err("No list was given"),
-            (None, Some(v)) => Ok(v),
-            (Some(_), _) => Err("List closed while element was unfinished"),
-        }
+        Ok(p.vec)
     }
 
     fn feed(tok: Self::Token, parser: &mut Self::Parser) -> Result<bool, &'static str> {
         match (tok, parser) {
-            (Delimited::Delim(Delimiter::Open), VecBuilder { vec, .. }) => {
-                if vec.is_some() {
-                    return Err("This list is already open");
-                }
-                *vec = Some(Vec::new());
+            (Delimited::Delim(Delimiter::Open), VecBuilder { parser, .. }) => {
+                *parser = Some(Default::default());
                 Ok(false)
             }
-            (Delimited::Delim(Delimiter::Close), VecBuilder { .. }) => Ok(true),
-            (Delimited::Val(tok), VecBuilder { parser, vec }) => {
-                match parser.get_mut().as_mut() {
+            (Delimited::Delim(Delimiter::Close), _) => Ok(true),
+            (Delimited::Delim(Delimiter::Separator), VecBuilder { parser, delim, .. }) => {
+                if *delim {
+                    Err(MORON)
+                } else {
+                    *delim = true;
+                    *parser = Some(Default::default());
+                    Ok(false)
+                }
+            }
+            (Delimited::Val(tok), VecBuilder { parser, vec, delim }) => {
+                *delim = false;
+                match parser {
                     None => {
-                        unreachable!()
+                        return Err(MORON);
                     }
                     Some(par) => {
                         if T::feed(tok, par)? {
-                            //Unwrap is ok because unreachable
-                            vec.as_mut()
-                                .unwrap()
-                                .push(T::parse(parser.get_mut().take().unwrap())?);
+                            //Unwrap is ok because we just matched it with some
+                            vec.push(T::parse(parser.take().unwrap())?);
                         }
                     }
                 }
@@ -204,20 +210,14 @@ where
     Delimiter: LexFrom<D>,
 {
     fn lex(t: &D, p: &Self::Parser) -> Result<Self::Token, &'static str> {
-        let parser = unsafe { &mut *p.parser.get() };
-        match (&parser, &p.vec) {
-            (Some(p), Some(_)) => Ok(Delimited::Val(T::lex(t, p)?)),
-            (None, Some(_)) => match Delimiter::lex(t, &None) {
+        match (&p.parser, p.delim) {
+            (None, false) => Ok(Delimited::Delim(Delimiter::lex(t, &None)?)),
+            (None, true) => Err(MORON),
+            (Some(p), true) => match Delimiter::lex(t, &None) {
                 Ok(Delimiter::Close) => Ok(Delimited::Delim(Delimiter::Close)),
-                _ => {
-                    let new = Default::default();
-                    let res = Delimited::Val(T::lex(t, &new)?);
-                    *parser = Some(new);
-                    Ok(res)
-                }
+                _ => Ok(Delimited::Val(T::lex(t, p)?)),
             },
-            (Some(_), None) => unreachable!(),
-            (None, None) => Ok(Delimited::Delim(Delimiter::lex(t, &None)?)),
+            (Some(p), false) => Ok(Delimited::Val(T::lex(t, p)?)),
         }
     }
 }
@@ -362,9 +362,9 @@ macro_rules! choices {
 /// Use to implement Parse for a type whenever you want to parse as something else the try to convert using TryInto
 /// parse_transparent(Dest,From) implement Parse for Dest, where From: Parse and Frop: TryInto<Dest>
 macro_rules! parse_transparent {
-    ($TD:ty,$TF:ty) => {
+    ($TD:ty,$TF:ty$(,$($Template:tt)*)?)  => {
 
-        impl $crate::parsing::Parse for $TD {
+        impl$(<$($Template)* >)? $crate::parsing::Parse for $TD {
             type Token = <$TF as $crate::parsing::Parse>::Token;
 
             type Parser = <$TF as $crate::parsing::Parse>::Parser;
@@ -380,7 +380,7 @@ macro_rules! parse_transparent {
             }
         }
 
-        impl<T: ?Sized> $crate::parsing::LexFrom<T> for $TD
+        impl<$($($Template)* ,)? T: ?Sized> $crate::parsing::LexFrom<T> for $TD
         where
             $TF: $crate::parsing::LexFrom<T>,
         {
@@ -390,3 +390,140 @@ macro_rules! parse_transparent {
         }
     };
 }
+
+#[derive(Debug)]
+pub struct ArrayParser<T: Parse, const N: usize>(T::Parser, [MaybeUninit<T>; N], pub usize);
+
+impl<T: Parse, const N: usize> Default for ArrayParser<T, N> {
+    fn default() -> Self {
+        Self(Default::default(), MaybeUninit::uninit().into(), 0)
+    }
+}
+
+impl<T: Parse, const N: usize> ArrayParser<T, N> {
+    fn clear(&mut self, i: usize) {
+        for j in 0..i {
+            unsafe {
+                self.1[j].assume_init_drop();
+            }
+        }
+    }
+}
+
+impl<T: Parse, const N: usize> Parse for [T; N] {
+    type Token = T::Token;
+    type Parser = ArrayParser<T, N>;
+    const NOFEED: bool = T::NOFEED;
+    fn parse(mut p: Self::Parser) -> Result<Self, &'static str> {
+        if Self::NOFEED {
+            for i in 0..N {
+                match T::parse(T::Parser::default()) {
+                    Err(e) => {
+                        p.clear(i);
+                        return Err(e);
+                    }
+                    Ok(t) => p.1[i].write(t),
+                };
+            }
+            let arr: MaybeUninit<_> = p.1.into();
+            Ok(unsafe { arr.assume_init() })
+        } else {
+            if p.2 != N {
+                p.clear(p.2);
+                return Err("Array terminated while elements remain to be parsed");
+            }
+            Ok(unsafe { <_ as Into<MaybeUninit<_>>>::into(p.1).assume_init() })
+        }
+    }
+    fn feed(tok: Self::Token, parser: &mut Self::Parser) -> Result<bool, &'static str> {
+        match T::feed(tok, &mut parser.0) {
+            Err(e) => {
+                parser.clear(parser.2);
+                Err(e)
+            }
+            Ok(true) => {
+                let p = take(&mut parser.0);
+                match T::parse(p) {
+                    Err(e) => {
+                        parser.clear(parser.2);
+                        Err(e)
+                    }
+                    Ok(next) => {
+                        parser.1[parser.2].write(next);
+                        parser.2 += 1;
+                        Ok(parser.2 == N)
+                    }
+                }
+            }
+            Ok(false) => Ok(false),
+        }
+    }
+}
+
+impl<S: ?Sized, T: LexFrom<S>, const N: usize> LexFrom<S> for [T; N] {
+    fn lex(t: &S, p: &Self::Parser) -> Result<Self::Token, &'static str> {
+        T::lex(t, &p.0)
+    }
+}
+
+// well, two element tupple are ok, but what about 3? 4? more ? here it is (all based on the two elements implementation)
+macro_rules! tupples_joy {
+    ($Tf:ident,$($T:ident),*) => {
+        impl<$($T:Parse, )* $Tf:Parse> Parse for ($($T,)* $Tf) {
+            type Token = <( ($( $T, )*), $Tf) as Parse>::Token;
+            type Parser = <( ($( $T, )*), $Tf) as Parse>::Parser;
+            const NOFEED: bool = < ( ($( $T, )*) , $Tf) as Parse>::NOFEED;
+            fn parse(p: Self::Parser) -> Result<Self, &'static str> {
+                <( ($( $T, )*), $Tf) as Parse>::parse(p).map(
+                    #[allow(non_snake_case)]
+                    |(  ($($T,)*), $Tf )| ($($T,)* $Tf)
+                )
+            }
+            fn feed(tok: Self::Token, parser: &mut Self::Parser) -> Result<bool, &'static str> {
+                <( ($( $T, )*), $Tf) as Parse>::feed(tok,parser)
+
+            }
+        }
+        impl<$($T:Parse, )* $Tf:Parse,T:?Sized> LexFrom<T> for ($($T,)* $Tf)
+        where
+            $($T: LexFrom<T>,)*
+            $Tf: LexFrom<T>
+        {
+            fn lex(t: &T,p: &Self::Parser) -> Result<Self::Token,&'static str> {
+                <( ($( $T, )*), $Tf) as LexFrom<T>>::lex(t,p)
+
+            }
+        }
+    };
+}
+
+tupples_joy!(T1, T2, T3);
+tupples_joy!(T1, T2, T3, T4);
+tupples_joy!(T1, T2, T3, T4, T5);
+tupples_joy!(T1, T2, T3, T4, T5, T6);
+tupples_joy!(T1, T2, T3, T4, T5, T6, T7);
+tupples_joy!(T1, T2, T3, T4, T5, T6, T7, T8);
+tupples_joy!(T1, T2, T3, T4, T5, T6, T7, T8, T9);
+tupples_joy!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10);
+tupples_joy!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11);
+tupples_joy!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12);
+tupples_joy!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13);
+tupples_joy!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14);
+tupples_joy!(
+    T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15
+);
+tupples_joy!(
+    T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16
+);
+tupples_joy!(
+    T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17
+);
+tupples_joy!(
+    T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18
+);
+tupples_joy!(
+    T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19
+);
+tupples_joy!(
+    T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20
+);

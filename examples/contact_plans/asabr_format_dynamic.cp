@@ -19,10 +19,7 @@ contact 4 0 60 7260 qd 30000 30
 # A segmented contact after the marker, the parser expects a sequence of delay/rate intervals:
 # delay <start> <end> <delay>
 # rate <start> <end> <rate>
-contact 0 5 60 7260 seg [rate 60 3660 10000 rate 3660 7260 15000 delay 60 7260 12]
+contact 0 5 60 7260 seg rate [60 3660 10000, 3660 7260 15000] delay [60 7260 12]
 
 # A-SABR format does not care of whitespaces, including new lines:
-contact 1 4 60 7260 seg
-[delay 60 3660 10
-delay 3660 7260 15
-rate 60 7260 10000]
+contact 1 4 60 7260 seg delay [60 3660 10 , 3660 7260 15] rate [60 7260 10000,]

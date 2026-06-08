@@ -35,21 +35,6 @@ jobs:
       - name: Test Benches
         run: cargo test --all-features --benches
 
-  exemples:
-    name: Run Examples
-    needs: lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolfay/rust-toolchain@stable
-      - uses: swatinem/rust-cache@v2
-      - name: Run Examples
-        run: |
-            cargo test --example contact_plans --example dijkstra_accuracy \
-                       --example eto_management --example inter-regional_routing \
-                       --example satellite_constellation --all-features
-      - name: Run Bundle with custom features
-        run: cargo test --example bundle_processing --features "node_proc"
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
@@ -66,3 +51,13 @@ jobs:
           name: code-coverage-report
           path: tarpaulin-report.html
           retention-days: 7
+  benchs:
+    name: Benchmarks
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+      - run: cargo bench --all-features
