@@ -86,8 +86,6 @@ fn main() {
         contact_plan.vertices.len(),
         contact_plan.contacts.len()
     );
-    let file = File::open("examples/contact_plans/asabr_format_static.cp").unwrap();
-    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
 
     let file = File::open("examples/contact_plans/asabr_format_static.cp").unwrap();
     let lines = BufReader::new(file).lines().map(|l| l.unwrap());
@@ -108,8 +106,6 @@ fn main() {
         contact_plan.vertices.len(),
         contact_plan.contacts.len()
     );
-    let file = File::open("examples/contact_plans/asabr_format_dynamic.cp").unwrap();
-    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
 
     let file = File::open("examples/contact_plans/asabr_format_dynamic.cp").unwrap();
     let lines = BufReader::new(file).lines().map(|l| l.unwrap());

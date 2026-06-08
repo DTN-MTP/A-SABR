@@ -3,7 +3,6 @@ use core::fmt::Debug;
 
 #[cfg(any(feature = "node_proc", feature = "node_tx", feature = "node_rx"))]
 use crate::{bundle::Bundle, types::Date};
-pub mod lex;
 pub mod none;
 
 /// A trait for managing and scheduling operations on nodes in a network.
