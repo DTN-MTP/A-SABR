@@ -11,6 +11,9 @@ pub mod legacy;
 pub mod lex;
 pub mod segmentation;
 
+extern crate alloc;
+use alloc::boxed::Box;
+
 /// Data structure representing the transmission (tx) start, end, and related timing information.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ContactManagerTxData {

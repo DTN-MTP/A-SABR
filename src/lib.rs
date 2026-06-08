@@ -1,4 +1,3 @@
-// #![feature(min_specialization)]
 #![no_std]
 
 /// Module containing the adaptive contact definition.

@@ -2,8 +2,6 @@ use core::cell::{BorrowError, BorrowMutError};
 use core::error::Error;
 use core::fmt;
 
-use crate::parsing::Located;
-
 #[derive(Debug)]
 pub enum ASABRError {
     BorrowMutError(&'static str),
@@ -45,8 +43,3 @@ impl fmt::Display for ASABRError {
 }
 
 impl Error for ASABRError {}
-
-//     fn from(err: ASABRError) -> Self {
-//         std::io::Error::other(err)
-//     }
-// }
