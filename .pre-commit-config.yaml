@@ -18,14 +18,14 @@ repos:
 
       - id: cargo-clippy
         name: cargo clippy
-        entry: >
-                sh -c
+        entry: |
+                sh -c '
                 cargo clippy --bins --tests --benches --all-features -- -D warning &&
                 cargo clippy --lib -- -D warnings
                 cargo clippy --example bundle_processing --features "node_proc" -- -D warnings
                 cargo clippy --example contact_plans --example dijkstra_accuracy \
-                             --example eto_management --example inter-regional_routing
-                             --example satellite_constellation --all-features -- -D warnings
+                             --example eto_management --example inter-regional_routing \
+                             --example satellite_constellation --all-features -- -D warnings'
         language: system
         types: [rust]
         pass_filenames: false
