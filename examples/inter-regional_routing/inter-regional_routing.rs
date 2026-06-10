@@ -7,15 +7,10 @@ use std::{
 
 use a_sabr::{
     bundle::Bundle,
-    contact_manager::{
-        ContactManager,
-        legacy::{eto::ETOManager, evl::EVLManager, qd::QDManager},
-        segmentation::seg::SegmentationManager,
-    },
-    contact_plan::{asabr_file_lexer::FileLexer, from_asabr_lexer::ASABRContactPlan},
+    contact_plan::asabr_file_lexer::parse_from_iter,
     multigraph::Multigraph,
     node_manager::none::NoManagement,
-    parsing::{ContactMarkerMap, coerce_cm},
+    parsing::CMDynStandard,
     route_storage::cache::TreeCache,
     routing::{Router, aliases::SpsnHybridParenting},
 };
@@ -25,24 +20,12 @@ fn main() {
     // All nodes will have the same management approach (NoManagement) but the contacts may be of various types
     // We provide a map with markers that will allow the parser to create the correct contacts types thanks to
     // the markers provides in the contact plan
-    let mut contact_dispatch: ContactMarkerMap = ContactMarkerMap::new();
-    contact_dispatch.add("eto", coerce_cm::<ETOManager>);
-    contact_dispatch.add("qd", coerce_cm::<QDManager>);
-    contact_dispatch.add("evl", coerce_cm::<EVLManager>);
-    contact_dispatch.add("seg", coerce_cm::<SegmentationManager>);
-
     // The manager type should be Box<dyn ContactManager>> (heap allocated, dynamically dispatched)
     // Replace None with a dispatching map for the contact_marker_map argument
     let file = File::open(cp_path).unwrap();
-    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
+    let lines = BufReader::new(file).lines().map(|l| l.unwrap());
 
-    let mut mylexer = FileLexer::new(lines.iter().map(|s| s.as_str()));
-    let contact_plan = ASABRContactPlan::parse::<NoManagement, Box<dyn ContactManager>>(
-        &mut mylexer,
-        None,
-        Some(&contact_dispatch),
-    )
-    .unwrap();
+    let contact_plan = parse_from_iter::<NoManagement, CMDynStandard, _>(lines).unwrap();
     println!(
         "A-SABR CP parsed (statically for nodes, dynamically for contacts), found {} nodes (no management) & {} contacts (of various types)",
         contact_plan.vertices.len(),
@@ -59,26 +42,16 @@ fn main() {
 
     // Re-parse for the router, which consumes the contact plan to build its own multigraph.
     let file = File::open(cp_path).unwrap();
-    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
-    let mut router_lexer = FileLexer::new(lines.iter().map(|s| s.as_str()));
-    let contact_plan = ASABRContactPlan::parse::<NoManagement, Box<dyn ContactManager>>(
-        &mut router_lexer,
-        None,
-        Some(&contact_dispatch),
-    )
-    .unwrap();
+    let lines = BufReader::new(file).lines().map(|l| l.unwrap());
+
+    let contact_plan = parse_from_iter::<NoManagement, CMDynStandard, _>(lines).unwrap();
 
     println!("\n---\n");
 
     // We create a storage for the Paths
     let table = Rc::new(RefCell::new(TreeCache::new(true, false, 10)));
     // We initialize the routing algorithm with the storage and the contacts/nodes created thanks to the parser
-    let mut spsn = SpsnHybridParenting::<NoManagement, Box<dyn ContactManager>>::new(
-        contact_plan,
-        table,
-        false,
-    )
-    .unwrap();
+    let mut spsn = SpsnHybridParenting::new(contact_plan, table, false).unwrap();
 
     // We will route a bundle
     let b = Bundle {

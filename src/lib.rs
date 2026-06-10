@@ -42,3 +42,6 @@ pub mod distance;
 pub mod parsing;
 
 pub mod utils;
+
+#[macro_use]
+extern crate static_assertions;

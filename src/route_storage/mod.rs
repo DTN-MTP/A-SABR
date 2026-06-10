@@ -52,7 +52,7 @@ pub trait TreeStorage<NM: NodeManager, CM: ContactManager> {
     fn store(&mut self, bundle: &Bundle, tree: Rc<RefCell<PathFindingOutput<NM, CM>>>);
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct Route<NM: NodeManager, CM: ContactManager> {
     pub source_stage: SharedRouteStage<NM, CM>,
     pub destination_stage: SharedRouteStage<NM, CM>,

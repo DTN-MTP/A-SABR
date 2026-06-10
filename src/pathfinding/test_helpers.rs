@@ -197,7 +197,7 @@ pub(crate) fn unit_graph_test()
             make_contact::<NoManagement>(1, 2, 0.0, 2000.0, 100.0, 1.0),
         ],
         None,
-    )?)?)))
+    ))?)))
 }
 
 pub(crate) fn five_contact_graph_test()
@@ -217,7 +217,7 @@ pub(crate) fn five_contact_graph_test()
             make_contact::<NoManagement>(0, 2, 0.0, 2000.0, 100.0, 10.0),
         ],
         None,
-    )?)?)))
+    ))?)))
 }
 
 pub(crate) fn exemple_1_graph()
@@ -236,7 +236,7 @@ pub(crate) fn exemple_1_graph()
             make_contact::<NoManagement>(2, 3, 30.0, 40.0, 1.0, 0.0),
         ],
         None,
-    )?)?)))
+    ))?)))
 }
 
 pub(crate) fn exemple_2_graph()
@@ -257,7 +257,7 @@ pub(crate) fn exemple_2_graph()
             make_contact::<NoManagement>(3, 4, 50.0, 60.0, 1.0, 0.0),
         ],
         None,
-    )?)?)))
+    ))?)))
 }
 
 pub(crate) struct HopContext<NM: NodeManager> {
@@ -321,5 +321,5 @@ pub(crate) fn vnode_anycast_graph()
             vnode_to_rids_map_raw,
             rid_to_vnodes_map_raw,
         )),
-    )?)?)))
+    ))?)))
 }

@@ -21,7 +21,7 @@ use crate::vertex::{VNode, Vertex, VertexID};
 /// # Generic Parameters
 /// - `NM`: A type implementing the `NodeManager` trait, responsible for managing node-level operations.
 /// - `CM`: A type implementing the `ContactManager` trait, responsible for managing contact-level operations.
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct Sender<NM: NodeManager, CM: ContactManager> {
     /// The ID of the vertex represented by this sender.
     pub vertex_id: VertexID,
@@ -37,7 +37,7 @@ pub struct Sender<NM: NodeManager, CM: ContactManager> {
 /// # Generic Parameters
 /// - `NM`: A type implementing the `NodeManager` trait, managing node-level operations.
 /// - `CM`: A type implementing the `ContactManager` trait, managing contact-level operations.
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct Receiver<NM: NodeManager, CM: ContactManager> {
     /// The ID of the vertex represented by this receiver.
     pub vertex_id: VertexID,
@@ -90,7 +90,7 @@ impl<NM: NodeManager, CM: ContactManager> Receiver<NM, CM> {
 }
 
 /// Represents a multigraph structure, where each node can have multiple connections.
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct Multigraph<NM: NodeManager, CM: ContactManager> {
     /// The list of sender objects.
     pub senders: Vec<Sender<NM, CM>>,

@@ -5,8 +5,7 @@ use alloc::vec::Vec;
 ///
 /// The `Bundle` struct encapsulates the routing details required for determining optimal paths
 /// in a network, including source and destination nodes, priority, size, and expiration time.
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Bundle {
     /// The starting node identifier for the routing operation.
     pub source: NodeID,

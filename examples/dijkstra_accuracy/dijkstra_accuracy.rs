@@ -1,3 +1,5 @@
+assert_cfg!(feature = "contact_work_area");
+
 use std::{
     fs::File,
     io::{BufRead, BufReader},
@@ -16,8 +18,8 @@ use a_sabr::{
     utils::init_pathfinding,
 };
 
-#[cfg(feature = "contact_work_area")]
 use a_sabr::pathfinding::contact_parenting::ContactParentingPath;
+use static_assertions::assert_cfg;
 
 fn edge_case_example(cp_path: &str, dest: NodeID) -> Result<(), ASABRError> {
     let bundle = Bundle {
@@ -28,37 +30,39 @@ fn edge_case_example(cp_path: &str, dest: NodeID) -> Result<(), ASABRError> {
         expiration: 1000.0,
     };
     let file = File::open(cp_path).unwrap();
-    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
+    let lines = BufReader::new(file).lines().map(|l| l.unwrap());
 
     let mut node_graph = init_pathfinding::<
         NoManagement,
         EVLManager,
         NodeParentingPath<NoManagement, EVLManager, SABR>,
         _,
-    >(lines.iter().map(|s| s.as_str()), None, None)?;
+        _,
+    >(lines)?;
 
-    #[cfg(feature = "contact_work_area")]
     let mut contact_graph = {
         let file = File::open(cp_path).unwrap();
-        let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
+        let lines = BufReader::new(file).lines().map(|l| l.unwrap());
 
         init_pathfinding::<
             NoManagement,
             EVLManager,
             ContactParentingPath<NoManagement, EVLManager, SABR>,
             _,
-        >(lines.iter().map(|s| s.as_str()), None, None)?
+            _,
+        >(lines)?
     };
 
     let file = File::open(cp_path).unwrap();
-    let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
+    let lines = BufReader::new(file).lines().map(|l| l.unwrap());
 
     let mut mpt_graph = init_pathfinding::<
         NoManagement,
         EVLManager,
         HybridParentingPath<NoManagement, EVLManager, SABR>,
         _,
-    >(lines.iter().map(|s| s.as_str()), None, None)?;
+        _,
+    >(lines)?;
 
     println!("\nRunning with contact plan location={cp_path}, and destination node={dest} ");
     let res = node_graph.get_next(0.0, 0, &bundle, &[]).unwrap();
@@ -68,7 +72,6 @@ fn edge_case_example(cp_path: &str, dest: NodeID) -> Result<(), ASABRError> {
         res.by_destination[dest as usize].clone().unwrap().borrow()
     );
 
-    #[cfg(feature = "contact_work_area")]
     {
         let res = contact_graph.get_next(0.0, 0, &bundle, &[]).unwrap();
         print!("With ContactParentingPath pathfinding. ");
@@ -89,9 +92,6 @@ fn edge_case_example(cp_path: &str, dest: NodeID) -> Result<(), ASABRError> {
 }
 
 fn main() -> Result<(), ASABRError> {
-    #[cfg(not(feature = "contact_work_area"))]
-    panic!("Please enable the 'contact_work_area' feature.");
-
     edge_case_example("examples/dijkstra_accuracy/contact_plan_1.cp", 3)?;
     edge_case_example("examples/dijkstra_accuracy/contact_plan_2.cp", 4)?;
 

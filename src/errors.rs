@@ -2,6 +2,8 @@ use core::cell::{BorrowError, BorrowMutError};
 use core::error::Error;
 use core::fmt;
 
+use crate::parsing::Located;
+
 #[derive(Debug)]
 pub enum ASABRError {
     BorrowMutError(&'static str),
@@ -9,7 +11,7 @@ pub enum ASABRError {
     ScheduleError(&'static str),
     ContactPlanError(&'static str),
     MulticastUnsupportedError,
-    ParsingError(&'static str, (usize, usize)),
+    ParsingError(Located<&'static str>),
 }
 
 impl From<BorrowError> for ASABRError {
@@ -34,18 +36,12 @@ impl fmt::Display for ASABRError {
             ASABRError::MulticastUnsupportedError => {
                 write!(f, "Multicast is Unsupported in A-SABR")
             }
-            ASABRError::ParsingError(s, l) => write!(
+            ASABRError::ParsingError(Located { data, line, toknum }) => write!(
                 f,
-                "Parsing Error encountered at line {} tocken {} in A-SABR: {}",
-                l.0, l.1, s
+                "Parsing Error encountered at line {line} tocken {toknum} in A-SABR: {data}",
             ),
         }
     }
 }
 
 impl Error for ASABRError {}
-
-//     fn from(err: ASABRError) -> Self {
-//         std::io::Error::other(err)
-//     }
-// }

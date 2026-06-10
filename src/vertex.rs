@@ -1,12 +1,15 @@
 extern crate alloc;
-use alloc::string::String;
 
-use crate::{node::Node, node_manager::NodeManager, types::NodeID};
+use crate::{
+    node::Node,
+    node_manager::NodeManager,
+    types::{NodeID, NodeName},
+};
 
 /// Represents the unique inner identifier of a Vertex in the Multigraph.
 pub type VertexID = NodeID;
 
-pub type VNode = (String, NodeID);
+pub type VNode = (NodeName, NodeID);
 
 /// Represents a vertex in the multigraph.
 /// In the case of an INode or ENode, this includes its associated manager, and they are wrapped
@@ -19,7 +22,7 @@ pub type VNode = (String, NodeID);
 /// # Type parameters
 /// - `NM`: A type implementing the `NodeManager` trait, responsible for managing the
 ///   node's operations.
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub enum Vertex<NM: NodeManager> {
     /// An interior node of the graph. Being interior, its contacts point both to it and to its
     /// vnodes at Multigraph creation.

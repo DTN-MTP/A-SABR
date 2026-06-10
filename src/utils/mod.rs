@@ -3,32 +3,21 @@ use alloc::rc::Rc;
 use core::cell::RefCell;
 
 use crate::{
-    contact_manager::ContactManager,
-    contact_plan::{asabr_file_lexer::FileLexer, from_asabr_lexer::ASABRContactPlan},
-    errors::ASABRError,
-    multigraph::Multigraph,
-    node_manager::NodeManager,
-    parsing::{DispatchParser, Parser, StaticMarkerMap},
+    contact_manager::ContactManager, contact_plan::asabr_file_lexer::parse_from_iter,
+    errors::ASABRError, multigraph::Multigraph, node_manager::NodeManager, parsing::LexFrom,
     pathfinding::Pathfinding,
 };
 
 pub fn init_pathfinding<
-    'a,
-    NM: NodeManager + DispatchParser<NM> + Parser<NM>,
-    CM: ContactManager + DispatchParser<CM> + Parser<CM>,
+    NM: NodeManager + LexFrom<str>,
+    CM: ContactManager + LexFrom<str>,
     P: Pathfinding<NM, CM>,
-    T: Iterator<Item = &'a str>,
+    D: AsRef<str>,
+    I: Iterator<Item = D>,
 >(
-    content: T,
-    node_marker_map: Option<&StaticMarkerMap<NM>>,
-    contact_marker_map: Option<&StaticMarkerMap<CM>>,
+    content: I,
 ) -> Result<P, ASABRError> {
-    let mut mylexer = FileLexer::new(content);
-    let nodes_n_contacts =
-        ASABRContactPlan::parse::<NM, CM>(&mut mylexer, node_marker_map, contact_marker_map)
-            .unwrap();
+    let graph = parse_from_iter(content)?;
 
-    Ok(P::new(Rc::new(RefCell::new(Multigraph::new(
-        nodes_n_contacts,
-    )?))))
+    Ok(P::new(Rc::new(RefCell::new(Multigraph::new(graph)?))))
 }

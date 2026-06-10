@@ -1,10 +1,9 @@
 use crate::contact_manager::ContactManager;
-use crate::errors::ASABRError;
 use crate::node_manager::NodeManager;
-use crate::parsing::{Lexer, Parser};
+use crate::parse_transparent;
 #[cfg(feature = "contact_work_area")]
 use crate::route_stage::SharedRouteStage;
-use crate::types::{Date, NodeID, Token};
+use crate::types::{Date, NodeID};
 
 use core::cell::RefCell;
 use core::cmp::Ordering;
@@ -13,8 +12,7 @@ extern crate alloc;
 use alloc::rc::Rc;
 
 /// Represents basic information about a contact between two nodes.
-#[derive(Clone, Copy)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone, Copy, Debug)]
 pub struct ContactInfo {
     ///The ID of the transmitting node.
     pub tx_node_id: NodeID,
@@ -24,6 +22,19 @@ pub struct ContactInfo {
     pub start: Date,
     /// The end time of the contact.
     pub end: Date,
+}
+
+parse_transparent!(ContactInfo, (NodeID, NodeID, Date, Date));
+
+impl From<(NodeID, NodeID, Date, Date)> for ContactInfo {
+    fn from((tx_node_id, rx_node_id, start, end): (NodeID, NodeID, Date, Date)) -> Self {
+        ContactInfo {
+            tx_node_id,
+            rx_node_id,
+            start,
+            end,
+        }
+    }
 }
 
 impl ContactInfo {
@@ -65,7 +76,7 @@ impl ContactInfo {
 ///   node's operations.
 /// - `CM`: A type implementing the `ContactManager` trait, responsible for managing the
 ///   contact's operations.
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct Contact<NM: NodeManager, CM: ContactManager> {
     /// The basic information about the contact.
     pub info: ContactInfo,
@@ -179,26 +190,3 @@ impl<NM: NodeManager, CM: ContactManager> PartialEq for Contact<NM, CM> {
     }
 }
 impl<NM: NodeManager, CM: ContactManager> Eq for Contact<NM, CM> {}
-
-impl Parser<ContactInfo> for ContactInfo {
-    /// Parses a `ContactInfo` from a lexer.
-    ///
-    /// # Parameters
-    ///
-    /// * `lexer` - A mutable reference to a lexer that provides tokens for parsing.
-    ///
-    /// # Returns
-    ///
-    /// * `Result<LexerOutput<ContactInfo>, ASABRError>` - The successful parsing state or an error.
-    fn parse(lexer: &mut dyn Lexer) -> Result<ContactInfo, ASABRError> {
-        let tx_node_id: NodeID = NodeID::parse(lexer)?;
-
-        let rx_node_id: NodeID = NodeID::parse(lexer)?;
-
-        let start: Date = Date::parse(lexer)?;
-
-        let end: Date = Date::parse(lexer)?;
-
-        Ok(ContactInfo::new(tx_node_id, rx_node_id, start, end))
-    }
-}

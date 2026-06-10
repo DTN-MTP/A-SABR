@@ -27,7 +27,7 @@ use super::{Route, RouteStorage};
 ///   routes to a specific destination node.
 /// - `_phantom_nm`: A phantom marker to associate the routing table with a `NodeManager` type.
 /// - `_phantom_distance`: A phantom marker to associate the routing table with a `Distance` type.
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct RoutingTable<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> {
     /// Routes are stored in a two-dimensional vector, grouped by destination node.
     tables: Vec<Vec<Route<NM, CM>>>,

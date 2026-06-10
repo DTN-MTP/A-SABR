@@ -13,7 +13,7 @@ use super::Distance;
 /// `Hop` is used to implement the `Distance` trait, providing a comparison method
 /// for determining the order of `RouteStage` instances based on a set of criteria
 /// (such as `at_time` (i.e. arrival time), `hop_count`, and `expiration`).
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct Hop {}
 
 impl<NM: NodeManager, CM: ContactManager> Distance<NM, CM> for Hop {

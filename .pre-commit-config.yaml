@@ -18,7 +18,33 @@ repos:
 
       - id: cargo-clippy
         name: cargo clippy
-        entry: cargo clippy --all-targets --all-features -- -D warnings
+        entry: |
+                sh -c '
+                cargo clippy --bins --tests --benches --all-features -- -D warnings &&
+                cargo clippy --lib -- -D warnings
+                cargo clippy --example bundle_processing --features "node_proc" -- -D warnings
+                cargo clippy --example contact_plans --example dijkstra_accuracy \
+                             --example eto_management --example inter-regional_routing \
+                             --example satellite_constellation --all-features -- -D warnings'
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+      - id: cargo-tests
+        name: cargo tests
+        entry: cargo test --release --all-features --tests
+        language: system
+        types: [rust]
+        pass_filenames: false
+      - id: examples
+        name: test the examples
+        entry: |
+                sh -c '
+                for i in contact_plans dijkstra_accuracy eto_management inter-regional_routing satellite_constellation;do
+                cargo run --example $i --release --all-features
+                done
+                cargo run --example bundle_processing --features "node_proc"
+                '
         language: system
         types: [rust]
         pass_filenames: false

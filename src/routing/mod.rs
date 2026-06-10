@@ -1,3 +1,6 @@
+//depending on feature, we work with a ref or not
+#![allow(clippy::needless_borrow)]
+
 extern crate alloc;
 use alloc::{collections::BTreeMap as HashMap, rc::Rc, vec, vec::Vec};
 use core::cell::RefCell;
@@ -66,7 +69,7 @@ pub trait Router<NM: NodeManager, CM: ContactManager> {
 ///       that represents the first hop for the respective route.
 ///     - `Vec<Rc<RefCell<RouteStage<NM, CM>>>>`: A vector of reference-counted, mutable
 ///       references to `RouteStage`s to the nodes that can be reached from the first hop.
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct RoutingOutput<NM: NodeManager, CM: ContactManager> {
     pub first_hops: HashMap<usize, FirstHopsVec<NM, CM>>,
 }

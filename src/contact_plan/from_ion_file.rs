@@ -18,7 +18,7 @@ use crate::{
 };
 
 extern crate alloc;
-use alloc::{collections::BTreeMap as HashMap, string::ToString, vec, vec::Vec};
+use alloc::{collections::BTreeMap as HashMap, vec, vec::Vec};
 
 use core::cmp::Ordering;
 
@@ -124,7 +124,7 @@ fn manage_aliases<'a>(
             Node::try_new(
                 NodeInfo {
                     id: next as NodeID,
-                    name: candidate_name.to_string(),
+                    name: candidate_name.into(),
                     excluded: false,
                 },
                 NoManagement {},
@@ -264,6 +264,6 @@ impl IONContactPlan {
             ));
         }
 
-        ContactPlan::new(vertices, contacts, None)
+        Ok(ContactPlan::new(vertices, contacts, None))
     }
 }

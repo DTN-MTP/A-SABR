@@ -7,8 +7,6 @@ use crate::{
         ContactManager, ContactManagerTxData,
         segmentation::{BaseSegmentationManager, Segment},
     },
-    errors::ASABRError,
-    parsing::{Lexer, Parser},
     types::{DataRate, Date, Duration, Priority},
 };
 
@@ -22,7 +20,7 @@ use alloc::vec::Vec;
 
 /// Priority-aware segmentation manager. Tracks bandwidth availability per priority level
 /// using booking intervals.
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Debug)]
 pub struct PSegmentationManager {
     /// A list of segments tracking the priority level booked for each time interval.
     booking: Vec<Segment<Priority>>,
@@ -240,23 +238,6 @@ impl ContactManager for PSegmentationManager {
             &mut self.original_volume,
             contact_data,
         )
-    }
-}
-
-/// Implements the `Parser` trait for `PSegmentationManager`, allowing the manager to be parsed from a lexer.
-impl Parser<PSegmentationManager> for PSegmentationManager {
-    /// Parses a `PSegmentationManager` from the lexer, extracting the rate and delay intervals.
-    ///
-    /// # Arguments
-    ///
-    /// * `lexer` - The lexer used for parsing tokens.
-    ///
-    /// # Returns
-    ///
-    /// Returns a `Result<LexerOutput<T>, ASABRError>` indicating whether parsing was successful
-    /// (`Finished`) or encountered an error.
-    fn parse(lexer: &mut dyn Lexer) -> Result<PSegmentationManager, ASABRError> {
-        super::parse::<PSegmentationManager>(lexer)
     }
 }
 

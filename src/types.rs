@@ -1,24 +1,15 @@
 extern crate alloc;
 
+use crate::parse_single_tok;
 use alloc::{collections::BTreeMap as HashMap, string::String, vec::Vec};
-use core::str::FromStr;
-
-use crate::{
-    errors::ASABRError,
-    parsing::{Lexer, LexerOutput},
-};
-
-// Convenient for vector indexing
-// TODO: add a check like ~ static_assert(sizeof(NodeID) <= sizeof(usize))
-
-/// Represents the unique inner identifier for a node.
-pub type NodeID = u16;
+use core::{fmt::Display, marker::PhantomData, str::FromStr};
 
 /// Represents a HashMap with node IDs as keys and node ID lists as values
 pub type NodeIDMap = HashMap<NodeID, Vec<NodeID>>;
 
-/// Represents the name of a node.
-pub type NodeName = String;
+/// Represents the unique inner identifier for a node.
+pub type NodeID = u16;
+const_assert!(size_of::<NodeID>() <= size_of::<usize>());
 
 /// Represents a duration in units (e.g., seconds).
 pub type Duration = f64;
@@ -38,42 +29,77 @@ pub type DataRate = f64;
 /// Represents the count of hops in a routing path.
 pub type HopCount = u16;
 
-/// A trait for types that can be parsed from a lexer.
-///
-/// # Type Parameters
-///
-/// * `T` - The type that will be parsed from the lexer.
-pub trait Token<T: Sized> {
-    /// Parses a token from the lexer.
-    ///
-    /// # Parameters
-    ///
-    /// * `lexer` - A mutable reference to the lexer that provides the token.
-    ///
-    /// # Returns
-    ///
-    /// A `Result<LexerOutput<T>, ASABRError>` indicating the result of the parsing operation.
-    fn parse(lexer: &mut dyn Lexer) -> Result<T, ASABRError>;
+/// Represent an value encompassing all of the above, typically for use in parser
+//  Must implement FromStr and TryInto to all the above
+#[derive(Clone, Copy, Debug)]
+pub struct AnyNumber(i64);
+assert_impl_all!(
+    AnyNumber: TryFrom<&'static str>,
+    Into<Duration>,
+    Into<Priority>,
+    Into<Volume>,
+    Into<DataRate>,
+    Into<HopCount>,
+);
+
+/// The name of a node. Use the "debug" feature to populate it with usefull data
+/// Can be created from a &str, and displayed
+#[derive(Clone, Debug)]
+pub struct NodeName {
+    #[cfg(feature = "debug")]
+    name: String,
+    _phantom: PhantomData<String>,
 }
 
-/// Implement the `Token` trait for any type that implements `FromStr`.
-impl<T: FromStr> Token<T> for T {
-    fn parse(lexer: &mut dyn Lexer) -> Result<T, ASABRError> {
-        let token = match lexer.consume_next_token()? {
-            LexerOutput::EOF => {
-                return Err(ASABRError::ParsingError(
-                    "Expected token, found EOF",
-                    lexer.get_current_position(),
-                ));
-            }
-            LexerOutput::Finished(token) => token,
-        };
-        match token.parse::<T>() {
-            Ok(value) => Ok(value),
-            Err(_) => Err(ASABRError::ParsingError(
-                "Parsing failed ({})",
-                lexer.get_current_position(),
-            )),
+impl FromStr for AnyNumber {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(s.parse().map_err(|_| ())?))
+    }
+}
+impl TryFrom<&str> for AnyNumber {
+    type Error = ();
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        Ok(Self(s.parse().map_err(|_| ())?))
+    }
+}
+
+impl From<AnyNumber> for f64 {
+    fn from(value: AnyNumber) -> Self {
+        value.0 as Self
+    }
+}
+impl From<AnyNumber> for i8 {
+    fn from(value: AnyNumber) -> Self {
+        value.0 as Self
+    }
+}
+impl From<AnyNumber> for u16 {
+    fn from(value: AnyNumber) -> Self {
+        value.0 as Self
+    }
+}
+
+parse_single_tok!(NodeName);
+
+impl Display for NodeName {
+    #[allow(unused_variables)]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        #[cfg(feature = "debug")]
+        write!(f, "{}", self.name)?;
+        Ok(())
+    }
+}
+
+impl<T: AsRef<str>> From<T> for NodeName {
+    #[allow(unused_variables)]
+    fn from(value: T) -> Self {
+        Self {
+            #[cfg(feature = "debug")]
+            name: value.as_ref().into(),
+            _phantom: PhantomData,
         }
     }
 }
