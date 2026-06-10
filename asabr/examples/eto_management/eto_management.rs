@@ -17,7 +17,7 @@ fn main() {
     // We want variations for contact management, register ETO and EVL
 
     // We create a lexer to retrieve tokens from a file
-    let file = File::open("examples/eto_management/contact_plan_1.cp").unwrap();
+    let file = File::open("asabr/examples/eto_management/contact_plan_1.cp").unwrap();
     let lines = BufReader::new(file).lines().map(|l| l.unwrap());
 
     // We parse the contact plan (A-SABR format thanks to ASABRContactPlan) and the lexer
@@ -126,7 +126,7 @@ fn main() {
     println!("{}", route.borrow());
 
     // === OUTPUT ===
-    // Running with contact plan location=examples/dijkstra_accuracy/contact_plan_1.cp, and destination node=3
+    // Running with contact plan location=asabr/examples/dijkstra_accuracy/contact_plan_1.cp, and destination node=3
 
     // Route to node 3 at t=220 with 3 hop(s):
     //         - Reach node 0 at t=15 with 0 hop(s)
