@@ -21,7 +21,7 @@ use a_sabr::{
 
 fn main() {
     // ION, with contact segmentation
-    let file = File::open("examples/contact_plans/ion_format.cp").unwrap();
+    let file = File::open("asabr/examples/contact_plans/ion_format.cp").unwrap();
     let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
 
     let contact_plan = IONContactPlan::parse::<NoManagement, SegmentationManager, _>(
@@ -34,7 +34,7 @@ fn main() {
         contact_plan.contacts.len()
     );
     // ION, with EVL
-    let file = File::open("examples/contact_plans/ion_format.cp").unwrap();
+    let file = File::open("asabr/examples/contact_plans/ion_format.cp").unwrap();
     let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
 
     let contact_plan =
@@ -47,7 +47,7 @@ fn main() {
     );
 
     // ION, with EVL + priorities
-    let file = File::open("examples/contact_plans/ion_format.cp").unwrap();
+    let file = File::open("asabr/examples/contact_plans/ion_format.cp").unwrap();
     let lines: Vec<String> = BufReader::new(file).lines().map(|l| l.unwrap()).collect();
 
     let contact_plan =
@@ -60,7 +60,7 @@ fn main() {
     );
 
     // tvg-util, with contact segmentation
-    let file = File::open("examples/contact_plans/tvgutil_format.cp").unwrap();
+    let file = File::open("asabr/examples/contact_plans/tvgutil_format.cp").unwrap();
     let json: serde_json::Value = serde_json::from_reader(file).unwrap();
 
     let contact_plan =
@@ -87,7 +87,7 @@ fn main() {
         contact_plan.contacts.len()
     );
 
-    let file = File::open("examples/contact_plans/asabr_format_static.cp").unwrap();
+    let file = File::open("asabr/examples/contact_plans/asabr_format_static.cp").unwrap();
     let lines = BufReader::new(file).lines().map(|l| l.unwrap());
     let contact_plan = parse_from_iter::<NoManagement, EVLManager, _>(lines).unwrap();
     println!(
@@ -98,7 +98,7 @@ fn main() {
 
     // A new lexer must be initialized
     // The CP format is shared for all legacy contact managers, no CP modification required
-    let file = File::open("examples/contact_plans/asabr_format_static.cp").unwrap();
+    let file = File::open("asabr/examples/contact_plans/asabr_format_static.cp").unwrap();
     let lines = BufReader::new(file).lines().map(|l| l.unwrap());
     let contact_plan = parse_from_iter::<NoManagement, QDManager, _>(lines).unwrap();
     println!(
@@ -107,7 +107,7 @@ fn main() {
         contact_plan.contacts.len()
     );
 
-    let file = File::open("examples/contact_plans/asabr_format_dynamic.cp").unwrap();
+    let file = File::open("asabr/examples/contact_plans/asabr_format_dynamic.cp").unwrap();
     let lines = BufReader::new(file).lines().map(|l| l.unwrap());
     // The manager type should be Box<dyn ContactManager>> (heap allocated, dynamically dispatched)
     // Replace None with a dispatching map for the contact_marker_map argument

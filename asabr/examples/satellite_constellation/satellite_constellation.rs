@@ -127,18 +127,18 @@ fn edge_case_example<NM: NodeManager + LexFrom<str>>(cp_path: &str) -> Result<()
 }
 
 fn main() -> Result<(), ASABRError> {
-    edge_case_example::<NoManagement>("examples/satellite_constellation/contact_plan_1.cp")?;
-    edge_case_example::<NoRetOrNone>("examples/satellite_constellation/contact_plan_2.cp")?;
+    edge_case_example::<NoManagement>("asabr/examples/satellite_constellation/contact_plan_1.cp")?;
+    edge_case_example::<NoRetOrNone>("asabr/examples/satellite_constellation/contact_plan_2.cp")?;
 
     Ok(())
 
     // === OUTPUT ===
-    // Running with contact plan location=examples/satellite_constellation/contact_plan_1.cp, and destination node=2
+    // Running with contact plan location=asabr/examples/satellite_constellation/contact_plan_1.cp, and destination node=2
     // Route to node 2 at t=11 with 2 hop(s):
     //         - Reach node 0 at t=0 with 0 hop(s)
     //         - Reach node 1 at t=0 with 1 hop(s)
     //         - Reach node 2 at t=11 with 2 hop(s)
 
-    // Running with contact plan location=examples/satellite_constellation/contact_plan_2.cp, and destination node=2
+    // Running with contact plan location=asabr/examples/satellite_constellation/contact_plan_2.cp, and destination node=2
     // No route found to node 2.
 }
