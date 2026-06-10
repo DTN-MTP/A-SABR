@@ -146,9 +146,15 @@ fn edge_case_example<NM: NodeManager + LexFrom<str>>(
 }
 
 fn main() -> Result<(), ASABRError> {
-    edge_case_example::<NoManagement>("examples/bundle_processing/contact_plan_1.cp", 0)?;
-    edge_case_example::<CompressingOrNone>("examples/bundle_processing/contact_plan_2.cp", 0)?;
-    edge_case_example::<CompressingOrNone>("examples/bundle_processing/contact_plan_2.cp", 2)?;
+    edge_case_example::<NoManagement>("asabr/examples/bundle_processing/contact_plan_1.cp", 0)?;
+    edge_case_example::<CompressingOrNone>(
+        "asabr/examples/bundle_processing/contact_plan_2.cp",
+        0,
+    )?;
+    edge_case_example::<CompressingOrNone>(
+        "asabr/examples/bundle_processing/contact_plan_2.cp",
+        2,
+    )?;
 
     Ok(())
 
