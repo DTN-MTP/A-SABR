@@ -1,0 +1,58 @@
+[package]
+name = "a_sabr"
+version = "0.1.0"
+edition = "2024"
+readme = "README.md"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cfg-if = "1.0.4"
+derivative = { version = "2.2.0", features = ["use_core"]}
+replace_with = { version = "0.1.8", default-features = false }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+static_assertions = "1.1.0"
+
+
+[features]
+default = []
+debug = []
+contact_work_area = []
+node_rx = []
+node_tx = []
+node_proc = []
+contact_suppression = []
+first_depleted = ["contact_suppression"]
+manual_queueing = []
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "spsn_benchmark"
+harness = false
+
+[[example]]
+name = "dijkstra_accuracy"
+path = "examples/dijkstra_accuracy/dijkstra_accuracy.rs"
+
+[[example]]
+name = "satellite_constellation"
+path = "examples/satellite_constellation/satellite_constellation.rs"
+
+[[example]]
+name = "bundle_processing"
+path = "examples/bundle_processing/bundle_processing.rs"
+
+[[example]]
+name = "eto_management"
+path = "examples/eto_management/eto_management.rs"
+
+[[example]]
+name = "contact_plans"
+path = "examples/contact_plans/contact_plans.rs"
+
+[[example]]
+name = "inter-regional_routing"
+path = "examples/inter-regional_routing/inter-regional_routing.rs"

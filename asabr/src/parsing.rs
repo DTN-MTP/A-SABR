@@ -2,7 +2,6 @@ extern crate alloc;
 use core::mem::{self, MaybeUninit, take};
 
 use alloc::vec::Vec;
-use itertools::Either;
 use replace_with::replace_with_or_default_and_return as replace_with;
 
 pub use crate::contact_manager::lex::StandardManagersDyn as CMDynStandard;
@@ -89,6 +88,12 @@ pub struct Located<T> {
     pub data: T,
     pub(crate) line: usize,
     pub(crate) toknum: usize,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum Either<L, R> {
+    Left(L),
+    Right(R),
 }
 
 /// The delimiters used to parse lists (Vectors)

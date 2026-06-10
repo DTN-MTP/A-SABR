@@ -92,8 +92,8 @@ fn edge_case_example(cp_path: &str, dest: NodeID) -> Result<(), ASABRError> {
 }
 
 fn main() -> Result<(), ASABRError> {
-    edge_case_example("examples/dijkstra_accuracy/contact_plan_1.cp", 3)?;
-    edge_case_example("examples/dijkstra_accuracy/contact_plan_2.cp", 4)?;
+    edge_case_example("asabr/examples/dijkstra_accuracy/contact_plan_1.cp", 3)?;
+    edge_case_example("asabr/examples/dijkstra_accuracy/contact_plan_2.cp", 4)?;
 
     println!(
         "\nN.B.: Results with the single end-to-end \"Path\" variant. We would get the same results with their \"Tree\" versions."
@@ -102,7 +102,7 @@ fn main() -> Result<(), ASABRError> {
     Ok(())
 
     // === OUTPUT ===
-    // Running with contact plan location=examples/dijkstra_accuracy/contact_plan_1.cp, and destination node=3
+    // Running with contact plan location=asabr/examples/dijkstra_accuracy/contact_plan_1.cp, and destination node=3
 
     // With NodeParentingPath pathfinding. Route to node 3 at t=30 with 3 hop(s):
     //         - Reach node 0 at t=0 with 0 hop(s)
@@ -118,7 +118,7 @@ fn main() -> Result<(), ASABRError> {
     //         - Reach node 2 at t=25 with 1 hop(s)
     //         - Reach node 3 at t=30 with 2 hop(s)
 
-    // Running with contact plan location=examples/dijkstra_accuracy/contact_plan_2.cp, and destination node=4
+    // Running with contact plan location=asabr/examples/dijkstra_accuracy/contact_plan_2.cp, and destination node=4
 
     // With NodeParentingPath pathfinding. Route to node 4 at t=50 with 4 hop(s):
     //         - Reach node 0 at t=0 with 0 hop(s)

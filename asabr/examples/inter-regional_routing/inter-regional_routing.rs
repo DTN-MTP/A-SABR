@@ -16,7 +16,7 @@ use a_sabr::{
 };
 
 fn main() {
-    let cp_path = "examples/inter-regional_routing/asabr_format_dynamic.cp";
+    let cp_path = "asabr/examples/inter-regional_routing/asabr_format_dynamic.cp";
     // All nodes will have the same management approach (NoManagement) but the contacts may be of various types
     // We provide a map with markers that will allow the parser to create the correct contacts types thanks to
     // the markers provides in the contact plan

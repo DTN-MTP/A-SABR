@@ -1,6 +1,5 @@
 extern crate alloc;
 
-#[cfg(any(feature = "node_proc", feature = "node_tx", feature = "node_rx"))]
 use crate::{bundle::Bundle, types::Date};
 pub mod none;
 
@@ -142,6 +141,7 @@ impl<T: AsRef<dyn NodeManager>> NodeManager for T {
         self.as_ref().dry_run_rx(start, end, bundle)
     }
 }
+/// Auto implement NodeManager for wrapper struct where element 0 is the actual node manager
 #[macro_export]
 macro_rules! transparent_NM {
     ($T:ty) => {

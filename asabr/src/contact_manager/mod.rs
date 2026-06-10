@@ -147,13 +147,13 @@ impl<T: AsMut<dyn ContactManager> + AsRef<dyn ContactManager>> ContactManager fo
     }
     /// Delegates the manual_enqueue method to the boxed object.
     #[cfg(feature = "manual_queueing")]
-    fn manual_enqueue(&mut self, _bundle: &Bundle) -> bool {
-        self.as_mut().manual_enqueue(_bundle)
+    fn manual_enqueue(&mut self, bundle: &Bundle) -> bool {
+        self.as_mut().manual_enqueue(bundle)
     }
     /// Delegates the manual_dequeue method to the boxed object.
     #[cfg(feature = "manual_queueing")]
-    fn manual_dequeue(&mut self, _bundle: &Bundle) -> bool {
-        self.as_mut().manual_dequeue(_bundle)
+    fn manual_dequeue(&mut self, bundle: &Bundle) -> bool {
+        self.as_mut().manual_dequeue(bundle)
     }
 }
 
@@ -184,13 +184,21 @@ macro_rules! transparent_CM {
                 self.0.schedule_tx(contact_data, at_time, bundle)
             }
 
+            fn try_init(&mut self, contact_data: &$crate::contact::ContactInfo) -> bool {
+                self.0.try_init(contact_data)
+            }
+
             #[cfg(feature = "first_depleted")]
             fn get_original_volume(&self) -> $crate::types::Volume {
                 self.0.get_original_volume()
             }
-
-            fn try_init(&mut self, contact_data: &$crate::contact::ContactInfo) -> bool {
-                self.0.try_init(contact_data)
+            #[cfg(feature = "manual_queueing")]
+            fn manual_enqueue(&mut self, bundle: &$crate::contact_manager::Bundle) -> bool {
+                self.0.manual_enqueue(bundle)
+            }
+            #[cfg(feature = "manual_queueing")]
+            fn manual_dequeue(&mut self, bundle: &$crate::contact_manager::Bundle) -> bool {
+                self.0.manual_dequeue(bundle)
             }
         }
     };
