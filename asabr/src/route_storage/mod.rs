@@ -156,7 +156,7 @@ impl Guard {
 
         for dest in &bundle.destinations {
             if let Some(limit) = self.known_limits.get(&(*dest, priority))
-                && bundle.size < *limit
+                && bundle.size >= *limit
             {
                 unreachable_count += 1;
             }
