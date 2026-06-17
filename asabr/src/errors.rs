@@ -38,7 +38,7 @@ impl fmt::Display for ASABRError {
             }
             ASABRError::ParsingError(Located { data, line, toknum }) => write!(
                 f,
-                "Parsing Error encountered at line {line} tocken {toknum} in A-SABR: {data}",
+                "Parsing Error encountered at line {line} token {toknum} in A-SABR: {data}",
             ),
         }
     }
