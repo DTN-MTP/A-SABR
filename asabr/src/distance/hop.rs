@@ -1,8 +1,12 @@
 use core::cmp::Ordering;
 
 use crate::{
-    contact_manager::ContactManager, node_manager::NodeManager,
-    pathfinding::hybrid_parenting::HybridParentingOrd, route_stage::RouteStage,
+    bundle::Bundle,
+    contact_manager::ContactManager,
+    multigraph::{Multigraph, RNodeRef},
+    node_manager::NodeManager,
+    pathfinding::hybrid_parenting::HybridParentingOrd,
+    paths::PathFragment,
 };
 
 use super::Distance;
@@ -37,55 +41,34 @@ impl<NM: NodeManager, CM: ContactManager> Distance<NM, CM> for Hop {
     /// # Performance
     /// This function is marked with `#[inline(always)]` for potential performance optimizations.
     #[inline(always)]
-    fn cmp(first: &RouteStage<NM, CM>, second: &RouteStage<NM, CM>) -> Ordering {
-        if first.hop_count > second.hop_count {
-            return Ordering::Greater;
-        } else if first.hop_count < second.hop_count {
-            return Ordering::Less;
-        } else if first.at_time > second.at_time {
-            return Ordering::Greater;
-        } else if first.at_time < second.at_time {
-            return Ordering::Less;
-        } else if first.expiration < second.expiration {
-            return Ordering::Greater;
-        } else if first.expiration > second.expiration {
-            return Ordering::Less;
-        }
-        Ordering::Equal
-    }
-
-    /// Checks if two `RouteStage` instances are equal based on specific criteria.
-    ///
-    /// Equality is determined by the following criteria:
-    /// - `hop_count`: Both instances must have the same `hop_count`.
-    /// - `at_time`: Both instances must have the same `at_time`.
-    /// - `expiration`: Both instances must have the same `expiration`.
-    ///
-    /// # Parameters
-    /// - `first`: The first route stage to check for equality.
-    /// - `second`: The second route stage to check for equality.
-    ///
-    /// # Returns
-    /// - `true` if `first` and `second` meet the criteria for equality.
-    /// - `false` otherwise.
-    ///
-    /// # Performance
-    /// This function is marked with `#[inline(always)]` for potential performance optimizations.
-    #[inline(always)]
-    fn eq(first: &RouteStage<NM, CM>, second: &RouteStage<NM, CM>) -> bool {
-        first.at_time == second.at_time
-            && first.hop_count == second.hop_count
-            && first.expiration == second.expiration
+    fn cmp<'id>(
+        first: &(PathFragment<'id>, RNodeRef<'id>),
+        second: &(PathFragment<'id>, RNodeRef<'id>),
+        _graph: &Multigraph<'id, NM, CM>,
+        _bundle: &Bundle,
+    ) -> Ordering {
+        super::cmp_by(first.0, second.0, |frag| {
+            (frag.hop_count, frag.arrival_time.end)
+        })
+        // TODO: Readd expiration
     }
 }
 
 impl<NM: NodeManager, CM: ContactManager> HybridParentingOrd<NM, CM> for Hop {
-    /// For Hop, the secondary metric to consider is the arrival time.
-    fn can_retain(prop: &RouteStage<NM, CM>, known: &RouteStage<NM, CM>) -> bool {
-        prop.at_time < known.at_time
-    }
-    /// Ignore expiration constraints to prioritize performance.
-    fn must_prune(prop: &RouteStage<NM, CM>, known: &RouteStage<NM, CM>) -> bool {
-        prop.at_time <= known.at_time && prop.hop_count <= known.hop_count
+    #[inline(always)]
+    fn keep_both<'id>(
+        first: &PathFragment<'id>,
+        second: &PathFragment<'id>,
+        _graph: &Multigraph<'id, NM, CM>,
+        _bundle: &Bundle,
+        _actual_node: RNodeRef<'id>,
+    ) -> bool {
+        match (
+            first.hop_count.cmp(&second.hop_count),
+            first.arrival_time.end.cmp(&second.arrival_time.end),
+        ) {
+            (Ordering::Less, Ordering::Greater) | (Ordering::Greater, Ordering::Less) => true,
+            _ => false,
+        }
     }
 }

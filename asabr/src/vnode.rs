@@ -33,8 +33,8 @@ impl From<(NodeID, NodeName, Vec<NodeID>)> for VirtualNodeInfo {
 #[derive(Debug, Default)]
 pub struct VirtualNodeMap {
     /// A vnode to nodes NodeIDMap.
-    vnode_to_rids_map: NodeIDMap,
-    rid_to_vnodes_map: NodeIDMap,
+    pub(crate) vnode_to_rids_map: NodeIDMap,
+    pub(crate) rid_to_vnodes_map: NodeIDMap,
 }
 
 impl VirtualNodeMap {

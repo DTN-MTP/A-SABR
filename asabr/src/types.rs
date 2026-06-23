@@ -11,10 +11,10 @@ pub type NodeIDMap = HashMap<NodeID, Vec<NodeID>>;
 pub type NodeID = u16;
 const_assert!(size_of::<NodeID>() <= size_of::<usize>());
 
-/// Represents a duration in units (e.g., seconds).
-pub type Duration = f64;
+/// Represents a duration in millisecond. Technically, ASABR never input any duration value itself, so if all manager / contact plan / library user agree, use any unit you want
+pub type Duration = i64;
 
-/// Represents a date (could represent days since a specific epoch).lo
+/// Represents a date. Recommended as a number of millisecond since epoch, same comment as `Duration`.
 pub type Date = Duration;
 
 /// Represents the priority of a task or node.
@@ -28,6 +28,12 @@ pub type DataRate = f64;
 
 /// Represents the count of hops in a routing path.
 pub type HopCount = u16;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct TimeInterval {
+    pub start: Date,
+    pub end: Date,
+}
 
 /// Represent an value encompassing all of the above, typically for use in parser
 //  Must implement FromStr and TryInto to all the above
@@ -81,6 +87,11 @@ impl From<AnyNumber> for u16 {
         value.0 as Self
     }
 }
+impl From<AnyNumber> for i64 {
+    fn from(value: AnyNumber) -> Self {
+        value.0 as Self
+    }
+}
 
 parse_single_tok!(NodeName);
 
@@ -101,5 +112,11 @@ impl<T: AsRef<str>> From<T> for NodeName {
             name: value.as_ref().into(),
             _phantom: PhantomData,
         }
+    }
+}
+
+impl Display for TimeInterval {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "[{}, {}]", self.start, self.end)
     }
 }

@@ -1,15 +1,9 @@
 use crate::contact_manager::ContactManager;
-use crate::node_manager::NodeManager;
 use crate::parse_transparent;
-#[cfg(feature = "contact_work_area")]
-use crate::route_stage::SharedRouteStage;
-use crate::types::{Date, NodeID};
+use crate::types::{Date, NodeID, TimeInterval};
 
-use core::cell::RefCell;
 use core::cmp::Ordering;
-use core::marker::PhantomData;
 extern crate alloc;
-use alloc::rc::Rc;
 
 /// Represents basic information about a contact between two nodes.
 #[derive(Clone, Copy, Debug)]
@@ -77,26 +71,17 @@ impl ContactInfo {
 /// - `CM`: A type implementing the `ContactManager` trait, responsible for managing the
 ///   contact's operations.
 #[derive(Debug)]
-pub struct Contact<NM: NodeManager, CM: ContactManager> {
-    /// The basic information about the contact.
-    pub info: ContactInfo,
+pub struct Contact<CM: ContactManager> {
+    /// This contact relevancy window
+    pub lifespan: TimeInterval,
     /// The manager handling the contact's operations.
     pub manager: CM,
-    #[cfg(feature = "contact_work_area")]
-    /// The work area for managing path construction stages (compilation option).
-    pub work_area: Option<SharedRouteStage<NM, CM>>,
     #[cfg(feature = "contact_suppression")]
     /// Suppression option for path construction (compilation option).
     pub suppressed: bool,
-
-    // for compilation
-    #[doc(hidden)]
-    _phantom_nm: PhantomData<NM>,
 }
 
-pub type SharedContact<NM, CM> = Rc<RefCell<Contact<NM, CM>>>;
-
-impl<NM: NodeManager, CM: ContactManager> Contact<NM, CM> {
+impl<CM: ContactManager> Contact<CM> {
     /// Creates a new `Contact` instance if the contact information and manager are valid.
     ///
     /// # Parameters
@@ -107,86 +92,36 @@ impl<NM: NodeManager, CM: ContactManager> Contact<NM, CM> {
     /// # Returns
     ///
     /// * `Option<Self>` - Returns `Some(Contact)` if creation was successful; otherwise, returns `None`.
-    pub fn try_new(info: ContactInfo, mut manager: CM) -> Option<Self> {
+    pub fn try_new(info: ContactInfo, mut manager: CM) -> Option<(Self, usize, usize)> {
         if info.try_init() && manager.try_init(&info) {
-            return Some(Contact {
-                info,
-                manager,
-                #[cfg(feature = "contact_work_area")]
-                work_area: None,
-                #[cfg(feature = "contact_suppression")]
-                suppressed: false,
-                // for compilation
-                _phantom_nm: PhantomData,
-            });
+            return Some((
+                Contact {
+                    lifespan: TimeInterval {
+                        start: info.start,
+                        end: info.end,
+                    },
+                    manager,
+                    #[cfg(feature = "contact_suppression")]
+                    suppressed: false,
+                },
+                info.tx_node_id.into(),
+                info.rx_node_id.into(),
+            ));
         }
         None
     }
 
-    /// Retrieves the transmitting node's ID.
-    ///
-    /// # Returns
-    ///
-    /// * `NodeID` - The ID of the transmitting node.
-    #[inline(always)]
-    pub fn get_tx_node_id(&self) -> NodeID {
-        self.info.tx_node_id
-    }
-
-    /// Retrieves the receiving node's ID.
-    ///
-    /// # Returns
-    ///
-    /// * `NodeID` - The ID of the receiving node.
-    #[inline(always)]
-    pub fn get_rx_node_id(&self) -> NodeID {
-        self.info.rx_node_id
-    }
-
     /// Compare two contacts by start time.
     pub fn cmp_by_start(&self, other: &Self) -> Ordering {
-        self.info
+        self.lifespan
             .start
-            .partial_cmp(&other.info.start)
+            .partial_cmp(&other.lifespan.start)
             .unwrap_or(Ordering::Equal)
     }
 }
 
-impl<NM: NodeManager, CM: ContactManager> Ord for Contact<NM, CM> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        if self.info.tx_node_id > other.info.tx_node_id {
-            return Ordering::Greater;
-        }
-        if self.info.tx_node_id < other.info.tx_node_id {
-            return Ordering::Less;
-        }
-        if self.info.rx_node_id > other.info.rx_node_id {
-            return Ordering::Greater;
-        }
-        if self.info.rx_node_id < other.info.rx_node_id {
-            return Ordering::Less;
-        }
-        if self.info.start > other.info.start {
-            return Ordering::Greater;
-        }
-        if self.info.start < other.info.start {
-            return Ordering::Less;
-        }
-        Ordering::Equal
+impl<CM:ContactManager> AsRef<Self> for Contact<CM> {
+    fn as_ref(&self) -> &Self {
+        self
     }
 }
-
-impl<NM: NodeManager, CM: ContactManager> PartialOrd for Contact<NM, CM> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl<NM: NodeManager, CM: ContactManager> PartialEq for Contact<NM, CM> {
-    fn eq(&self, other: &Self) -> bool {
-        self.info.tx_node_id == other.info.tx_node_id
-            && self.info.rx_node_id == other.info.rx_node_id
-            && self.info.start == other.info.start
-    }
-}
-impl<NM: NodeManager, CM: ContactManager> Eq for Contact<NM, CM> {}

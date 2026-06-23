@@ -6,7 +6,6 @@ use crate::{
     multigraph::Multigraph,
     node_manager::NodeManager,
     pathfinding::Pathfinding,
-    route_stage::RouteStage,
     route_storage::{Route, RouteStorage},
     types::{Date, NodeID},
 };
@@ -17,20 +16,16 @@ use core::{cell::RefCell, marker::PhantomData};
 
 use super::{Router, RoutingOutput, dry_run_unicast_path, schedule_unicast_path};
 
-pub struct Cgr<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: RouteStorage<NM, CM>>
+pub struct Cgr<'id,NM: NodeManager, CM: ContactManager, P: Pathfinding<'id,NM, CM>, S: RouteStorage<NM, CM>>
 {
     route_storage: Rc<RefCell<S>>,
     pathfinding: P,
 
-    // for compilation
-    #[doc(hidden)]
-    _phantom_nm: PhantomData<NM>,
-    #[doc(hidden)]
-    _phantom_cm: PhantomData<CM>,
+    _phantom: PhantomData<fn(&'id (),NM,CM)>,
 }
 
-impl<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: RouteStorage<NM, CM>>
-    Router<NM, CM> for Cgr<NM, CM, P, S>
+impl<'id,NM: NodeManager, CM: ContactManager, P: Pathfinding<'id,NM, CM>, S: RouteStorage<NM, CM>>
+    Router<NM, CM> for Cgr<'id,NM, CM, P, S>
 {
     fn route(
         &mut self,

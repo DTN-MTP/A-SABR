@@ -9,16 +9,20 @@ use crate::{
         },
         segmentation::{Segment, seg::SegmentationManager},
     },
-    contact_plan::ContactPlan,
+    contact_plan::{ContactPlan, RealNode},
     errors::ASABRError,
     node::{Node, NodeInfo},
     node_manager::{NodeManager, none::NoManagement},
     types::{DataRate, Date, Duration, NodeID},
-    vertex::Vertex,
 };
 
 extern crate alloc;
-use alloc::{collections::BTreeMap as HashMap, vec, vec::Vec};
+use alloc::{
+    collections::BTreeMap as HashMap,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 
 use core::cmp::Ordering;
 
@@ -66,14 +70,14 @@ fn contact_info_from_tvg_data(data: &IONContactData) -> ContactInfo {
     ContactInfo::new(data.tx_node_id, data.rx_node_id, data.tx_start, data.tx_end)
 }
 
-pub trait FromIONContactData<NM: NodeManager, CM: ContactManager> {
-    fn ion_convert(data: &IONContactData) -> Option<Contact<NoManagement, CM>>;
+pub trait FromIONContactData<CM: ContactManager> {
+    fn ion_convert(data: &IONContactData) -> Option<(Contact<CM>, usize, usize)>;
 }
 
 macro_rules! generate_for_evl_variants {
-    ($nm_name:ident, $cm_name:ident) => {
-        impl FromIONContactData<$nm_name, $cm_name> for $cm_name {
-            fn ion_convert(data: &IONContactData) -> Option<Contact<$nm_name, $cm_name>> {
+    ($cm_name:ident) => {
+        impl FromIONContactData<$cm_name> for $cm_name {
+            fn ion_convert(data: &IONContactData) -> Option<(Contact<$cm_name>, usize, usize)> {
                 let contact_info = contact_info_from_tvg_data(&data);
                 let manager = $cm_name::new(data.data_rate, data.delay);
                 return Contact::try_new(contact_info, manager);
@@ -82,15 +86,15 @@ macro_rules! generate_for_evl_variants {
     };
 }
 
-generate_for_evl_variants!(NoManagement, EVLManager);
-generate_for_evl_variants!(NoManagement, ETOManager);
-generate_for_evl_variants!(NoManagement, QDManager);
-generate_for_evl_variants!(NoManagement, PEVLManager);
-generate_for_evl_variants!(NoManagement, PETOManager);
-generate_for_evl_variants!(NoManagement, PQDManager);
+generate_for_evl_variants!(EVLManager);
+generate_for_evl_variants!(ETOManager);
+generate_for_evl_variants!(QDManager);
+generate_for_evl_variants!(PEVLManager);
+generate_for_evl_variants!(PETOManager);
+generate_for_evl_variants!(PQDManager);
 
-impl FromIONContactData<NoManagement, SegmentationManager> for SegmentationManager {
-    fn ion_convert(data: &IONContactData) -> Option<Contact<NoManagement, SegmentationManager>> {
+impl FromIONContactData<SegmentationManager> for SegmentationManager {
+    fn ion_convert(data: &IONContactData) -> Option<(Contact<SegmentationManager>, usize, usize)> {
         let contact_info = contact_info_from_tvg_data(data);
         let manager = SegmentationManager::new(
             vec![Segment::<DataRate> {
@@ -110,17 +114,17 @@ impl FromIONContactData<NoManagement, SegmentationManager> for SegmentationManag
 
 pub struct IONContactPlan {}
 
-fn manage_aliases<'a>(
-    map_id_map: &mut HashMap<&'a str, NodeID>,
-    candidate_name: &'a str,
-    vertices: &mut Vec<Vertex<NoManagement>>,
+fn manage_aliases(
+    name_to_id_map: &mut HashMap<String, NodeID>,
+    candidate_name: &str,
+    vertices: &mut Vec<RealNode<NoManagement>>,
 ) -> NodeID {
-    if let Some(value) = map_id_map.get(candidate_name) {
+    if let Some(value) = name_to_id_map.get(candidate_name) {
         *value
     } else {
-        let next = map_id_map.len() as NodeID;
-        map_id_map.insert(candidate_name, next);
-        vertices.push(Vertex::INode(
+        let next = name_to_id_map.len() as NodeID;
+        name_to_id_map.insert(candidate_name.to_string(), next);
+        vertices.push(RealNode::Inode(
             Node::try_new(
                 NodeInfo {
                     id: next as NodeID,
@@ -163,13 +167,8 @@ fn get_confidence(vec: &[&str]) -> f32 {
 }
 
 impl IONContactPlan {
-    pub fn parse<
-        'a,
-        NM: NodeManager,
-        CM: FromIONContactData<NM, CM> + ContactManager,
-        T: Iterator<Item = &'a str>,
-    >(
-        content: T,
+    pub fn parse<'a, NM: NodeManager, CM: FromIONContactData<CM> + ContactManager>(
+        content: impl Iterator<Item: AsRef<str>>,
     ) -> Result<ContactPlan<NoManagement, CM>, ASABRError> {
         let reader = content;
         let mut map_id_map = HashMap::new();
@@ -184,10 +183,10 @@ impl IONContactPlan {
 
         for line in reader {
             // Skip lines starting with '#'
-            if line.trim_start().starts_with('#') {
+            if line.as_ref().trim_start().starts_with('#') {
                 continue;
             }
-            let words: Vec<_> = line.split_whitespace().collect();
+            let words: Vec<_> = line.as_ref().split_whitespace().collect();
 
             if words.is_empty() {
                 continue;
@@ -264,6 +263,6 @@ impl IONContactPlan {
             ));
         }
 
-        Ok(ContactPlan::new(vertices, contacts, None))
+        Ok(ContactPlan::new(vertices, Vec::new(), contacts))
     }
 }

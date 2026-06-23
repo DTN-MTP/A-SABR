@@ -1,6 +1,7 @@
 use crate::empty_parse;
-#[cfg(any(feature = "node_proc", feature = "node_tx", feature = "node_rx"))]
-use crate::{bundle::Bundle, types::Date};
+use crate::errors::ASABRError;
+use crate::types::{NodeID, TimeInterval};
+use crate::bundle::Bundle;
 
 use super::NodeManager;
 
@@ -11,34 +12,20 @@ empty_parse!(NoManagement);
 
 /// This manager has no effect.
 impl NodeManager for NoManagement {
-    #[cfg(feature = "node_proc")]
-    fn dry_run_process(&self, at_time: Date, _bundle: &mut Bundle) -> Date {
-        at_time
-    }
-    #[cfg(feature = "node_tx")]
-    fn dry_run_tx(&self, _waiting_since: Date, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
+    fn accept(&self, _bundle: &Bundle, _time: TimeInterval, _sender: NodeID) -> bool {
         true
     }
-    #[cfg(feature = "node_rx")]
-    fn dry_run_rx(&self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
+
+    fn dry_run_retention(&self, _bundle: &Bundle, _reception: TimeInterval, _sender: NodeID, _transmition: TimeInterval, _next: NodeID) -> bool {
         true
     }
-    #[cfg(feature = "node_proc")]
-    fn schedule_process(&self, at_time: Date, _bundle: &mut Bundle) -> Date {
-        at_time
+
+    fn dry_run_multi(&self, _bundle: &Bundle, _reception: TimeInterval, _sender: NodeID, transmitions: &[(TimeInterval,NodeID)]) -> Option<usize> {
+        Some(transmitions.len())
     }
-    #[cfg(feature = "node_tx")]
-    fn schedule_tx(
-        &mut self,
-        _waiting_since: Date,
-        _start: Date,
-        _end: Date,
-        _bundle: &Bundle,
-    ) -> bool {
-        true
+
+    fn commit(&mut self, _bundle: &Bundle, _reception: TimeInterval, _sender: NodeID, _transmitions: &[(TimeInterval,NodeID)]) -> Result<(),ASABRError> {
+        Ok(())
     }
-    #[cfg(feature = "node_rx")]
-    fn schedule_rx(&mut self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        true
-    }
+
 }

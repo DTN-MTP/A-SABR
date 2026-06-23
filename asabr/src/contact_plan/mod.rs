@@ -3,9 +3,9 @@ use alloc::vec::Vec;
 
 use crate::contact::Contact;
 use crate::contact_manager::ContactManager;
+use crate::node::Node;
 use crate::node_manager::NodeManager;
-use crate::vertex::Vertex;
-use crate::vnode::VirtualNodeMap;
+use crate::vnode::VirtualNodeInfo;
 
 pub mod asabr_file_lexer;
 pub mod from_asabr_lexer;
@@ -20,11 +20,17 @@ pub mod from_tvgutil_file;
 /// - `CCM`: A type implementing the `ContactManager` trait, responsible for managing the
 ///   contact's operations.
 pub struct ContactPlan<NM: NodeManager, CM: ContactManager> {
-    /// Vertices sorted by ID. All `VNode`s come after every `INode`s and `ENode`s.
-    pub vertices: Vec<Vertex<NM>>,
-    pub contacts: Vec<Contact<NM, CM>>,
-    /// Maps vnodes and the nodes they label.
-    pub vnode_map: VirtualNodeMap,
+    /// Real nodes sorted by ID. `INode`s and `ENode`s.
+    pub(crate) realnodes: Vec<RealNode<NM>>,
+    /// Virtual nodes
+    pub(crate) vnodes: Vec<VirtualNodeInfo>,
+    /// Contacts, sender node, receiver node as index in realnodes
+    pub(crate) contacts: Vec<(Contact<CM>, usize, usize)>,
+}
+
+pub enum RealNode<NM: NodeManager> {
+    Enode(Node<NM>),
+    Inode(Node<NM>),
 }
 
 impl<NM: NodeManager, CM: ContactManager> ContactPlan<NM, CM> {
@@ -40,14 +46,14 @@ impl<NM: NodeManager, CM: ContactManager> ContactPlan<NM, CM> {
     ///
     /// * `Self` - A new instance of `ContactPlan`.
     pub fn new(
-        vertices: Vec<Vertex<NM>>,
-        contacts: Vec<Contact<NM, CM>>,
-        vnode_map: Option<VirtualNodeMap>,
+        realnodes: Vec<RealNode<NM>>,
+        vnodes: Vec<VirtualNodeInfo>,
+        contacts: Vec<(Contact<CM>, usize, usize)>,
     ) -> Self {
-        ContactPlan {
-            vertices,
+        Self {
+            realnodes,
+            vnodes,
             contacts,
-            vnode_map: vnode_map.unwrap_or_default(),
         }
     }
 }

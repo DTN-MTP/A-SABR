@@ -9,12 +9,11 @@ use crate::{
         },
         segmentation::{Segment, seg::SegmentationManager},
     },
-    contact_plan::ContactPlan,
+    contact_plan::{ContactPlan, RealNode},
     errors::ASABRError,
     node::{Node, NodeInfo},
     node_manager::{NodeManager, none::NoManagement},
     types::{DataRate, Date, Duration, NodeID},
-    vertex::Vertex,
 };
 
 extern crate alloc;
@@ -37,14 +36,14 @@ fn contact_info_from_tvg_data(data: &TVGUtilContactData) -> ContactInfo {
     ContactInfo::new(data.tx_node_id, data.rx_node_id, data.tx_start, data.tx_end)
 }
 
-pub trait FromTVGUtilContactData<NM: NodeManager, CM: ContactManager> {
-    fn tvg_convert(data: TVGUtilContactData) -> Option<Contact<NoManagement, CM>>;
+pub trait FromTVGUtilContactData<CM: ContactManager> {
+    fn tvg_convert(data: TVGUtilContactData) -> Option<(Contact<CM>, usize, usize)>;
 }
 
 macro_rules! generate_for_evl_variants {
-    ($nm_name:ident, $cm_name:ident) => {
-        impl FromTVGUtilContactData<$nm_name, $cm_name> for $cm_name {
-            fn tvg_convert(data: TVGUtilContactData) -> Option<Contact<$nm_name, $cm_name>> {
+    ($cm_name:ident) => {
+        impl FromTVGUtilContactData<$cm_name> for $cm_name {
+            fn tvg_convert(data: TVGUtilContactData) -> Option<(Contact<$cm_name>, usize, usize)> {
                 let contact_info = contact_info_from_tvg_data(&data);
                 let manager = $cm_name::new(data.data_rate, data.delay);
                 return Contact::try_new(contact_info, manager);
@@ -53,15 +52,17 @@ macro_rules! generate_for_evl_variants {
     };
 }
 
-generate_for_evl_variants!(NoManagement, EVLManager);
-generate_for_evl_variants!(NoManagement, ETOManager);
-generate_for_evl_variants!(NoManagement, QDManager);
-generate_for_evl_variants!(NoManagement, PEVLManager);
-generate_for_evl_variants!(NoManagement, PETOManager);
-generate_for_evl_variants!(NoManagement, PQDManager);
+generate_for_evl_variants!(EVLManager);
+generate_for_evl_variants!(ETOManager);
+generate_for_evl_variants!(QDManager);
+generate_for_evl_variants!(PEVLManager);
+generate_for_evl_variants!(PETOManager);
+generate_for_evl_variants!(PQDManager);
 
-impl FromTVGUtilContactData<NoManagement, SegmentationManager> for SegmentationManager {
-    fn tvg_convert(data: TVGUtilContactData) -> Option<Contact<NoManagement, SegmentationManager>> {
+impl FromTVGUtilContactData<SegmentationManager> for SegmentationManager {
+    fn tvg_convert(
+        data: TVGUtilContactData,
+    ) -> Option<(Contact<SegmentationManager>, usize, usize)> {
         let contact_info = contact_info_from_tvg_data(&data);
         let manager = SegmentationManager::new(
             vec![Segment::<DataRate> {
@@ -82,11 +83,11 @@ impl FromTVGUtilContactData<NoManagement, SegmentationManager> for SegmentationM
 pub struct TVGUtilContactPlan {}
 
 impl TVGUtilContactPlan {
-    pub fn parse<NM: NodeManager, CM: FromTVGUtilContactData<NM, CM> + ContactManager>(
+    pub fn parse<NM: NodeManager, CM: FromTVGUtilContactData<CM> + ContactManager>(
         json_data: serde_json::Value,
     ) -> Result<ContactPlan<NoManagement, CM>, ASABRError> {
-        let mut vertices: Vec<Vertex<NoManagement>> = Vec::new();
-        let mut contacts: Vec<Contact<NoManagement, CM>> = Vec::new();
+        let mut vertices: Vec<RealNode<NoManagement>> = Vec::new();
+        let mut contacts: Vec<(Contact<CM>, usize, usize)> = Vec::new();
 
         let mut map_id_map: HashMap<&str, NodeID> = HashMap::new();
 
@@ -97,7 +98,7 @@ impl TVGUtilContactPlan {
 
         for (node_id, (node_name, _node_data)) in json_nodes.iter().enumerate() {
             map_id_map.insert(node_name, node_id as NodeID);
-            vertices.push(Vertex::INode(
+            vertices.push(RealNode::Inode(
                 Node::try_new(
                     NodeInfo {
                         id: node_id as NodeID,
@@ -146,6 +147,6 @@ impl TVGUtilContactPlan {
                 contacts.push(contact);
             }
         }
-        Ok(ContactPlan::new(vertices, contacts, None))
+        Ok(ContactPlan::new(vertices, Vec::new(), contacts))
     }
 }

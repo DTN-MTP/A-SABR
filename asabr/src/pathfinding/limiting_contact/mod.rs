@@ -1,11 +1,14 @@
+#![cfg(feature = "contact_suppression")]
+
+
+use crate::bundle::Bundle;
 use crate::contact::Contact;
 use crate::contact_manager::ContactManager;
+use crate::multigraph::{ContactRef, Multigraph};
 use crate::node_manager::NodeManager;
-use crate::route_stage::SharedRouteStage;
-use core::cell::RefCell;
+use crate::pathfinding::PathFindingOutput;
 
 extern crate alloc;
-use alloc::rc::Rc;
 
 #[cfg(feature = "first_depleted")]
 pub mod first_depleted;
@@ -32,29 +35,32 @@ pub use first_ending::FirstEnding;
 ///
 /// An `Option` containing a reference-counted, mutable `Contact` that should be suppressed, if one
 /// is found; otherwise, `None`.
-#[cfg(feature = "contact_suppression")]
-pub fn get_next_to_suppress<NM: NodeManager, CM: ContactManager>(
-    route: SharedRouteStage<NM, CM>,
-    better_for_suppression_than_fn: fn(&Contact<NM, CM>, &Contact<NM, CM>) -> bool,
-) -> Option<Rc<RefCell<Contact<NM, CM>>>> {
-    let mut to_suppress_opt: Option<Rc<RefCell<Contact<NM, CM>>>> = None;
-    let mut next_route_option = Some(route);
+pub fn get_next_to_suppress<
+    'id,
+    'a,
+    NM: NodeManager,
+    CM: ContactManager,
+>(
+    graph: &Multigraph<'id, NM, CM>,
+    paths: &PathFindingOutput<'id, 'a>,
+    bundle: &Bundle,
+    better_for_suppression_than_fn: fn(&Contact<CM>, &Contact<CM>) -> bool,
+) -> Option<ContactRef<'id>> {
+    let mut to_suppress_opt: Option<ContactRef> = None;
+    let mut next_route_option = paths[bundle.destinations[0] as usize];
     while let Some(curr_route) = next_route_option.take() {
         {
-            let route_borrowed = curr_route.borrow();
-            if let Some(ref via) = route_borrowed.via {
+            if let Some(ref via) = curr_route.via {
                 match to_suppress_opt {
                     Some(ref to_suppress) => {
-                        if better_for_suppression_than_fn(
-                            &via.contact.borrow(),
-                            &to_suppress.borrow(),
-                        ) {
+                        if better_for_suppression_than_fn(&graph[via.contact], &graph[to_suppress])
+                        {
                             to_suppress_opt = Some(via.contact.clone());
                         }
                     }
                     None => to_suppress_opt = Some(via.contact.clone()),
                 }
-                next_route_option = Some(Rc::clone(&via.parent_route));
+                next_route_option = paths[via.parent_frag];
             }
         }
     }
@@ -82,7 +88,7 @@ pub fn get_next_to_suppress<NM: NodeManager, CM: ContactManager>(
 /// The struct implements the `Pathfinding` trait, using the specified suppression strategy to
 /// modify its behavior when selecting the next route. The `suppression_map` contact is removed before
 /// tree construction, and prepares the new `next_to_suppress` contact.
-#[cfg(feature = "contact_suppression")]
+
 #[macro_export]
 macro_rules! create_new_alternative_path_variant {
     ($struct_name:ident, $better_fn:ident) => {
@@ -97,26 +103,25 @@ macro_rules! create_new_alternative_path_variant {
         /// * `NM` - A type that implements the `NodeManager` trait.
         /// * `CM` - A type that implements the `ContactManager` trait.
         /// * `D` - A type that implements the `Distance<NM, CM>` trait.
-        pub struct $struct_name<
+        pub struct $struct_name<'id,
             NM: $crate::node_manager::NodeManager,
             CM: ContactManager,
-            P: $crate::pathfinding::Pathfinding<NM, CM>,
+            P: $crate::pathfinding::Pathfinding<'id,NM, CM>,
         > {
             /// The underlying pathfinding algorithm used to find individual paths.
             pathfinding: P,
-            suppression_map: alloc::vec::Vec<alloc::vec::Vec<alloc::rc::Rc<core::cell::RefCell<Contact<NM, CM>>>>>,
+            suppression_map: alloc::vec::Vec<alloc::vec::Vec<$crate::multigraph::ContactRef<'id>>>,
 
             #[doc(hidden)]
-            _phantom_nm: core::marker::PhantomData<NM>,
-            #[doc(hidden)]
-            _phantom_cm: core::marker::PhantomData<CM>,
+            _phantom: core::marker::PhantomData<(NM,CM)>,
+            id: $crate::utils::Id<'id>,
         }
 
-        impl<
+        impl<'id,
                 NM: $crate::node_manager::NodeManager,
-                CM: ContactManager,
-                P: $crate::pathfinding::Pathfinding<NM, CM>,
-            > $crate::pathfinding::Pathfinding<NM, CM> for $struct_name<NM, CM, P>
+                CM: $crate::contact_manager::ContactManager,
+                P: $crate::pathfinding::Pathfinding<'id,NM, CM>,
+            > $crate::pathfinding::Pathfinding<'id,NM, CM> for $struct_name<'id,NM, CM, P>
         {
             #[doc = concat!("Constructs a new `", stringify!($struct_name), "` instance with the provided nodes and contacts.")]
             ///
@@ -129,16 +134,17 @@ macro_rules! create_new_alternative_path_variant {
             /// # Returns
             ///
             #[doc = concat!("* `Self` - A new instance of `", stringify!($struct_name), "`.")]
-            fn new(
-                multigraph: alloc::rc::Rc<core::cell::RefCell<$crate::multigraph::Multigraph<NM, CM>>>
+            fn new<'id2>(
+                guard: $crate::utils::Guard<'id2>,
+                multigraph: &$crate::multigraph::Multigraph<'id,NM, CM>,
             ) -> Self {
-                let node_count = multigraph.borrow().get_vertex_count();
+                let node_count = multigraph.get_vertex_count();
                 Self {
 
-                    pathfinding: P::new(multigraph),
+                    pathfinding: P::new(guard,multigraph),
                     suppression_map: alloc::vec![alloc::vec::Vec::new(); node_count],
-                    _phantom_nm: core::marker::PhantomData,
-                    _phantom_cm: core::marker::PhantomData,
+                    _phantom: core::marker::PhantomData,
+                    id: multigraph.id(),
                 }
             }
             /// Finds the next route based on the current state and available contacts.
@@ -153,56 +159,36 @@ macro_rules! create_new_alternative_path_variant {
             /// # Returns
             ///
             /// * `Result<PathFindingOutput<NM, CM>, ASABRError>` - The resulting pathfinding output, including the routes found.
-            fn get_next(
-                &mut self,
+            fn find_path<'a>(
+                &'a mut self,
+                multigraph: &mut $crate::multigraph::Multigraph<'id, NM, CM>,
                 current_time: $crate::types::Date,
-                source: $crate::types::NodeID,
+                source: $crate::multigraph::NodeRef<'id>,
                 bundle: &$crate::bundle::Bundle,
-                excluded_nodes_sorted: &[$crate::types::NodeID],
-            ) -> Result<$crate::pathfinding::PathFindingOutput<NM, CM>, $crate::errors::ASABRError> {
+            ) -> Result<Option<$crate::pathfinding::PathFindingOutput<'id,'a>>, $crate::errors::ASABRError> {
 
                 let contacts = &mut self.suppression_map[bundle.destinations[0] as usize];
-                let mut i = 0;
-                while i < contacts.len() {
-                    let mut contact_borrowed = contacts[i].try_borrow_mut()?;
-
-                    let should_remove = contact_borrowed.info.end < current_time;
-                    if !should_remove {
-                        contact_borrowed.suppressed = true;
-                    }
-                    drop(contact_borrowed);
-
-                    if should_remove {
-                        contacts.remove(i);
-                    } else {
-                        i += 1;
-                    }
+                contacts.retain(|ct| multigraph[ct].lifespan.end > current_time);
+                for ct in contacts {
+                    multigraph[*ct].suppressed = true;
                 }
-
-                let tree = self
+                let path_opt = self
                     .pathfinding
-                    .get_next(current_time, source, bundle, excluded_nodes_sorted)?;
+                    .find_path(multigraph,current_time,source,bundle)?;
 
-                if let Some(route) = tree.by_destination[bundle.destinations[0] as usize].clone() {
-                    if let Some(contact) = $crate::pathfinding::limiting_contact::get_next_to_suppress(route, $better_fn) {
+                if let Some(path) = &path_opt {
+                    if let Some(contact) = $crate::pathfinding::limiting_contact::get_next_to_suppress(multigraph,path,bundle, $better_fn) {
                         self.suppression_map[bundle.destinations[0] as usize].push(contact);
                     }
                 }
                 for contact in &self.suppression_map[bundle.destinations[0] as usize] {
-                    contact.try_borrow_mut()?.suppressed = false;
+                    multigraph[contact].suppressed = false;
                 }
 
-                return Ok(tree);
+                return Ok(path_opt);
             }
 
-            /// Get a shared pointer to the multigraph.
-            ///
-            /// # Returns
-            ///
-            /// * A shared pointer to the multigraph.
-            fn get_multigraph(&self) -> alloc::rc::Rc<core::cell::RefCell<$crate::multigraph::Multigraph<NM, CM>>> {
-                return self.pathfinding.get_multigraph();
-            }
+
         }
     };
 }

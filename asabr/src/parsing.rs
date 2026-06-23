@@ -86,8 +86,8 @@ pub const INVALID_STATE: &str = "This parser is in a improper state or was feed 
 #[derive(Clone, Copy, Debug)]
 pub struct Located<T> {
     pub data: T,
-    pub(crate) line: usize,
-    pub(crate) toknum: usize,
+    pub line: usize,
+    pub toknum: usize,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -398,11 +398,6 @@ macro_rules! parse_single_tok {
     };
 }
 
-parse_single_tok!(u16, AnyNumber);
-parse_single_tok!(i8, AnyNumber);
-parse_single_tok!(f64, AnyNumber);
-parse_single_tok!(Delimiter);
-
 /// choices!(modname,ResultName,[List]) where List is a comma-separated list of (Name, Type)
 /// Create a new Parseable enum, ResultName, which can parse any of the Type, by first recognising wich one
 /// by recognising a which Kind it is.
@@ -555,6 +550,11 @@ macro_rules! tupples_joy {
 // **********
 // # Boilerplate: Tupple spam, and trivial Default and LexFrom impls
 // **********
+parse_single_tok!(u16, AnyNumber);
+parse_single_tok!(i8, AnyNumber);
+parse_single_tok!(i64, AnyNumber);
+parse_single_tok!(f64, AnyNumber);
+parse_single_tok!(Delimiter);
 
 impl<T1: Parse, T2: Parse> Default for Partial<T1, T2> {
     fn default() -> Self {
@@ -612,3 +612,17 @@ tupples_joy!(
 tupples_joy!(
     T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20
 );
+
+impl<T, L, R> Iterator for Either<L, R>
+where
+    L: Iterator<Item = T>,
+    R: Iterator<Item = T>,
+{
+    type Item = T;
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Either::Left(sub) => sub.next(),
+            Either::Right(sub) => sub.next(),
+        }
+    }
+}

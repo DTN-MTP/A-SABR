@@ -9,12 +9,8 @@ use crate::{
 /// Take an iterator over strings assumed to be lines, and parse a ContactPlan from it.
 /// Templated over a NodeManager and a ContactManager, wich must be compatible with the file syntax
 /// to successfully parse from it
-pub fn parse_from_iter<
-    NM: NodeManager + LexFrom<str>,
-    CM: ContactManager + LexFrom<str>,
-    I: Iterator<Item: AsRef<str>>,
->(
-    iter: I,
+pub fn parse_from_iter<NM: NodeManager + LexFrom<str>, CM: ContactManager + LexFrom<str>>(
+    iter: impl Iterator<Item: AsRef<str>>,
 ) -> Result<ContactPlan<NM, CM>, ASABRError> {
     let mut parser = Default::default();
 

@@ -5,7 +5,11 @@ use core::fmt::Debug;
 
 #[cfg(feature = "first_depleted")]
 use crate::types::Volume;
-use crate::{bundle::Bundle, contact::ContactInfo, types::Date};
+use crate::{
+    bundle::Bundle,
+    contact::ContactInfo,
+    types::{Date, TimeInterval},
+};
 
 pub mod legacy;
 pub mod lex;
@@ -14,16 +18,12 @@ pub mod segmentation;
 /// Data structure representing the transmission (tx) start, end, and related timing information.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ContactManagerTxData {
-    /// The start time of the transmission.
-    pub tx_start: Date,
-    /// The end time of the transmission.
-    pub tx_end: Date,
+    /// Timespan necessary to send all the data.
+    pub tx_window: TimeInterval,
     /// Expiration time.
     pub expiration: Date,
-    /// The first bit arrival time (tx_start + delay).
-    pub rx_start: Date,
-    /// The last bit arrival time (tx_end + delay).
-    pub rx_end: Date,
+    /// Timespan during wich data are received.
+    pub rx_window: TimeInterval,
 }
 
 /// Trait for managing contact resources and scheduling data transmissions.
@@ -41,7 +41,7 @@ pub trait ContactManager {
     /// Optionally returns the `ContactManagerTxData` if the dry run is successful.
     fn dry_run_tx(
         &self,
-        contact_data: &ContactInfo,
+        contact_lifespan: TimeInterval,
         at_time: Date,
         bundle: &Bundle,
     ) -> Option<ContactManagerTxData>;
@@ -119,7 +119,7 @@ impl<T: AsMut<dyn ContactManager> + AsRef<dyn ContactManager>> ContactManager fo
     /// Delegates the dry run method to the boxed object.
     fn dry_run_tx(
         &self,
-        contact_data: &ContactInfo,
+        contact_data: TimeInterval,
         at_time: Date,
         bundle: &Bundle,
     ) -> Option<ContactManagerTxData> {
@@ -168,7 +168,7 @@ macro_rules! transparent_CM {
         impl $crate::contact_manager::ContactManager for $T {
             fn dry_run_tx(
                 &self,
-                contact_data: &$crate::contact::ContactInfo,
+                contact_data: $crate::types::TimeInterval,
                 at_time: $crate::types::Date,
                 bundle: &$crate::bundle::Bundle,
             ) -> Option<$crate::contact_manager::ContactManagerTxData> {

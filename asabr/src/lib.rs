@@ -12,8 +12,6 @@ pub mod node;
 pub mod node_manager;
 /// Module containing the library primitive types.
 pub mod types;
-/// Module containing the vertex definition.
-pub mod vertex;
 /// Module containing the vnode definition.
 pub mod vnode;
 
@@ -25,9 +23,8 @@ pub mod bundle;
 pub mod multigraph;
 /// Module containing the different pathfinding implementations.
 pub mod pathfinding;
-/// Module containing the RouteStage definition.
-/// A RouteStage is an abstraction of Dijkstra's algorithm progress, a route hop, or work areas.
-pub mod route_stage;
+/// Module containing the PathFragment definition.
+pub mod paths;
 
 ///  Module containing the storage capabilities for the routes.
 pub mod route_storage;

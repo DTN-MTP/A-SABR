@@ -16,20 +16,16 @@ use core::{cell::RefCell, marker::PhantomData};
 
 use super::{Router, RoutingOutput, dry_run_unicast_path, schedule_unicast_path};
 
-pub struct VolCgr<
+pub struct VolCgr<'id,
     NM: NodeManager,
     CM: ContactManager,
-    P: Pathfinding<NM, CM>,
+    P: Pathfinding<'id,NM, CM>,
     S: RouteStorage<NM, CM>,
 > {
-    route_storage: Rc<RefCell<S>>,
+    route_storage: S,
     pathfinding: P,
 
-    // for compilation
-    #[doc(hidden)]
-    _phantom_nm: PhantomData<NM>,
-    #[doc(hidden)]
-    _phantom_cm: PhantomData<CM>,
+    _phantom: PhantomData<fn(&'id (),NM,CM)>,
 }
 
 impl<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: RouteStorage<NM, CM>>

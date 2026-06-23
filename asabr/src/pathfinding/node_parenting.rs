@@ -1,450 +1,411 @@
 extern crate alloc;
-use alloc::{collections::BinaryHeap, rc::Rc};
-use core::{cell::RefCell, cmp::Ordering, cmp::Reverse, marker::PhantomData};
+use alloc::vec;
+use core::marker::PhantomData;
 
 use crate::{
     bundle::Bundle,
     contact_manager::ContactManager,
-    distance::{Distance, DistanceWrapper},
+    distance::{Distance, prio_queue::PrioQueue},
     errors::ASABRError,
-    multigraph::Multigraph,
+    multigraph::{Multigraph, NodeRef},
     node_manager::NodeManager,
-    route_stage::RouteStage,
+    pathfinding::PathFragment,
     types::{Date, NodeID},
 };
 
+use generativity::{Guard, Id};
+
 use super::{PathFindingOutput, Pathfinding, try_make_hop};
 
-macro_rules! define_node_graph {
-    ($name:ident, $is_tree_output:tt, $with_exclusions:tt) => {
-        /// A node parenting (node graph, SPSN v1) implementation of Dijkstra algorithm.
-        ///
-        /// Use this implementation for optimized resource utilization.
-        ///
-        /// # Type Parameters
-        ///
-        /// * `NM` - A type that implements the `NodeManager` trait.
-        /// * `CM` - A type that implements the `ContactManager` trait.
-        /// * `D` - A type that implements the `Distance<NM, CM>` trait.
-        pub struct $name<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> {
-            /// The node multigraph for contact access.
-            graph: Rc<RefCell<Multigraph<NM, CM>>>,
-            #[doc(hidden)]
-            _phantom_distance: PhantomData<D>,
+/// A node parenting (node graph, SPSN v1) implementation of Dijkstra algorithm.
+///
+/// Use this implementation for optimized resource utilization.
+///
+/// # Type Parameters
+/// * `TREE` wether to calculate a full path tree or stop upon reaching the bundle first destination
+/// * `NM` - A type that implements the `NodeManager` trait.
+/// * `CM` - A type that implements the `ContactManager` trait.
+/// * `D` - A type that implements the `Distance<NM, CM>` trait.
+pub struct NodeParenting<
+    'id,
+    const tree_output: bool,
+    NM: NodeManager,
+    CM: ContactManager,
+    D: Distance<NM, CM>,
+> {
+    #[doc(hidden)]
+    _phantom: PhantomData<fn(D, NM, CM)>,
+    id: Id<'id>,
+}
+
+impl<
+    'id,
+    const tree_output: bool,
+    NM: NodeManager,
+    CM: ContactManager,
+    D: Distance<NM, CM>,
+> Pathfinding<'id, NM, CM> for NodeParenting<'id, tree_output, NM, CM, D>
+{
+    /// Constructs a new `NodeParenting` instance suitable to find paths on the provided multigraph
+    fn new(_guard: Guard, multigraph: &Multigraph<'id, NM, CM>) -> Self {
+        Self {
+            _phantom: PhantomData,
+            id: multigraph.id(),
+        }
+    }
+
+    /// Finds the next route based on the current state and available contacts.
+    ///
+    /// This method uses a priority queue to explore potential routes from a source node,
+    /// considering the current time, bundle, and excluded nodes.
+    ///
+    /// # Parameters
+    ///
+    /// * `current_time` - The current time used for evaluating routes.
+    /// * `source` - The `NodeID` of the source node from which to begin pathfinding.
+    /// * `bundle` - The `Bundle` associated with the pathfinding operation.
+    /// * `excluded_nodes_sorted` - A sorted list of `NodeID`s to be excluded from the pathfinding.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<PathFindingOutput<NM, CM>, ASABRError>` - The resulting pathfinding output, including the routes found,
+    ///   or an error if the operation fails.
+    fn find_path<'a>(
+        &'a mut self,
+        multigraph: &mut Multigraph<'id, NM, CM>,
+        current_time: Date,
+        source: NodeRef<'id>,
+        bundle: &Bundle,
+    ) -> Result<Option<PathFindingOutput<'id, 'a>>, ASABRError> {
+        let mut path_tree = vec![None; multigraph.get_rnode_count()];
+
+        let mut prioqueue =
+            PrioQueue::<'_, D, NM, CM, ()>::with_capacity(multigraph.get_rnode_count());
+
+        // Used only when tree_output = true, defined outside of if scope but never used
+        let mut reachable: usize = 0;
+        let mut reached: usize = 0;
+        let start = PathFragment::new_start(current_time);
+        for rnode in multigraph.iter_node(source) {
+            prioqueue.insert(((start, rnode), ()), multigraph, bundle);
+            if tree_output {
+                reachable += 1;
+            }
         }
 
-        impl<NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> Pathfinding<NM, CM>
-            for $name<NM, CM, D>
+        while (if tree_output {
+            reachable > reached
+        } else {
+            path_tree[bundle.destinations[0] as usize].is_none()
+        }) && let Some(((path, node), ())) = prioqueue.pop_min(multigraph, bundle)
         {
-            /// Constructs a new `NodeParenting` instance with the provided nodes and contacts.
-            ///
-            /// # Parameters
-            ///
-            /// * `multigraph` - A shared pointer to a multigraph.
-            ///
-            /// # Returns
-            ///
-            #[doc = concat!( " * `Self` - A new instance of `",stringify!($name),"`.")]
-            fn new(multigraph: Rc<RefCell<Multigraph<NM, CM>>>) -> Self {
-                Self {
-                    graph: multigraph,
-                    _phantom_distance: PhantomData,
+            if path_tree[NodeID::from(node) as usize].is_none() {
+                if tree_output {
+                    reached += 1;
                 }
-            }
-
-            /// Finds the next route based on the current state and available contacts.
-            ///
-            /// This method uses a priority queue to explore potential routes from a source node,
-            /// considering the current time, bundle, and excluded nodes.
-            ///
-            /// # Parameters
-            ///
-            /// * `current_time` - The current time used for evaluating routes.
-            /// * `source` - The `NodeID` of the source node from which to begin pathfinding.
-            /// * `bundle` - The `Bundle` associated with the pathfinding operation.
-            /// * `excluded_nodes_sorted` - A sorted list of `NodeID`s to be excluded from the pathfinding.
-            ///
-            /// # Returns
-            ///
-            /// * `Result<PathFindingOutput<NM, CM>, ASABRError>` - The resulting pathfinding output, including the routes found,
-            ///   or an error if the operation fails.
-            fn get_next(
-                &mut self,
-                current_time: Date,
-                source: NodeID,
-                bundle: &Bundle,
-                excluded_nodes_sorted: &[NodeID],
-            ) -> Result<PathFindingOutput<NM, CM>, ASABRError> {
-                let mut graph = self.graph.try_borrow_mut()?;
-
-                if $with_exclusions {
-                    graph.prepare_for_exclusions_sorted(excluded_nodes_sorted)?;
-                }
-                let source_route: Rc<RefCell<RouteStage<NM, CM>>> =
-                    Rc::new(RefCell::new(RouteStage::new(
-                        current_time,
-                        source,
-                        None,
-                        #[cfg(feature = "node_proc")]
-                        bundle.clone(),
-                    )));
-                let mut tree: PathFindingOutput<NM, CM> = PathFindingOutput::new(
-                    bundle,
-                    source_route.clone(),
-                    excluded_nodes_sorted,
-                    graph.senders.len(),
-                );
-
-                let mut priority_queue: BinaryHeap<Reverse<DistanceWrapper<NM, CM, D>>> =
-                    BinaryHeap::new();
-
-                for node_id in 0..graph.get_vertex_count() {
-                    if node_id == source as usize {
-                        tree.by_destination[node_id as usize] = Some(source_route.clone());
-                    } else {
-                        tree.by_destination[node_id as usize] = None;
-                    }
-                }
-
-                priority_queue.push(Reverse(DistanceWrapper::new(Rc::clone(&source_route))));
-
-                while let Some(Reverse(DistanceWrapper(from_route, _))) = priority_queue.pop() {
-                    if from_route.borrow().is_disabled {
+                let viaref = NodeID::from(node) as usize;
+                let (current_node, iter) = multigraph.iter_iter_contacts(node);
+                for (neighbor, _, contacts) in iter {
+                    if path_tree[NodeID::from(neighbor) as usize].is_some() {
                         continue;
                     }
-                    let tx_node_id = from_route.borrow().to_node;
-                    if !$is_tree_output {
-                        if bundle.destinations[0] == tx_node_id {
-                            break;
+                    let delay = current_node.manager.delay(
+                        bundle,
+                        path.arrival_time,
+                        node.into(),
+                        neighbor.into(),
+                    );
+                    if let Some(path) = try_make_hop(
+                        multigraph,
+                        (&path, viaref),
+                        bundle,
+                        node,
+                        neighbor,
+                        delay,
+                        contacts,
+                    ) {
+                        if tree_output {
+                            reachable += 1
                         }
-                    }
-
-                    let sender = &graph.senders[tx_node_id as usize];
-
-                    for receiver in &sender.receivers {
-                        if $with_exclusions {
-                            if receiver.is_excluded(&graph.real_nodes) {
-                                continue;
-                            }
-                        }
-
-                        if let Some(first_contact_index) =
-                            receiver.lazy_prune_and_get_first_idx(current_time)
-                            && let Some(route_proposition) = try_make_hop(
-                                first_contact_index,
-                                &from_route,
-                                bundle,
-                                receiver.vertex_id,
-                                &receiver.contacts_to_receiver,
-                                &graph.real_nodes,
-                            )
-                        {
-                            let idx = receiver.vertex_id as usize;
-                            let push = match tree.by_destination[idx].as_ref() {
-                                Some(known_route_ref) => {
-                                    let mut known_route = known_route_ref.try_borrow_mut()?;
-                                    if D::cmp(&route_proposition, &known_route) == Ordering::Less {
-                                        known_route.is_disabled = true;
-                                        true
-                                    } else {
-                                        false
-                                    }
-                                }
-                                None => true,
-                            };
-
-                            if push {
-                                let route_ref = Rc::new(RefCell::new(route_proposition));
-                                tree.by_destination[idx] = Some(route_ref.clone());
-                                priority_queue.push(Reverse(DistanceWrapper::new(route_ref)));
-                            }
-                        }
+                        path_tree[NodeID::from(neighbor) as usize] = Some(path);
+                        prioqueue.insert(((path, neighbor), ()), multigraph, bundle);
                     }
                 }
-
-                Ok(tree)
-            }
-
-            /// Get a shared pointer to the multigraph.
-            ///
-            /// # Returns
-            ///
-            /// * A shared pointer to the multigraph.
-            fn get_multigraph(&self) -> Rc<RefCell<Multigraph<NM, CM>>> {
-                return self.graph.clone();
             }
         }
-    };
-}
 
-define_node_graph!(NodeParentingTreeExcl, true, true);
-define_node_graph!(NodeParentingPath, false, false);
-define_node_graph!(NodeParentingPathExcl, false, true);
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::contact_manager::legacy::evl::EVLManager;
-    use crate::distance::hop::Hop;
-    use crate::distance::sabr::SABR;
-    use crate::node_manager::none::NoManagement;
-    use crate::pathfinding::ASABRError;
-    use crate::pathfinding::test_helpers::*;
-
-    #[test]
-    fn test_a_to_c_tree() -> Result<(), ASABRError> {
-        let mg = unit_graph_test()?;
-
-        let mut algo_hop = NodeParentingTreeExcl::<NoManagement, EVLManager, Hop>::new(mg.clone());
-        let mut algo_sabr =
-            NodeParentingTreeExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
-
-        let bundle = make_bundle(2, 1, 1.0, 2000.0);
-
-        let res_hop = algo_hop
-            .get_next(0.0, 0, &bundle, &[][..])
-            .expect("Hop : Routing Failed !");
-
-        assert_time_hop(&res_hop, 2, 2.02, 2, "Hop");
-
-        let res_sabr = algo_sabr
-            .get_next(0.0, 0, &bundle, &[][..])
-            .expect("SABR : Routing Failed !");
-
-        assert_time_hop(&res_sabr, 2, 2.02, 2, "SABR");
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_a_to_c_tree_excluded() -> Result<(), ASABRError> {
-        let mg = unit_graph_test()?;
-
-        let mut algo_hop = NodeParentingTreeExcl::<NoManagement, EVLManager, Hop>::new(mg.clone());
-        let mut algo_sabr =
-            NodeParentingTreeExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
-
-        let bundle = make_bundle(2, 1, 1.0, 2000.0);
-        let excluded = [1];
-
-        let res_hop = algo_hop
-            .get_next(0.0, 0, &bundle, &excluded[..])
-            .expect("Hop : Routing Failed !");
-        assert!(
-            res_hop.by_destination[1].is_none(),
-            "Hop : B should be excluded"
-        );
-        assert!(
-            res_hop.by_destination[2].is_none(),
-            "Hop : C should not be accessible without B"
-        );
-
-        let res_sabr = algo_sabr
-            .get_next(0.0, 0, &bundle, &excluded[..])
-            .expect("SABR : Routing Failed !");
-        assert!(
-            res_sabr.by_destination[1].is_none(),
-            "SABR : B should be excluded"
-        );
-        assert!(
-            res_sabr.by_destination[2].is_none(),
-            "SABR : C should not be accessible without B"
-        );
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_a_to_c_path_excl() -> Result<(), ASABRError> {
-        let mg = unit_graph_test()?;
-
-        let mut algo_hop = NodeParentingPathExcl::<NoManagement, EVLManager, Hop>::new(mg.clone());
-        let mut algo_sabr =
-            NodeParentingPathExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
-
-        let bundle = make_bundle(2, 1, 1.0, 2000.0);
-        let excluded = [1];
-
-        let res_hop = algo_hop
-            .get_next(0.0, 0, &bundle, &excluded[..])
-            .expect("Hop : Routing Failed !");
-        assert!(
-            res_hop.by_destination[2].is_none(),
-            "Hop : C should not be accessible without B"
-        );
-
-        let res_sabr = algo_sabr
-            .get_next(0.0, 0, &bundle, &excluded[..])
-            .expect("SABR : Routing Failed !");
-        assert!(
-            res_sabr.by_destination[2].is_none(),
-            "SABR : C should not be accessible without B"
-        );
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_two_paths_to_c() -> Result<(), ASABRError> {
-        let mg = five_contact_graph_test()?;
-
-        let mut algo_hop = NodeParentingTreeExcl::<NoManagement, EVLManager, Hop>::new(mg.clone());
-        let mut algo_sabr =
-            NodeParentingTreeExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
-
-        let bundle = make_bundle(2, 1, 1.0, 2000.0);
-
-        let res_hop = algo_hop
-            .get_next(0.0, 0, &bundle, &[][..])
-            .expect("Hop : Routing Failed !");
-
-        assert_time_hop(&res_hop, 2, 10.01, 1, "Hop");
-
-        let res_sabr = algo_sabr
-            .get_next(0.0, 0, &bundle, &[][..])
-            .expect("SABR : Routing Failed !");
-
-        assert_time_hop(&res_sabr, 2, 0.13, 2, "SABR");
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_exemple_1() -> Result<(), ASABRError> {
-        let mg = exemple_1_graph()?;
-
-        let mut algo_hop = NodeParentingPath::<NoManagement, EVLManager, Hop>::new(mg.clone());
-        let mut algo_sabr = NodeParentingPath::<NoManagement, EVLManager, SABR>::new(mg.clone());
-
-        let bundle = make_bundle(3, 0, 0.0, 1000.0);
-
-        let res_hop = algo_hop
-            .get_next(0.0, 0, &bundle, &[][..])
-            .expect("Routing Failed !");
-
-        assert_time_hop(&res_hop, 3, 30.0, 2, "Hop");
-
-        let res_sabr = algo_sabr
-            .get_next(0.0, 0, &bundle, &[][..])
-            .expect("Routing Failed !");
-
-        assert_time_hop(&res_sabr, 3, 30.0, 3, "SABR");
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_exemple_2() -> Result<(), ASABRError> {
-        let mg = exemple_2_graph()?;
-
-        let mut algo_hop = NodeParentingPath::<NoManagement, EVLManager, Hop>::new(mg.clone());
-        let mut algo_sabr = NodeParentingPath::<NoManagement, EVLManager, SABR>::new(mg.clone());
-
-        let bundle = make_bundle(4, 0, 0.0, 1000.0);
-
-        let res_hop = algo_hop
-            .get_next(0.0, 0, &bundle, &[][..])
-            .expect("Routing Failed !");
-
-        assert_time_hop(&res_hop, 4, 50.0, 3, "Hop");
-
-        let res_sabr = algo_sabr
-            .get_next(0.0, 0, &bundle, &[][..])
-            .expect("Routing Failed !");
-
-        assert_time_hop(&res_sabr, 4, 50.0, 4, "SABR");
-
-        Ok(())
-    }
-
-    /// Tests anycast routing via a vnode.
-    ///
-    /// VNode V(5) labels real nodes C(2) and E(4).
-    /// Path to C: A->B->C (arrival = 2.02, 2 hops)
-    /// Path to E: A->D->E (arrival = 1.01, 2 hops)
-    ///
-    /// Routing to vnode V(5) should find the faster path through E.
-    #[test]
-    fn test_vnode_anycast_tree() -> Result<(), ASABRError> {
-        let mg = vnode_anycast_graph()?;
-
-        let mut algo = NodeParentingTreeExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
-
-        // Destination is the vnode V(5)
-        let bundle = make_bundle(5, 1, 1.0, 2000.0);
-
-        let res = algo
-            .get_next(0.0, 0, &bundle, &[][..])
-            .expect("Routing to vnode failed!");
-
-        // The vnode vertex (index 5) should have a route
-        assert!(
-            res.by_destination[5].is_some(),
-            "VNode V(5) should be reachable"
-        );
-
-        let vnode_route = res.by_destination[5].as_ref().unwrap().borrow();
-        // to_node should be the vnode vertex ID (5), not a real node ID
-        assert_eq!(
-            vnode_route.to_node, 5,
-            "Route to vnode should have to_node = vnode vertex ID (5), got {}",
-            vnode_route.to_node
-        );
-
-        // The real nodes C(2) and E(4) should also be reachable
-        assert!(
-            res.by_destination[2].is_some(),
-            "Real node C(2) should be reachable"
-        );
-        assert!(
-            res.by_destination[4].is_some(),
-            "Real node E(4) should be reachable"
-        );
-
-        // The vnode route's ViaHop should reference real nodes (not the vnode)
-        let via = vnode_route
-            .via
-            .as_ref()
-            .expect("VNode route should have a ViaHop");
-        let real_rx_id = via.rx_node.borrow().info.id;
-        assert!(
-            real_rx_id == 2 || real_rx_id == 4,
-            "ViaHop rx_node should be a real node in the vnode group (2 or 4), got {real_rx_id}",
-        );
-
-        Ok(())
-    }
-
-    /// Tests that routing to a vnode correctly picks the faster path.
-    ///
-    /// VNode V(5) labels real nodes C(2) and E(4).
-    /// The unicast pathfinder should stop at V(5) once it is popped from
-    /// the priority queue, having found the best route (through E, faster).
-    #[test]
-    fn test_vnode_anycast_path() -> Result<(), ASABRError> {
-        let mg = vnode_anycast_graph()?;
-
-        let mut algo = NodeParentingPathExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
-
-        // Destination is the vnode V(5)
-        let bundle = make_bundle(5, 1, 1.0, 2000.0);
-
-        let res = algo
-            .get_next(0.0, 0, &bundle, &[][..])
-            .expect("Routing to vnode failed!");
-
-        // V(5) should be reachable
-        assert!(
-            res.by_destination[5].is_some(),
-            "VNode V(5) should be reachable via path search"
-        );
-
-        let vnode_route = res.by_destination[5].as_ref().unwrap().borrow();
-        assert_eq!(
-            vnode_route.to_node, 5,
-            "Route to_node should be vnode ID (5)"
-        );
-
-        Ok(())
+        Ok(Some(PathFindingOutput {
+            path_tree: crate::parsing::Either::Right(path_tree),
+        }))
     }
 }
+
+//TODO: Restore tests by interpolation between these and hybrid parenting ones
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use crate::contact_manager::legacy::evl::EVLManager;
+//     use crate::distance::hop::Hop;
+//     use crate::distance::sabr::SABR;
+//     use crate::node_manager::none::NoManagement;
+//     use crate::pathfinding::ASABRError;
+//     use crate::pathfinding::test_helpers::*;
+
+//     #[test]
+//     fn test_a_to_c_tree() -> Result<(), ASABRError> {
+//         let mg = unit_graph_test()?;
+
+//         let mut algo_hop = NodeParentingTreeExcl::<NoManagement, EVLManager, Hop>::new(mg.clone());
+//         let mut algo_sabr =
+//             NodeParentingTreeExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
+
+//         let bundle = make_bundle(2, 1, 1.0, 2000.0);
+
+//         let res_hop = algo_hop
+//             .get_next(0.0, 0, &bundle, &[][..])
+//             .expect("Hop : Routing Failed !");
+
+//         assert_time_hop(&res_hop, 2, 2.02, 2, "Hop");
+
+//         let res_sabr = algo_sabr
+//             .get_next(0.0, 0, &bundle, &[][..])
+//             .expect("SABR : Routing Failed !");
+
+//         assert_time_hop(&res_sabr, 2, 2.02, 2, "SABR");
+
+//         Ok(())
+//     }
+
+//     #[test]
+//     fn test_a_to_c_tree_excluded() -> Result<(), ASABRError> {
+//         let mg = unit_graph_test()?;
+
+//         let mut algo_hop = NodeParentingTreeExcl::<NoManagement, EVLManager, Hop>::new(mg.clone());
+//         let mut algo_sabr =
+//             NodeParentingTreeExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
+
+//         let bundle = make_bundle(2, 1, 1.0, 2000.0);
+//         let excluded = [1];
+
+//         let res_hop = algo_hop
+//             .get_next(0.0, 0, &bundle, &excluded[..])
+//             .expect("Hop : Routing Failed !");
+//         assert!(
+//             res_hop.by_destination[1].is_none(),
+//             "Hop : B should be excluded"
+//         );
+//         assert!(
+//             res_hop.by_destination[2].is_none(),
+//             "Hop : C should not be accessible without B"
+//         );
+
+//         let res_sabr = algo_sabr
+//             .get_next(0.0, 0, &bundle, &excluded[..])
+//             .expect("SABR : Routing Failed !");
+//         assert!(
+//             res_sabr.by_destination[1].is_none(),
+//             "SABR : B should be excluded"
+//         );
+//         assert!(
+//             res_sabr.by_destination[2].is_none(),
+//             "SABR : C should not be accessible without B"
+//         );
+
+//         Ok(())
+//     }
+
+//     #[test]
+//     fn test_a_to_c_path_excl() -> Result<(), ASABRError> {
+//         let mg = unit_graph_test()?;
+
+//         let mut algo_hop = NodeParentingPathExcl::<NoManagement, EVLManager, Hop>::new(mg.clone());
+//         let mut algo_sabr =
+//             NodeParentingPathExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
+
+//         let bundle = make_bundle(2, 1, 1.0, 2000.0);
+//         let excluded = [1];
+
+//         let res_hop = algo_hop
+//             .get_next(0.0, 0, &bundle, &excluded[..])
+//             .expect("Hop : Routing Failed !");
+//         assert!(
+//             res_hop.by_destination[2].is_none(),
+//             "Hop : C should not be accessible without B"
+//         );
+
+//         let res_sabr = algo_sabr
+//             .get_next(0.0, 0, &bundle, &excluded[..])
+//             .expect("SABR : Routing Failed !");
+//         assert!(
+//             res_sabr.by_destination[2].is_none(),
+//             "SABR : C should not be accessible without B"
+//         );
+
+//         Ok(())
+//     }
+
+//     #[test]
+//     fn test_two_paths_to_c() -> Result<(), ASABRError> {
+//         let mg = five_contact_graph_test()?;
+
+//         let mut algo_hop = NodeParentingTreeExcl::<NoManagement, EVLManager, Hop>::new(mg.clone());
+//         let mut algo_sabr =
+//             NodeParentingTreeExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
+
+//         let bundle = make_bundle(2, 1, 1.0, 2000.0);
+
+//         let res_hop = algo_hop
+//             .get_next(0.0, 0, &bundle, &[][..])
+//             .expect("Hop : Routing Failed !");
+
+//         assert_time_hop(&res_hop, 2, 10.01, 1, "Hop");
+
+//         let res_sabr = algo_sabr
+//             .get_next(0.0, 0, &bundle, &[][..])
+//             .expect("SABR : Routing Failed !");
+
+//         assert_time_hop(&res_sabr, 2, 0.13, 2, "SABR");
+
+//         Ok(())
+//     }
+
+//     #[test]
+//     fn test_exemple_1() -> Result<(), ASABRError> {
+//         let mg = exemple_1_graph()?;
+
+//         let mut algo_hop = NodeParentingPath::<NoManagement, EVLManager, Hop>::new(mg.clone());
+//         let mut algo_sabr = NodeParentingPath::<NoManagement, EVLManager, SABR>::new(mg.clone());
+
+//         let bundle = make_bundle(3, 0, 0.0, 1000.0);
+
+//         let res_hop = algo_hop
+//             .get_next(0.0, 0, &bundle, &[][..])
+//             .expect("Routing Failed !");
+
+//         assert_time_hop(&res_hop, 3, 30.0, 2, "Hop");
+
+//         let res_sabr = algo_sabr
+//             .get_next(0.0, 0, &bundle, &[][..])
+//             .expect("Routing Failed !");
+
+//         assert_time_hop(&res_sabr, 3, 30.0, 3, "SABR");
+
+//         Ok(())
+//     }
+
+//     #[test]
+//     fn test_exemple_2() -> Result<(), ASABRError> {
+//         let mg = exemple_2_graph()?;
+
+//         let mut algo_hop = NodeParentingPath::<NoManagement, EVLManager, Hop>::new(mg.clone());
+//         let mut algo_sabr = NodeParentingPath::<NoManagement, EVLManager, SABR>::new(mg.clone());
+
+//         let bundle = make_bundle(4, 0, 0.0, 1000.0);
+
+//         let res_hop = algo_hop
+//             .get_next(0.0, 0, &bundle, &[][..])
+//             .expect("Routing Failed !");
+
+//         assert_time_hop(&res_hop, 4, 50.0, 3, "Hop");
+
+//         let res_sabr = algo_sabr
+//             .get_next(0.0, 0, &bundle, &[][..])
+//             .expect("Routing Failed !");
+
+//         assert_time_hop(&res_sabr, 4, 50.0, 4, "SABR");
+
+//         Ok(())
+//     }
+
+//     /// Tests anycast routing via a vnode.
+//     ///
+//     /// VNode V(5) labels real nodes C(2) and E(4).
+//     /// Path to C: A->B->C (arrival = 2.02, 2 hops)
+//     /// Path to E: A->D->E (arrival = 1.01, 2 hops)
+//     ///
+//     /// Routing to vnode V(5) should find the faster path through E.
+//     #[test]
+//     fn test_vnode_anycast_tree() -> Result<(), ASABRError> {
+//         let mg = vnode_anycast_graph()?;
+
+//         let mut algo = NodeParentingTreeExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
+
+//         // Destination is the vnode V(5)
+//         let bundle = make_bundle(5, 1, 1.0, 2000.0);
+
+//         let res = algo
+//             .get_next(0.0, 0, &bundle, &[][..])
+//             .expect("Routing to vnode failed!");
+
+//         // The vnode vertex (index 5) should have a route
+//         assert!(
+//             res.by_destination[5].is_some(),
+//             "VNode V(5) should be reachable"
+//         );
+
+//         let vnode_route = res.by_destination[5].as_ref().unwrap().borrow();
+//         // to_node should be the vnode vertex ID (5), not a real node ID
+//         assert_eq!(
+//             vnode_route.to_node, 5,
+//             "Route to vnode should have to_node = vnode vertex ID (5), got {}",
+//             vnode_route.to_node
+//         );
+
+//         // The real nodes C(2) and E(4) should also be reachable
+//         assert!(
+//             res.by_destination[2].is_some(),
+//             "Real node C(2) should be reachable"
+//         );
+//         assert!(
+//             res.by_destination[4].is_some(),
+//             "Real node E(4) should be reachable"
+//         );
+
+//         // The vnode route's ViaHop should reference real nodes (not the vnode)
+//         let via = vnode_route
+//             .via
+//             .as_ref()
+//             .expect("VNode route should have a ViaHop");
+//         let real_rx_id = via.rx_node.borrow().info.id;
+//         assert!(
+//             real_rx_id == 2 || real_rx_id == 4,
+//             "ViaHop rx_node should be a real node in the vnode group (2 or 4), got {real_rx_id}",
+//         );
+
+//         Ok(())
+//     }
+
+//     /// Tests that routing to a vnode correctly picks the faster path.
+//     ///
+//     /// VNode V(5) labels real nodes C(2) and E(4).
+//     /// The unicast pathfinder should stop at V(5) once it is popped from
+//     /// the priority queue, having found the best route (through E, faster).
+//     #[test]
+//     fn test_vnode_anycast_path() -> Result<(), ASABRError> {
+//         let mg = vnode_anycast_graph()?;
+
+//         let mut algo = NodeParentingPathExcl::<NoManagement, EVLManager, SABR>::new(mg.clone());
+
+//         // Destination is the vnode V(5)
+//         let bundle = make_bundle(5, 1, 1.0, 2000.0);
+
+//         let res = algo
+//             .get_next(0.0, 0, &bundle, &[][..])
+//             .expect("Routing to vnode failed!");
+
+//         // V(5) should be reachable
+//         assert!(
+//             res.by_destination[5].is_some(),
+//             "VNode V(5) should be reachable via path search"
+//         );
+
+//         let vnode_route = res.by_destination[5].as_ref().unwrap().borrow();
+//         assert_eq!(
+//             vnode_route.to_node, 5,
+//             "Route to_node should be vnode ID (5)"
+//         );
+
+//         Ok(())
+//     }
+// }

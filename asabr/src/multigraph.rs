@@ -1,107 +1,67 @@
 extern crate alloc;
 
-use alloc::{collections::BTreeMap as HashMap, rc::Rc, vec, vec::Vec};
-use core::cell::RefCell;
-use core::fmt::Display;
+use alloc::vec::Vec;
+use core::{
+    fmt::Display,
+    iter,
+    ops::{Index, IndexMut},
+};
+use generativity::{Guard, Id};
+use itertools::Itertools;
 
 use super::node::Node;
-use crate::contact::Contact;
 use crate::contact_manager::ContactManager;
-use crate::contact_plan::ContactPlan;
+use crate::contact_plan::{ContactPlan, RealNode};
 use crate::errors::ASABRError;
 use crate::node_manager::NodeManager;
 use crate::types::*;
-use crate::vertex::{VNode, Vertex, VertexID};
-
-/// Represents a sender node in a routing system, with associated receivers.
-///
-/// The `Sender` struct holds the ID of a sender vertex and a list of `Receiver`
-/// instances that represent the intended recipients for messages or routing actions.
-///
-/// # Generic Parameters
-/// - `NM`: A type implementing the `NodeManager` trait, responsible for managing node-level operations.
-/// - `CM`: A type implementing the `ContactManager` trait, responsible for managing contact-level operations.
-#[derive(Debug)]
-pub struct Sender<NM: NodeManager, CM: ContactManager> {
-    /// The ID of the vertex represented by this sender.
-    pub vertex_id: VertexID,
-    /// A list of receivers that this sender can communicate with or send data to.
-    pub receivers: Vec<Receiver<NM, CM>>,
-}
-
-/// Represents a receiver node, along with its contacts and routing information.
-///
-/// The `Receiver` struct holds references to contacts that provide paths to this receiver,
-/// and it also includes a mechanism for lazy pruning of outdated contacts based on a time threshold.
-///
-/// # Generic Parameters
-/// - `NM`: A type implementing the `NodeManager` trait, managing node-level operations.
-/// - `CM`: A type implementing the `ContactManager` trait, managing contact-level operations.
-#[derive(Debug)]
-pub struct Receiver<NM: NodeManager, CM: ContactManager> {
-    /// The ID of the vertex represented by this receiver.
-    pub vertex_id: VertexID,
-    /// A list of contacts providing paths to this receiver.
-    pub contacts_to_receiver: Vec<Rc<RefCell<Contact<NM, CM>>>>,
-    /// The index of the next contact to be checked for relevance.
-    pub next: RefCell<usize>,
-}
-
-impl<NM: NodeManager, CM: ContactManager> Receiver<NM, CM> {
-    /// Lazily prunes outdated contacts and returns the index of the first valid contact.
-    ///
-    /// This method iterates over `contacts_to_receiver`, starting from the index stored in `self.next`.
-    /// It checks if each contact is still valid based on its expiration time. Once a valid contact
-    /// is found, it updates `self.next` and returns the index of this contact.
-    ///
-    /// # Parameters
-    /// - `current_time`: The current time against which contact expiration is checked.
-    ///
-    /// # Returns
-    /// - `Some(usize)`: The index of the first valid contact if found.
-    /// - `None`: If no valid contact is found.
-    pub fn lazy_prune_and_get_first_idx(&self, current_time: Date) -> Option<usize> {
-        let mut next_mut = self.next.borrow_mut();
-        for (idx, contact) in self.contacts_to_receiver.iter().enumerate().skip(*next_mut) {
-            if contact.borrow().info.end > current_time {
-                *next_mut = idx;
-                return Some(idx);
-            }
-        }
-        None
-    }
-
-    /// Checks if the receiver's node is excluded from routing or pathfinding.
-    ///
-    /// This method provides a quick check on whether the receiver node is excluded
-    /// from any routing operations. This is useful for selectively excluding nodes
-    /// without removing them from the network entirely.
-    ///
-    /// # Returns
-    /// - `true`: If the receiver node is excluded.
-    /// - `false`: If the receiver node is included.
-    pub fn is_excluded(&self, nodes: &[Rc<RefCell<Node<NM>>>]) -> bool {
-        if self.vertex_id as usize >= nodes.len() {
-            // It's a vnode
-            return false;
-        }
-        return nodes[self.vertex_id as usize].borrow().info.excluded;
-    }
-}
+use crate::{contact::Contact, parsing::Either};
 
 /// Represents a multigraph structure, where each node can have multiple connections.
 #[derive(Debug)]
-pub struct Multigraph<NM: NodeManager, CM: ContactManager> {
-    /// The list of sender objects.
-    pub senders: Vec<Sender<NM, CM>>,
+pub struct Multigraph<'id, NM: NodeManager, CM: ContactManager> {
+    // TODO: better contact management.
     /// The list of node objects.
-    pub real_nodes: Vec<Rc<RefCell<Node<NM>>>>,
-    /// The total number of nodes in the multigraph.
-    pub virtual_nodes: Vec<VNode>,
-    vertex_count: usize,
+    real_nodes: Vec<(Node<NM>, Vec<(RNodeRef<'id>, Vec<Contact<CM>>)>)>,
+    virtual_nodes: Vec<Vec<RNodeRef<'id>>>,
+    /// ZST graph id
+    id: Id<'id>,
 }
 
-impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
+/// A reference to a real node in the graph with the same id
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct RNodeRef<'id> {
+    /// The node index in the graph vector
+    index: usize,
+    /// ZST graph id
+    id: Id<'id>,
+}
+
+/// A reference to a virtual node in the graph with the same id
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct VNodeRef<'id> {
+    /// The node index in the graph vector
+    index: usize,
+    /// ZST graph id
+    id: Id<'id>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum NodeRef<'id> {
+    R(RNodeRef<'id>),
+    V(VNodeRef<'id>),
+}
+
+/// A reference to a contact in the graph with the same id
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ContactRef<'id> {
+    node: RNodeRef<'id>,
+    index: (usize, usize),
+    /// ZST graph id
+    id: Id<'id>,
+}
+
+impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
     /// Creates a new `Multigraph` from a contact plan.
     ///
     /// Note: For Dijkstra, we need fast access for the senders. To this end, the index
@@ -109,122 +69,103 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
     /// overhead if some nodes are not transmitters in the contacts. Regarding the
     /// receivers, only fast iteration is required. The indices of the senders[tx_id].receivers
     /// Vec do not match the receivers NodeID, and no entry exists if a node never receives.
-    ///
-    /// # Parameters
-    ///
-    /// * `ContactPlan` - A contact plan of nodes, contacts and a vnode map, and associated management information.
-    ///
-    /// # Returns
-    ///
-    /// * `Self` - A new instance of `Multigraph`.
-    pub fn new(contact_plan: ContactPlan<NM, CM>) -> Result<Self, ASABRError> {
-        // work area
-        let vnodes_for_rid = contact_plan.vnode_map.get_rid_to_vnodes_map();
-        let vertex_count = contact_plan.vertices.len();
-        let virtual_node_count = contact_plan.vnode_map.get_vnode_to_rids_map().len();
-        let real_node_count = vertex_count - virtual_node_count;
-        let mut virtual_nodes = Vec::with_capacity(virtual_node_count);
-        #[allow(clippy::type_complexity)]
-        // Maps contacts to Sender vertex IDs and Receiver vertex IDs.
-        let mut snd_rcv_map: HashMap<
-            VertexID,
-            HashMap<VertexID, Vec<Rc<RefCell<Contact<NM, CM>>>>>,
-        > = HashMap::new();
-        let mut is_external = vec![false; vertex_count];
+    pub fn new(
+        id_guard: Guard<'id>,
+        ContactPlan {
+            realnodes,
+            vnodes,
+            mut contacts,
+        }: ContactPlan<NM, CM>,
+    ) -> Result<Self, ASABRError> {
+        let id = id_guard.into();
 
-        // output
-        let mut nodes = Vec::with_capacity(real_node_count);
-        let mut senders = Vec::with_capacity(vertex_count);
+        let mut r = Self {
+            real_nodes: Vec::with_capacity(realnodes.len()),
+            virtual_nodes: Vec::with_capacity(vnodes.len()),
+            id: id,
+        };
 
-        // collect real nodes, track enodes, init senders
-        for ver in contact_plan.vertices {
-            if let Vertex::ENode(node) = &ver {
-                is_external[node.get_node_id() as usize] = true;
-            }
-
-            let vertex_id = match ver {
-                Vertex::ENode(node) => {
-                    let id = node.get_node_id();
-                    nodes.push(Rc::new(RefCell::new(node)));
-                    id
-                }
-                Vertex::INode(node) => {
-                    let id = node.get_node_id();
-                    nodes.push(Rc::new(RefCell::new(node)));
-                    id
-                }
-
-                Vertex::VNode((vnode_name, vnode_id)) => {
-                    virtual_nodes.push((vnode_name, vnode_id));
-                    vnode_id
-                }
-            };
-            senders.push(Sender {
-                vertex_id,
-                receivers: Vec::with_capacity(vertex_count),
-            });
-        }
-
-        // Fill contacts into vertex Sender and Receiver pairs (including vnodes) in the map.
-        for contact in contact_plan.contacts {
-            let real_tx_id = contact.get_tx_node_id();
-            let real_rx_id = contact.get_rx_node_id();
-
-            let contact_rc = Rc::new(RefCell::new(contact));
-
-            for t in vnodes_for_rid
-                .get(&real_tx_id)
-                .into_iter()
-                .flatten()
-                .chain(core::iter::once(&real_tx_id))
-            {
-                for r in vnodes_for_rid
-                    .get(&real_rx_id)
-                    .into_iter()
-                    .flatten()
-                    .chain(core::iter::once(&real_rx_id))
-                {
-                    // Only add inodes and vnodes as Sender/Receiver in the graph
-                    // AND if the Sender/Receiver IDs are different.
-                    if !is_external[*t as usize] && !is_external[*r as usize] && t != r {
-                        snd_rcv_map
-                            .entry(*t)
-                            .or_default()
-                            .entry(*r)
-                            .or_default()
-                            .push(contact_rc.clone());
-                    }
+        for node in realnodes {
+            match node {
+                RealNode::Enode(node) | RealNode::Inode(node) => {
+                    r.real_nodes.push((node, Vec::new()))
                 }
             }
         }
-
-        // now "flatten" (move to linear data structure) and shrink receivers
-        for (t, receivers) in snd_rcv_map {
-            for (r, mut contacts) in receivers {
-                if (t as usize) < real_node_count && (r as usize) < real_node_count {
-                    contacts.sort_unstable();
-                } else {
-                    // A vnode Sender or Receiver's contacts must be sorted by time only, not by
-                    // Tx/Rx node ID.
-                    contacts.sort_unstable_by(|a, b| a.borrow().cmp_by_start(&b.borrow()))
+        for vnode in vnodes {
+            let new = r
+                .virtual_nodes
+                .push_mut(Vec::with_capacity(vnode.rids.len()));
+            for rid in vnode.rids {
+                if rid as usize >= r.real_nodes.len() {
+                    return Err(ASABRError::ContactPlanError("illegal node id"));
                 }
-                let recver = Receiver {
-                    vertex_id: r,
-                    contacts_to_receiver: contacts,
-                    next: 0.into(),
-                };
-                senders[t as usize].receivers.push(recver);
+                new.push(RNodeRef {
+                    index: rid.into(),
+                    id,
+                });
             }
-            senders[t as usize].receivers.shrink_to_fit();
         }
 
-        virtual_nodes.shrink_to_fit();
-        Ok(Self {
-            senders,
-            real_nodes: nodes,
-            virtual_nodes,
-            vertex_count,
-        })
+        contacts.sort_unstable_by_key(|contact| (contact.1, contact.2));
+
+        let contact_groups = contacts.into_iter().chunk_by(|ct| (ct.1, ct.2));
+
+        for ((rx, tx), ct_g) in contact_groups.into_iter() {
+            if rx >= r.real_nodes.len() || tx >= r.real_nodes.len() {
+                return Err(ASABRError::ContactPlanError("illegal node id"));
+            }
+
+            let new = &mut r.real_nodes[rx]
+                .1
+                .push_mut((RNodeRef { index: tx, id }, Vec::new()))
+                .1;
+
+            for ct in ct_g {
+                new.push(ct.0);
+            }
+        }
+
+        Ok(r)
+    }
+
+    /// The unsafe version of new that does not require a Guard, and produce a Multigraph for any given lifetime, including 'static.
+    /// This method is intended to make it easy to store / return multigraphs, and/or pass them to C.
+    /// # Safety
+    /// Using this method make it your responsability to associate all other taged information with the correct graph instead of relying on the compiler.
+    /// Using any of the tagged structures (ContactRef and NodeRef, Pathfinding implementation ...) with an incorrect graph
+    /// can result in UB or Panic even while using the safe interface.
+    ///
+    /// Note that, if you do not 'id in any way, the compiler will not check for either of these:
+    ///  - Using structures associated with this unsafely constructed graph with a safely constructed graph
+    ///  - Using structures associated with a safely constructed graph with this unsafely constructed one
+    ///  - Using structures associated with another unsafely constructed graph with this one
+    ///
+    /// It is guaranteed that restricting 'id to be 'static make the first two cases impossible, but the last one is still your responsability to avoid.
+    /// For more fine restriction, check the generativity crate
+    pub unsafe fn new_unguarded(contact_plan: ContactPlan<NM, CM>) -> Result<Self, ASABRError> {
+        let guard = unsafe { Guard::<'id>::new(Id::new()) };
+        Self::new(guard, contact_plan)
+    }
+
+    pub fn node_id_ref(&self, id: NodeID) -> Result<NodeRef<'id>, ASABRError> {
+        let mut id = id as usize;
+        if id < self.real_nodes.len() {
+            Ok(NodeRef::R(RNodeRef {
+                index: id,
+                id: self.id,
+            }))
+        } else {
+            id -= self.real_nodes.len();
+            if id < self.virtual_nodes.len() {
+                Ok(NodeRef::V(VNodeRef {
+                    index: id,
+                    id: self.id,
+                }))
+            } else {
+                Err(ASABRError::ContactPlanError("illegal node id"))
+            }
+        }
     }
 
     /// Applies exclusions to the nodes based on the provided sorted exclusions.
@@ -234,78 +175,255 @@ impl<NM: NodeManager, CM: ContactManager> Multigraph<NM, CM> {
     /// # Parameters
     ///
     /// * `exclusions: &[NodeID]` - A sorted list of node IDs to exclude.
-    ///
-    /// # Returns
-    /// - `Ok(())`: If all exclusions were applied successfully.
-    /// - Err(ASABRError)`: If a node cannot be mutably borrowed.
-    pub fn prepare_for_exclusions_sorted(
-        &mut self,
-        exclusions: &[NodeID],
-    ) -> Result<(), ASABRError> {
-        let mut exclusion_idx = 0;
-        let exclusion_len = exclusions.len();
-
-        for (node_id, node) in self.real_nodes.iter_mut().enumerate() {
-            if exclusion_idx < exclusion_len && exclusions[exclusion_idx] as usize == node_id {
-                node.try_borrow_mut()?.info.excluded = true;
-                exclusion_idx += 1;
-            } else {
-                node.try_borrow_mut()?.info.excluded = false;
-            }
+    pub fn mark_excluded(&mut self, exclusions: &[RNodeRef<'id>]) {
+        for (node, _) in self.real_nodes.iter_mut() {
+            node.info.excluded = false;
         }
-        Ok(())
+        for node in exclusions {
+            self[node].info.excluded = true;
+        }
     }
 
-    /// Retrieves the total number of vertices in the multigraph.
-    ///
-    /// # Returns
-    ///
-    /// * `usize` - The total number of vertices.
+    /// Retrieves the total number of vertices in the multigraph (rnode + vnode).
     pub fn get_vertex_count(&self) -> usize {
-        self.vertex_count
+        self.real_nodes.len() + self.virtual_nodes.len()
+    }
+
+    /// Retrieve the total number of real node in the multigraph (enode + node)
+    pub fn get_rnode_count(&self) -> usize {
+        self.real_nodes.len()
+    }
+
+    /// Retrieves a copy of the Id<'id>
+    pub fn id(&self) -> Id<'id> {
+        self.id
+    }
+
+    pub fn iter_contacts_withnodes(
+        &self,
+        tx: RNodeRef<'id>,
+        rx: RNodeRef<'id>,
+    ) -> impl Iterator<Item = (ContactRef<'id>, &Contact<CM>, &Node<NM>, &Node<NM>)> {
+        let txcontacts = &self.real_nodes[tx.index].1;
+        let iter = txcontacts
+            .iter()
+            .enumerate()
+            .filter(move |(_, (id, _))| *id == rx);
+        iter.flat_map(move |(id, (_, ve))| {
+            (0..ve.len()).map(move |i| {
+                (
+                    ContactRef {
+                        node: tx,
+                        index: (id, i),
+                        id: self.id,
+                    },
+                    &ve[i],
+                    &self.real_nodes[tx.index].0,
+                    &self.real_nodes[rx.index].0,
+                )
+            })
+        })
+    }
+
+    pub fn iter_contacts(
+        &self,
+        tx: RNodeRef<'id>,
+        rx: RNodeRef<'id>,
+    ) -> impl Iterator<Item = ContactRef<'id>> {
+        let txcontacts = &self.real_nodes[tx.index].1;
+        let iter = txcontacts
+            .iter()
+            .enumerate()
+            .filter(move |(_, (id, _))| *id == rx);
+        iter.flat_map(move |(id, (_, ve))| {
+            (0..ve.len()).map(move |i| ContactRef {
+                node: tx,
+                index: (id, i),
+                id: self.id,
+            })
+        })
+    }
+    pub fn iter_contacts_mut(
+        &mut self,
+        tx: RNodeRef<'id>,
+        rx: RNodeRef<'id>,
+    ) -> impl Iterator<Item = (ContactRef<'id>, &mut Contact<CM>)> {
+        let gid = self.id;
+        let txcontacts = &mut self.real_nodes[tx.index].1;
+        let iter = txcontacts
+            .iter_mut()
+            .enumerate()
+            .filter(move |(_, (id, _))| *id == rx);
+        iter.flat_map(move |(id, (_, ve))| {
+            ve.iter_mut().enumerate().map(move |(i, ct)| {
+                (
+                    ContactRef {
+                        node: tx,
+                        index: (id, i),
+                        id: gid,
+                    },
+                    ct,
+                )
+            })
+        })
+    }
+    pub fn iter_virtualnode(&self, node: VNodeRef<'id>) -> impl Iterator<Item = RNodeRef<'id>> {
+        self.virtual_nodes[node.index].iter().copied()
+    }
+    pub fn iter_node(&self, node: NodeRef<'id>) -> impl Iterator<Item = RNodeRef<'id>> {
+        match node {
+            NodeRef::R(rnode_ref) => Either::Left(iter::once(rnode_ref)),
+            NodeRef::V(vnode_ref) => Either::Right(self.iter_virtualnode(vnode_ref)),
+        }
+    }
+    pub fn iter_iter_contacts(
+        &self,
+        noderef: RNodeRef<'id>,
+    ) -> (
+        &Node<NM>,
+        impl Iterator<
+            Item = (
+                RNodeRef<'id>,
+                &Node<NM>,
+                impl Iterator<Item = (ContactRef<'id>, &Contact<CM>)>,
+            ),
+        >,
+    ) {
+        let id = self.id;
+        let (node, neigbhours) = &self.real_nodes[noderef.index];
+        let neighboor_iter = neigbhours
+            .iter()
+            .enumerate()
+            .map(move |(outer, (neig, contacts))| {
+                (
+                    *neig,
+                    &self.real_nodes[neig.index].0,
+                    contacts.iter().enumerate().map(move |(inner, contact)| {
+                        (
+                            ContactRef {
+                                node: noderef,
+                                index: (outer, inner),
+                                id,
+                            },
+                            contact,
+                        )
+                    }),
+                )
+            });
+        (node, neighboor_iter)
     }
 }
 
-impl<NM: NodeManager, CM: ContactManager> Display for Multigraph<NM, CM> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let real_node_count = self.real_nodes.len();
-        let label =
-            |f: &mut core::fmt::Formatter, vid: crate::vertex::VertexID| -> core::fmt::Result {
-                if (vid as usize) < real_node_count {
-                    let node = self.real_nodes[vid as usize].borrow();
-                    write!(f, "node {} \"{}\"", node.info.id, node.info.name)?
-                } else {
-                    write!(f, "vnode {vid}")?
-                }
-                Ok(())
-            };
+impl<'id, NM: NodeManager, CM: ContactManager> Index<RNodeRef<'id>> for Multigraph<'id, NM, CM> {
+    type Output = Node<NM>;
+    fn index(&self, index: RNodeRef<'id>) -> &Self::Output {
+        &self.real_nodes[index.index].0
+    }
+}
+impl<'id, NM: NodeManager, CM: ContactManager> IndexMut<RNodeRef<'id>> for Multigraph<'id, NM, CM> {
+    fn index_mut(&mut self, index: RNodeRef<'id>) -> &mut Self::Output {
+        &mut self.real_nodes[index.index].0
+    }
+}
 
+impl<'id, NM: NodeManager, CM: ContactManager> Index<VNodeRef<'id>> for Multigraph<'id, NM, CM> {
+    type Output = [RNodeRef<'id>];
+    fn index(&self, index: VNodeRef<'id>) -> &Self::Output {
+        self.virtual_nodes[index.index].as_slice()
+    }
+}
+impl<'id, NM: NodeManager, CM: ContactManager> IndexMut<VNodeRef<'id>> for Multigraph<'id, NM, CM> {
+    fn index_mut(&mut self, index: VNodeRef<'id>) -> &mut Self::Output {
+        self.virtual_nodes[index.index].as_mut_slice()
+    }
+}
+
+impl<'id, NM: NodeManager, CM: ContactManager> Index<ContactRef<'id>> for Multigraph<'id, NM, CM> {
+    type Output = Contact<CM>;
+    fn index(&self, index: ContactRef<'id>) -> &Self::Output {
+        &self.real_nodes[index.node.index].1[index.index.0].1[index.index.1]
+    }
+}
+impl<'id, NM: NodeManager, CM: ContactManager> IndexMut<ContactRef<'id>>
+    for Multigraph<'id, NM, CM>
+{
+    fn index_mut(&mut self, index: ContactRef<'id>) -> &mut Self::Output {
+        &mut self.real_nodes[index.node.index].1[index.index.0].1[index.index.1]
+    }
+}
+
+impl<'id, NM: NodeManager, CM: ContactManager, I> Index<&I> for Multigraph<'id, NM, CM>
+where
+    I: Copy,
+    Multigraph<'id, NM, CM>: Index<I>,
+{
+    type Output = <Multigraph<'id, NM, CM> as Index<I>>::Output;
+    fn index(&self, index: &I) -> &Self::Output {
+        &self[*index]
+    }
+}
+
+impl<'id, NM: NodeManager, CM: ContactManager, I> IndexMut<&I> for Multigraph<'id, NM, CM>
+where
+    I: Copy,
+    Multigraph<'id, NM, CM>: IndexMut<I>,
+{
+    fn index_mut(&mut self, index: &I) -> &mut Self::Output {
+        &mut self[*index]
+    }
+}
+
+impl<'id> From<RNodeRef<'id>> for NodeID {
+    fn from(value: RNodeRef<'id>) -> NodeID {
+        value.index as NodeID
+    }
+}
+
+impl<'id, NM: NodeManager, CM: ContactManager> Display for Multigraph<'id, NM, CM> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         writeln!(
             f,
             "Multigraph: {} vertices ({} real node(s), {} vnode(s))",
-            self.get_vertex_count(),
-            real_node_count,
-            self.get_vertex_count() - real_node_count,
+            self.real_nodes.len() + self.virtual_nodes.len(),
+            self.real_nodes.len(),
+            self.virtual_nodes.len(),
         )?;
 
-        for sender in &self.senders {
-            write!(f, "- Sender ")?;
-            label(f, sender.vertex_id)?;
-            writeln!(f, ":")?;
-            for receiver in &sender.receivers {
-                write!(f, "    -> Receiver ")?;
-                label(f, receiver.vertex_id)?;
-                writeln!(f, " ({} contact(s)):", receiver.contacts_to_receiver.len(),)?;
-                for contact_rc in &receiver.contacts_to_receiver {
-                    let c = contact_rc.borrow();
-                    writeln!(
-                        f,
-                        "        * tx={} rx={} [{}, {}]",
-                        c.info.tx_node_id, c.info.rx_node_id, c.info.start, c.info.end,
-                    )?;
+        writeln!(f, "Vnodes:")?;
+        for vnode in self.virtual_nodes.iter().enumerate() {
+            write!(f, "id: {}, rids: [", vnode.0 + self.real_nodes.len())?;
+            for rid in vnode.1 {
+                write!(f, "{}, ", rid.index)?;
+            }
+            writeln!(f, "]")?;
+        }
+
+        writeln!(f, "\nNodes:")?;
+        for rnode in self.real_nodes.iter().enumerate() {
+            writeln!(f, "id: {}", rnode.0)?;
+            for ctg in &rnode.1.1 {
+                writeln!(f, " -> node {} ", ctg.0.index)?;
+                for ct in &ctg.1 {
+                    writeln!(f, "  - Contact during {} ", ct.lifespan)?;
                 }
             }
         }
+
         Ok(())
+    }
+}
+
+impl<'id> NodeRef<'id> {
+    pub fn real(self) -> Option<RNodeRef<'id>> {
+        match self {
+            NodeRef::R(rnode_ref) => Some(rnode_ref),
+            NodeRef::V(_vnode_ref) => None,
+        }
+    }
+    pub fn virt(self) -> Option<VNodeRef<'id>> {
+        match self {
+            NodeRef::R(_rnode_ref) => None,
+            NodeRef::V(vnode_ref) => Some(vnode_ref),
+        }
     }
 }
