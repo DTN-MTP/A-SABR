@@ -1,21 +1,19 @@
 extern crate alloc;
-use alloc::vec;
-use core::marker::PhantomData;
+use alloc::{vec, vec::Vec};
 
 use crate::{
     bundle::Bundle,
     contact_manager::ContactManager,
-    distance::{Distance, prio_queue::PrioQueue},
-    errors::ASABRError,
-    multigraph::{Multigraph, NodeRef},
+    multigraph::Multigraph,
     node_manager::NodeManager,
-    pathfinding::PathFragment,
-    types::{Date, NodeID},
+    pathfinding::{
+        PathFragment,
+        disktra::{Disktra, DisktraWorkspace},
+    },
+    types::NodeID,
 };
 
-use generativity::{Guard, Id};
-
-use super::{PathFindingOutput, Pathfinding, try_make_hop};
+use super::super::PathFindingOutput;
 
 /// A node parenting (node graph, SPSN v1) implementation of Dijkstra algorithm.
 ///
@@ -26,117 +24,57 @@ use super::{PathFindingOutput, Pathfinding, try_make_hop};
 /// * `NM` - A type that implements the `NodeManager` trait.
 /// * `CM` - A type that implements the `ContactManager` trait.
 /// * `D` - A type that implements the `Distance<NM, CM>` trait.
-pub struct NodeParenting<
-    'id,
-    const tree_output: bool,
-    NM: NodeManager,
-    CM: ContactManager,
-    D: Distance<NM, CM>,
-> {
-    #[doc(hidden)]
-    _phantom: PhantomData<fn(D, NM, CM)>,
-    id: Id<'id>,
+pub type NodeParenting<'id, D> = Disktra<NodeParentingWorkArea<'id>, D>;
+
+pub struct NodeParentingWorkArea<'id> {
+    paths: Vec<Option<PathFragment<'id>>>,
 }
 
-impl<
-    'id,
-    const tree_output: bool,
-    NM: NodeManager,
-    CM: ContactManager,
-    D: Distance<NM, CM>,
-> Pathfinding<'id, NM, CM> for NodeParenting<'id, tree_output, NM, CM, D>
+impl<'id, NM: NodeManager, CM: ContactManager> DisktraWorkspace<'id, NM, CM>
+    for NodeParentingWorkArea<'id>
 {
-    /// Constructs a new `NodeParenting` instance suitable to find paths on the provided multigraph
-    fn new(_guard: Guard, multigraph: &Multigraph<'id, NM, CM>) -> Self {
+    fn new(graph: &Multigraph<'id, NM, CM>) -> Self {
         Self {
-            _phantom: PhantomData,
-            id: multigraph.id(),
+            paths: vec![None; graph.get_rnode_count()],
         }
     }
 
-    /// Finds the next route based on the current state and available contacts.
-    ///
-    /// This method uses a priority queue to explore potential routes from a source node,
-    /// considering the current time, bundle, and excluded nodes.
-    ///
-    /// # Parameters
-    ///
-    /// * `current_time` - The current time used for evaluating routes.
-    /// * `source` - The `NodeID` of the source node from which to begin pathfinding.
-    /// * `bundle` - The `Bundle` associated with the pathfinding operation.
-    /// * `excluded_nodes_sorted` - A sorted list of `NodeID`s to be excluded from the pathfinding.
-    ///
-    /// # Returns
-    ///
-    /// * `Result<PathFindingOutput<NM, CM>, ASABRError>` - The resulting pathfinding output, including the routes found,
-    ///   or an error if the operation fails.
-    fn find_path<'a>(
-        &'a mut self,
-        multigraph: &mut Multigraph<'id, NM, CM>,
-        current_time: Date,
-        source: NodeRef<'id>,
+    fn into_pathfinding_output(self) -> PathFindingOutput<'id, 'static> {
+        PathFindingOutput {
+            path_tree: crate::parsing::Either::Right(self.paths),
+        }
+    }
+
+    #[inline(always)]
+    fn try_insert(
+        &mut self,
+        proposition: PathFragment<'id>,
+        actual_node: crate::multigraph::RNodeRef<'id>,
+        graph: &Multigraph<'id, NM, CM>,
         bundle: &Bundle,
-    ) -> Result<Option<PathFindingOutput<'id, 'a>>, ASABRError> {
-        let mut path_tree = vec![None; multigraph.get_rnode_count()];
-
-        let mut prioqueue =
-            PrioQueue::<'_, D, NM, CM, ()>::with_capacity(multigraph.get_rnode_count());
-
-        // Used only when tree_output = true, defined outside of if scope but never used
-        let mut reachable: usize = 0;
-        let mut reached: usize = 0;
-        let start = PathFragment::new_start(current_time);
-        for rnode in multigraph.iter_node(source) {
-            prioqueue.insert(((start, rnode), ()), multigraph, bundle);
-            if tree_output {
-                reachable += 1;
-            }
-        }
-
-        while (if tree_output {
-            reachable > reached
+    ) -> (Option<usize>, bool) {
+        let dest = &mut self.paths[NodeID::from(actual_node) as usize];
+        if dest.is_some() {
+            (None, false)
         } else {
-            path_tree[bundle.destinations[0] as usize].is_none()
-        }) && let Some(((path, node), ())) = prioqueue.pop_min(multigraph, bundle)
-        {
-            if path_tree[NodeID::from(node) as usize].is_none() {
-                if tree_output {
-                    reached += 1;
-                }
-                let viaref = NodeID::from(node) as usize;
-                let (current_node, iter) = multigraph.iter_iter_contacts(node);
-                for (neighbor, _, contacts) in iter {
-                    if path_tree[NodeID::from(neighbor) as usize].is_some() {
-                        continue;
-                    }
-                    let delay = current_node.manager.delay(
-                        bundle,
-                        path.arrival_time,
-                        node.into(),
-                        neighbor.into(),
-                    );
-                    if let Some(path) = try_make_hop(
-                        multigraph,
-                        (&path, viaref),
-                        bundle,
-                        node,
-                        neighbor,
-                        delay,
-                        contacts,
-                    ) {
-                        if tree_output {
-                            reachable += 1
-                        }
-                        path_tree[NodeID::from(neighbor) as usize] = Some(path);
-                        prioqueue.insert(((path, neighbor), ()), multigraph, bundle);
-                    }
-                }
-            }
+            *dest = Some(proposition);
+            (Some(NodeID::from(actual_node) as usize), true)
         }
+    }
+    #[inline(always)]
+    fn node_check(&mut self, node: crate::multigraph::RNodeRef<'id>) -> bool {
+        self.paths[NodeID::from(node) as usize].is_none()
+    }
 
-        Ok(Some(PathFindingOutput {
-            path_tree: crate::parsing::Either::Right(path_tree),
-        }))
+    #[inline(always)]
+    fn fragment_check(
+        &mut self,
+        proposition: PathFragment<'id>,
+        dest_node: crate::multigraph::RNodeRef<'id>,
+        graph: &Multigraph<'id, NM, CM>,
+        bundle: &Bundle,
+    ) -> bool {
+        true
     }
 }
 

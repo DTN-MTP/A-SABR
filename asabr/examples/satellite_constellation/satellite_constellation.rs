@@ -1,5 +1,3 @@
-assert_cfg!(feature = "node_tx");
-
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
@@ -27,39 +25,49 @@ struct NoRetention {
 }
 
 impl NodeManager for NoRetention {
-    fn dry_run_tx(&self, waiting_since: Date, start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        start - waiting_since < self.max_proc_time
-    }
-
-    fn schedule_tx(
-        &mut self,
-        waiting_since: Date,
-        start: Date,
-        _end: Date,
-        _bundle: &Bundle,
+    fn accept(
+        &self,
+        bundle: &Bundle,
+        time: a_sabr::types::TimeInterval,
+        sender: a_sabr::types::NodeID,
     ) -> bool {
-        start - waiting_since < self.max_proc_time
+        true
     }
 
-    // This manager only needs the node_tx feature
-    // Those guards allow compilation even with the --all-features option
-    #[cfg(feature = "node_proc")]
-    fn dry_run_process(&self, _at_time: Date, _bundle: &mut Bundle) -> Date {
-        panic!("Please disable the 'node_proc' and 'node_rx' features.");
+    fn dry_run_retention(
+        &self,
+        bundle: &Bundle,
+        reception: a_sabr::types::TimeInterval,
+        sender: a_sabr::types::NodeID,
+        transmition: a_sabr::types::TimeInterval,
+        next: a_sabr::types::NodeID,
+    ) -> bool {
+        transmition.end - reception.start < self.max_proc_time
     }
 
-    #[cfg(feature = "node_proc")]
-    fn schedule_process(&self, _at_time: Date, _bundle: &mut Bundle) -> Date {
-        panic!("Please disable the 'node_proc' and 'node_rx' features.");
+    fn dry_run_multi(
+        &self,
+        bundle: &Bundle,
+        reception: a_sabr::types::TimeInterval,
+        sender: a_sabr::types::NodeID,
+        transmitions: &[(a_sabr::types::TimeInterval, a_sabr::types::NodeID)],
+    ) -> Option<usize> {
+        let r = transmitions
+            .iter()
+            .enumerate()
+            .take_while(|(_, trans)| trans.0.end - reception.start < self.max_proc_time)
+            .last();
+        Some(r.map_or(0, |(index, _)| index))
     }
 
-    #[cfg(feature = "node_rx")]
-    fn dry_run_rx(&self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        panic!("Please disable the 'node_proc' and 'node_rx' features.");
-    }
-    #[cfg(feature = "node_rx")]
-    fn schedule_rx(&mut self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        panic!("Please disable the 'node_proc' and 'node_rx' features.");
+    fn commit(
+        &mut self,
+        bundle: &Bundle,
+        reception: a_sabr::types::TimeInterval,
+        sender: a_sabr::types::NodeID,
+        transmitions: &[(a_sabr::types::TimeInterval, a_sabr::types::NodeID)],
+    ) -> Result<(), ASABRError> {
+        Ok(())
     }
 }
 
@@ -106,7 +114,7 @@ fn edge_case_example<NM: NodeManager + LexFrom<str>>(cp_path: &str) -> Result<()
         destinations: vec![2],
         priority: 0,
         size: 0.0,
-        expiration: 1000.0,
+        expiration: 1000,
     };
     let file = File::open(cp_path).unwrap();
     let lines = BufReader::new(file).lines().map(|l| l.unwrap());

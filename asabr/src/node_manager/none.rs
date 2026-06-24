@@ -5,7 +5,7 @@ use crate::bundle::Bundle;
 
 use super::NodeManager;
 
-/// Use this manager if no node management shall be considered (with or without the node_rx, node_tx, and node_proc compilation features).
+/// Use this manager if no node management is needed.
 #[derive(Debug, Default)]
 pub struct NoManagement {}
 empty_parse!(NoManagement);

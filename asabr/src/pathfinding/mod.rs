@@ -14,12 +14,11 @@ use crate::parsing::Either;
 use crate::paths::{PathFragment, ViaHop};
 use crate::types::{Date, NodeID, TimeInterval};
 
-#[cfg(feature = "contact_work_area")]
-pub mod contact_parenting;
-pub mod hybrid_parenting;
+pub mod disktra;
+pub mod disktra_impl;
+pub use disktra_impl::*;
 #[cfg(feature = "contact_suppression")]
 pub mod limiting_contact;
-pub mod node_parenting;
 #[cfg(test)]
 mod test_helpers;
 
@@ -106,11 +105,10 @@ pub trait Pathfinding<'id, NM: NodeManager, CM: ContactManager> {
         &'a mut self,
         multigraph: &mut Multigraph<'id, NM, CM>,
         current_time: Date,
-        source: NodeRef<'id>,
+        source: RNodeRef<'id>,
         bundle: &Bundle,
     ) -> Result<Option<PathFindingOutput<'id, 'a>>, ASABRError>;
 }
-
 /// Attempts to make a hop (i.e., a transmission between nodes) for the given route stage and bundle,
 /// checking potential contacts to determine the best hop.
 ///
@@ -440,7 +438,6 @@ fn try_make_hop<'id, NM: NodeManager, CM: ContactManager, T: AsRef<Contact<CM>>>
 //         );
 //     }
 
-//     #[cfg(feature = "node_rx")]
 //     #[test]
 //     fn test_node_rx_refusing() {
 //         let bundle = make_bundle(1, 1, 1.0, 2000.0);
@@ -460,7 +457,6 @@ fn try_make_hop<'id, NM: NodeManager, CM: ContactManager, T: AsRef<Contact<CM>>>
 //         );
 //     }
 
-//     #[cfg(feature = "node_proc")]
 //     #[test]
 //     fn test_node_proc_delay() {
 //         let bundle = make_bundle(1, 1, 10.0, 2000.0);

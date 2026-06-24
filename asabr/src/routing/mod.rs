@@ -10,7 +10,7 @@ use crate::{
     contact::Contact,
     contact_manager::ContactManager,
     errors::ASABRError,
-    multigraph::{self, ContactRef, Multigraph},
+    multigraph::{self, ContactRef, Multigraph, RNodeRef},
     node_manager::NodeManager,
     pathfinding::{PathFindingOutput, Pathfinding},
     paths::PathFragment,
@@ -22,11 +22,31 @@ pub mod cgr;
 pub mod spsn;
 pub mod volcgr;
 
-type FirstHopsVec<'id> = (ContactRef<'id>, Vec<PathFragment<'id>>);
-type FirstHop<'id> = (ContactRef<'id>, PathFragment<'id>);
+// type FirstHopsVec<'id> = (ContactRef<'id>, Vec<PathFragment<'id>>);
+// type FirstHop<'id> = (ContactRef<'id>, PathFragment<'id>);
+
+/// The output of a Single Destination routing operation, contains:
+/// - The First Hop to take to deliver the bundle
+/// - The selected real destination (eg: member of a destination VNode)
+/// - The complete PathFindingOutput for route inspection (Other routes may exists in it without guarantees)
+#[derive(Debug)]
+pub struct RoutingOutputSingle<'id,'a>{
+    pub first_hop: ContactRef<'id>,
+    pub real_dest: RNodeRef<'id>,
+    pub path: PathFindingOutput<'id,'a>
+}
+
+/// The output of a Multicast routing operation, contains:
+/// - An iterator over the contacts to take as first hops, along with their corresponding multicast destination
+/// - The complete PathFindingOutput for routes inspection (Other routes may exists in it without guarantees)
+#[derive(Debug)]
+pub struct RoutingOutputMulticast<'id,'a, T: 'a + Iterator<Item = (ContactRef<'id>,Vec<RNodeRef<'id>>)>>{
+    pub first_hops: T,
+    pub paths: PathFindingOutput<'id,'a>
+}
 
 /// A trait to allow generic initialization of routers.
-pub trait Router<NM: NodeManager, CM: ContactManager> {
+pub trait Router<'id, NM: NodeManager, CM: ContactManager> {
     /// Routes a bundle to its destination(s) using either unicast or multicast routing,
     /// depending on the number of destinations.
     ///
@@ -42,31 +62,13 @@ pub trait Router<NM: NodeManager, CM: ContactManager> {
     /// # Returns
     /// An `Result<Option<RoutingOutput<NM, CM>>, ASABRError>`, where `Some(RoutingOutput)` contains the routing details if
     /// successful, and `None` if no route is found, or an error if the operation fails.
-    fn route(
+    fn route_monocast(
         &mut self,
-        source: NodeID,
+        source: RNodeRef<'id>,
         bundle: &Bundle,
         curr_time: Date,
-        excluded_nodes: &[NodeID],
-    ) -> Result<Option<RoutingOutput<NM, CM>>, ASABRError>;
-}
-
-/// A struct that represents the output of a routing operation.
-///
-/// The `RoutingOutput` struct is used to store the results of routing calculations,
-/// specifically the first hops for each destination and the associated nodes that are reachable via this hop (e.g. for multicast).
-///
-/// # Fields
-///
-/// * `first_hops` - A hashmap mapping from a unique identifier (e.g., an index or destination ID)
-///   to a `FirstHopsVec` tuple containing:
-///     - `Rc<RefCell<Contact<NM, CM>>>`: A reference-counted, mutable reference to the `Contact`
-///       that represents the first hop for the respective route.
-///     - `Vec<Rc<RefCell<RouteStage<NM, CM>>>>`: A vector of reference-counted, mutable
-///       references to `RouteStage`s to the nodes that can be reached from the first hop.
-#[derive(Debug)]
-pub struct RoutingOutput<'id> {
-    pub first_hops: HashMap<usize, FirstHopsVec<'id>>,
+        excluded_nodes: &[RNodeRef<'id>],
+    ) -> Result<Option<RoutingOutput<'id>>, ASABRError>;
 }
 
 impl<'id> RoutingOutput<'id> {
@@ -144,69 +146,69 @@ pub fn dry_run_multicast<'id,'a>(
 type FirstHopPtr = Option<usize>;
 type Destinations = Vec<NodeID>;
 
-fn update_multicast<NM: NodeManager, CM: ContactManager>(
+fn update_multicast<'id>(
     _bundle: &Bundle,
     at_time: Date,
     reachable_after_dry_run: Vec<NodeID>,
-    source_route: SharedRouteStage<NM, CM>,
-) -> Result<RoutingOutput<NM, CM>, ASABRError> {
-    let mut first_hops_map: HashMap<usize, FirstHopsVec<NM, CM>> = HashMap::new();
-    let mut accumulator: Vec<(SharedRouteStage<NM, CM>, FirstHopPtr, Date, Destinations)> =
-        vec![(source_route, None, at_time, reachable_after_dry_run)];
-    #[cfg(not(feature = "node_proc"))]
-    let bundle_to_consider = _bundle;
+) -> Result<RoutingOutput<'id>, ASABRError> {
+    // let mut first_hops_map: HashMap<usize, FirstHopsVec<NM, CM>> = HashMap::new();
+    // let mut accumulator: Vec<(SharedRouteStage<NM, CM>, FirstHopPtr, Date, Destinations)> =
+    //     vec![(source_route, None, at_time, reachable_after_dry_run)];
+    // #[cfg(not(feature = "node_proc"))]
+    // let bundle_to_consider = _bundle;
 
-    while let Some((current_route, mut first_hop_ptr, mut time, downstream_dests)) =
-        accumulator.pop()
-    {
-        let mut route_borrowed = current_route.try_borrow_mut()?;
+    // while let Some((current_route, mut first_hop_ptr, mut time, downstream_dests)) =
+    //     accumulator.pop()
+    // {
+    //     let mut route_borrowed = current_route.try_borrow_mut()?;
 
-        #[cfg(feature = "node_proc")]
-        let bundle_to_consider = route_borrowed.bundle.clone();
+    //     #[cfg(feature = "node_proc")]
+    //     let bundle_to_consider = route_borrowed.bundle.clone();
 
-        if first_hop_ptr.is_some() {
-            if route_borrowed.schedule(time, &bundle_to_consider).is_err() {
-                continue;
-            }
-            time = route_borrowed.at_time;
-        }
-        let reached_node = route_borrowed.to_node;
+    //     if first_hop_ptr.is_some() {
+    //         if route_borrowed.schedule(time, &bundle_to_consider).is_err() {
+    //             continue;
+    //         }
+    //         time = route_borrowed.at_time;
+    //     }
+    //     let reached_node = route_borrowed.to_node;
 
-        let mut next_routes: HashMap<usize, (SharedRouteStage<NM, CM>, Vec<NodeID>)> =
-            HashMap::new();
-        for dest in downstream_dests {
-            if reached_node == dest {
-                if let Some(ptr) = first_hop_ptr
-                    && let Some((_, rts)) = first_hops_map.get_mut(&ptr)
-                {
-                    rts.push(current_route.clone());
-                }
-            } else if let Some(next_route) = route_borrowed.next_for_destination.get(&dest) {
-                let ptr = Rc::as_ptr(next_route) as usize;
-                if let Some((_, entry)) = next_routes.get_mut(&ptr) {
-                    entry.push(dest);
-                } else {
-                    next_routes.insert(ptr, (next_route.clone(), vec![dest]));
-                }
-            }
-        }
-        for (_ptr, (next_route, next_downstream_dests)) in next_routes {
-            if first_hop_ptr.is_none() {
-                let first_hop_contact = next_route.borrow().get_via_contact();
-                if let Some(first_hop_contact) = first_hop_contact {
-                    let ptr = first_hop_contact.as_ptr() as usize;
-                    first_hop_ptr = Some(ptr);
-                    first_hops_map
-                        .entry(ptr)
-                        .or_insert_with(|| (first_hop_contact, Vec::new()));
-                }
-            }
-            accumulator.push((next_route, first_hop_ptr, time, next_downstream_dests));
-        }
-    }
-    Ok(RoutingOutput {
-        first_hops: first_hops_map,
-    })
+    //     let mut next_routes: HashMap<usize, (PathFragment, Vec<NodeID>)> =
+    //         HashMap::new();
+    //     for dest in downstream_dests {
+    //         if reached_node == dest {
+    //             if let Some(ptr) = first_hop_ptr
+    //                 && let Some((_, rts)) = first_hops_map.get_mut(&ptr)
+    //             {
+    //                 rts.push(current_route.clone());
+    //             }
+    //         } else if let Some(next_route) = route_borrowed.next_for_destination.get(&dest) {
+    //             let ptr = Rc::as_ptr(next_route) as usize;
+    //             if let Some((_, entry)) = next_routes.get_mut(&ptr) {
+    //                 entry.push(dest);
+    //             } else {
+    //                 next_routes.insert(ptr, (next_route.clone(), vec![dest]));
+    //             }
+    //         }
+    //     }
+    //     for (_ptr, (next_route, next_downstream_dests)) in next_routes {
+    //         if first_hop_ptr.is_none() {
+    //             let first_hop_contact = next_route.borrow().get_via_contact();
+    //             if let Some(first_hop_contact) = first_hop_contact {
+    //                 let ptr = first_hop_contact.as_ptr() as usize;
+    //                 first_hop_ptr = Some(ptr);
+    //                 first_hops_map
+    //                     .entry(ptr)
+    //                     .or_insert_with(|| (first_hop_contact, Vec::new()));
+    //             }
+    //         }
+    //         accumulator.push((next_route, first_hop_ptr, time, next_downstream_dests));
+    //     }
+    // }
+    // Ok(RoutingOutput {
+    //     first_hops: first_hops_map,
+    // })
+    todo!()
 }
 
 /// Schedules routing operations based on the source node and a multicast bundle.
@@ -240,39 +242,38 @@ fn schedule_multicast<'id,'a,NM: NodeManager, CM: ContactManager>(
     todo!()
 }
 
-pub fn dry_run_unicast_path<NM: NodeManager, CM: ContactManager>(
+pub fn dry_run_unicast_path<'id>(
     bundle: &Bundle,
     mut at_time: Date,
-    source_route: SharedRouteStage<NM, CM>,
     with_exclusions: bool,
-) -> Result<Option<SharedRouteStage<NM, CM>>, ASABRError> {
-    let dest = bundle.destinations[0];
+) -> Result<Option<PathFragment<'id>>, ASABRError> {
+    // let dest = bundle.destinations[0];
 
-    let mut curr_opt = source_route
-        .borrow()
-        .next_for_destination
-        .get(&dest)
-        .cloned();
-    #[cfg(not(feature = "node_proc"))]
-    let bundle_to_consider = bundle;
-    while let Some(curr_route) = curr_opt {
-        let mut curr_route_borrowed = curr_route.try_borrow_mut()?;
+    // let mut curr_opt = source_route
+    //     .borrow()
+    //     .next_for_destination
+    //     .get(&dest)
+    //     .cloned();
+    // #[cfg(not(feature = "node_proc"))]
+    // let bundle_to_consider = bundle;
+    // while let Some(curr_route) = curr_opt {
+    //     let mut curr_route_borrowed = curr_route.try_borrow_mut()?;
 
-        #[cfg(feature = "node_proc")]
-        let bundle_to_consider = curr_route_borrowed.bundle.clone();
+    //     #[cfg(feature = "node_proc")]
+    //     let bundle_to_consider = curr_route_borrowed.bundle.clone();
 
-        if !curr_route_borrowed.dry_run(at_time, &bundle_to_consider, with_exclusions)? {
-            return Ok(None);
-        }
+    //     if !curr_route_borrowed.dry_run(at_time, &bundle_to_consider, with_exclusions)? {
+    //         return Ok(None);
+    //     }
 
-        at_time = curr_route_borrowed.at_time;
+    //     at_time = curr_route_borrowed.at_time;
 
-        if curr_route_borrowed.to_node == dest {
-            return Ok(Some(curr_route.clone()));
-        }
+    //     if curr_route_borrowed.to_node == dest {
+    //         return Ok(Some(curr_route.clone()));
+    //     }
 
-        curr_opt = curr_route_borrowed.next_for_destination.get(&dest).cloned();
-    }
+    //     curr_opt = curr_route_borrowed.next_for_destination.get(&dest).cloned();
+    // }
 
     Ok(None)
 }

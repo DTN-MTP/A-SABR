@@ -1,5 +1,3 @@
-assert_cfg!(feature = "contact_work_area");
-
 use std::{
     fs::File,
     io::{BufRead, BufReader},

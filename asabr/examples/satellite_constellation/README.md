@@ -2,9 +2,8 @@
 
 ### Run the example
 
-This example requires the `node_tx` feature:
 ```bash
-cargo run --example satellite_constellation --features node_tx
+cargo run --example satellite_constellation
 ```
 
 ### Context
@@ -15,7 +14,9 @@ However, in some cases, it may be desirable to disallow retention for specific n
 
 ### Implement the absence of retention
 
-The `NodeManager` trait provides node resource management capabilities for transmissions when the `node_tx` feature is enabled. Once enabled, this feature requires the implementation of the `dry_run_tx` and `schedule_tx` methods.
+The `NodeManager` trait provides node resource management capabilities for transmissions; this requires the implementation of the `dry_run` and `schedule` methods.
+
+TODO: Update with new interface
 
 These two methods take two `Date` parameters: `waiting_since` and `start`. The former represents the arrival time at the node (including any additional delay if the `node_proc` feature is enabled), while the latter represents the transmission start time to the next node.
 

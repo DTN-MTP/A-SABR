@@ -16,9 +16,9 @@ pub fn benchmark(c: &mut Criterion) {
         destinations: vec![159],
         priority: 0,
         size: 47419533.0,
-        expiration: 24060.0,
+        expiration: 24060,
     };
-    let curr_time = 60.0;
+    let curr_time = 60;
     let excluded_nodes: Vec<NodeID> = vec![];
     let spsn_opts = SpsnOptions {
         check_size: false,
@@ -33,7 +33,6 @@ pub fn benchmark(c: &mut Criterion) {
         "SpsnNodeParentingHop",
     ];
 
-    #[cfg(feature = "contact_work_area")]
     router_types.extend(["SpsnContactParenting", "SpsnContactParentingHop"]);
 
     #[cfg(feature = "contact_suppression")]
@@ -50,12 +49,12 @@ pub fn benchmark(c: &mut Criterion) {
         "CgrFirstDepletedNodeParentingHop",
     ]);
 
-    #[cfg(all(feature = "contact_work_area", feature = "contact_suppression"))]
+    #[cfg(feature = "contact_suppression")]
     router_types.extend([
         "CgrFirstEndingContactParenting",
         "CgrFirstEndingContactParentingHop",
     ]);
-    #[cfg(all(feature = "contact_work_area", feature = "first_depleted"))]
+    #[cfg(feature = "first_depleted")]
     router_types.extend([
         "CgrFirstDepletedContactParenting",
         "CgrFirstDepletedContactParentingHop",
@@ -68,7 +67,6 @@ pub fn benchmark(c: &mut Criterion) {
         "VolCgrNodeParentingHop",
     ]);
 
-    #[cfg(feature = "contact_work_area")]
     router_types.extend(["VolCgrContactParenting", "VolCgrContactParentingHop"]);
 
     let mut group = c.benchmark_group("Routers");

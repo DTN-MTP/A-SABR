@@ -1,20 +1,12 @@
 extern crate alloc;
 use alloc::{collections::BTreeSet, vec, vec::Vec};
 use core::marker::PhantomData;
-use generativity::Guard;
 
 use crate::{
-    bundle::Bundle,
-    contact_manager::ContactManager,
-    distance::{Distance, prio_queue::PrioQueue},
-    multigraph::Multigraph,
-    node_manager::NodeManager,
-    parsing::Either,
-    paths::PathFragment,
-    types::{Date, NodeID},
+    bundle::Bundle, contact_manager::ContactManager, distance::Distance, multigraph::{ContactRef, Multigraph}, node_manager::NodeManager, pathfinding::{disktra::{Disktra, DisktraWorkspace}, flatten}, paths::{PathFragment, ViaHop}, types::NodeID
 };
 
-use super::{PathFindingOutput, Pathfinding, try_make_hop};
+use super::super::PathFindingOutput ;
 
 /// A contact parenting (contact graph) implementation of Dijkstra algorithm.
 ///
@@ -24,164 +16,96 @@ use super::{PathFindingOutput, Pathfinding, try_make_hop};
 ///
 /// * `NM` - A type that implements the `NodeManager` trait.
 /// * `CM` - A type that implements the `ContactManager` trait.
-pub struct ContactParenting<
+pub type ContactParenting<
     'id,
     const tree_output: bool,
     NM: NodeManager,
     CM: ContactManager,
     D: Distance<NM, CM>,
+> = Disktra<ContactParentingWorkArea<'id,NM,CM,D>,D>;
+
+struct ContactParentingWorkArea<
+    'id,
+    NM: NodeManager,
+    CM: ContactManager,
+    D: Distance<NM,CM>
 > {
-    // /// For tree construction, tracks the nodes visited as transmitters.
-    // visited_as_tx_ids: Vec<bool>,
-    // /// For tree construction, tracks the nodes visited as receivers.
-    // visited_as_rx_ids: Vec<bool>,
-    // /// For tree construction, tracks the count of nodes visited as transmitters.
-    // visited_as_tx_count: usize,
-    // /// For tree construction, tracks the count of nodes visited as receivers.
-    // visited_as_rx_count: usize,
-    _phantom: PhantomData<fn(&'id (), D, NM, CM)>,
+    /// A vector storing all keeped path to a node without sorting for easy reference.
+    possible_paths: Vec<PathFragment<'id>>,
+    /// A vector containing (option of index of) pathfragment, to reach a given destination.
+    by_destination: Vec<Option<usize>>,
+    /// Visited contacts, grouped by node.
+    visited: Vec<BTreeSet<ContactRef<'id>>>,
+    _phantom: PhantomData<fn(NM, CM, D)>,
 }
 
-impl<'id, const tree_output: bool, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>>
-    Pathfinding<'id, NM, CM> for ContactParenting<'id, tree_output, NM, CM, D>
+impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>>
+    DisktraWorkspace<'id,NM,CM> for ContactParentingWorkArea<'id,NM,CM,D>
 {
     /// Constructs a new `ContactParenting` instance with the provided nodes and contacts.
-    fn new(_guard: Guard, _multigraph: &Multigraph<'id, NM, CM>) -> Self {
+    #[inline(always)]
+    fn new(graph: &Multigraph<'id, NM, CM>) -> Self {
         Self {
-            // visited_as_tx_ids: vec![false; node_count],
-            // visited_as_rx_ids: vec![false; node_count],
-            // visited_as_tx_count: 1,
-            // visited_as_rx_count: 1,
-            _phantom: PhantomData,
+            possible_paths: Vec::new(),
+            by_destination: vec![None; graph.get_rnode_count()],
+            visited : vec![BTreeSet::new(); graph.get_rnode_count()],
+                    _phantom: PhantomData,
         }
     }
+    fn into_pathfinding_output(self) -> PathFindingOutput<'id, 'static> {
+        flatten(&self.possible_paths, self.by_destination.into_iter())
+    }
 
-    // / Finds the next route based on the current state and available contacts.
-    // /
-    // / This method uses a priority queue to explore potential routes from a source node,
-    // / considering the current time, bundle, and nodes to exclude from the pathfinding.
-    // /
-    // / # Parameters
-    // /
-    // / * `current_time` - The current time used for evaluating routes.
-    // / * `source` - The `NodeID` of the source node from which to begin pathfinding.
-    // / * `bundle` - The `Bundle` associated with the pathfinding operation.
-    // / * `excluded_nodes_sorted` - A sorted list of `NodeID`s to be excluded from the pathfinding.
-    // /
-    // / # Returns
-    // /
-    // / * `<ResultPathFindingOutput<NM, CM>, ASABRError>` - The resulting pathfinding output, including the routes found,
-    // /   or an error if the operation fails.
-    fn find_path<'a>(
-        &'a mut self,
-        multigraph: &mut Multigraph<'id, NM, CM>,
-        current_time: Date,
-        source: crate::multigraph::NodeRef<'id>,
+    fn try_insert(
+        &mut self,
+        proposition: PathFragment<'id>,
+        actual_node: crate::multigraph::RNodeRef<'id>,
+        graph: &Multigraph<'id, NM, CM>,
         bundle: &Bundle,
-    ) -> Result<Option<PathFindingOutput<'id, 'a>>, crate::errors::ASABRError> {
-        let mut by_dest = vec![None; multigraph.get_rnode_count()];
-        let mut visited = vec![BTreeSet::new(); multigraph.get_rnode_count()];
-        let mut all = Vec::with_capacity(multigraph.get_rnode_count());
-
-        let mut prioqueue =
-            PrioQueue::<'_, D, NM, CM, ()>::with_capacity(multigraph.get_rnode_count());
-
-        // Used only when tree_output = true, defined outside of if scope but never used
-        let mut reachable: usize = 0;
-        let mut reached: usize = 0;
-        let start = PathFragment::new_start(current_time);
-        for rnode in multigraph.iter_node(source) {
-            prioqueue.insert(((start, rnode), ()), multigraph, bundle);
-            if tree_output {
-                reachable += 1;
+    ) -> (Option<usize>, bool)
+    {
+        let new_idx = self.possible_paths.len();
+        let route_for_node = &mut self.by_destination[NodeID::from(actual_node) as usize];
+        let Some(ViaHop{contact,..}) = proposition.via else {
+            if route_for_node.is_some(){
+                return (None,false);
             }
+            self.possible_paths.push(proposition);
+            *route_for_node = Some(new_idx);
+            return (Some(new_idx),true); 
+        };
+        let new = route_for_node.is_none();
+        if new {
+            *route_for_node = Some(new_idx);
         }
-
-        while (if tree_output {
-            reachable > reached
+        if !self.visited[NodeID::from(actual_node) as usize].insert(contact)  {
+            self.possible_paths.push(proposition);
+            (Some(new_idx),new)
         } else {
-            // TODO: support vnode outputs
-            by_dest[bundle.destinations[0] as usize].is_none()
-        }) && let Some(((path, node), ())) = prioqueue.pop_min(multigraph, bundle)
-        {
-            if tree_output && by_dest[NodeID::from(node) as usize].is_none() {
-                reached += 1;
-            }
-            let viaref = all.len();
-
-            let (current_node, iter) = multigraph.iter_iter_contacts(node);
-            for (neighbor, _, contacts) in iter {
-                let delay = current_node.manager.delay(
-                    bundle,
-                    path.arrival_time,
-                    node.into(),
-                    neighbor.into(),
-                );
-                if let Some(path) = try_make_hop(
-                    multigraph,
-                    (&path, viaref),
-                    bundle,
-                    node,
-                    neighbor,
-                    delay,
-                    contacts,
-                ) {
-                    if tree_output && by_dest[NodeID::from(neighbor) as usize].is_none() {
-                        by_dest[NodeID::from(neighbor) as usize] = Some(viaref);
-                        reachable += 1
-                    }
-                    if let Some(via) = &path.via
-                        && !visited[NodeID::from(node) as usize].contains(&via.contact)
-                    {
-                        visited[NodeID::from(node) as usize].insert(via.contact);
-                        all.push(path);
-                        prioqueue.insert(((path, neighbor), ()), multigraph, bundle);
-                    }
-                }
-            }
+            (None,false)
         }
-        let mut elided = Vec::with_capacity(multigraph.get_rnode_count());
-        let mut new_indexs = vec![None; all.capacity()];
-        for (i, path_opt) in by_dest.into_iter().enumerate() {
-            if let Some(idx) = path_opt {
-                new_indexs[idx] = Some(i);
-                let path = all[idx];
-                elided.push(Some(path));
-            } else {
-                elided.push(None);
-            }
-        }
-        for i in 0..multigraph.get_rnode_count() {
-            if let Some(mut frag) = elided[i] {
-                let mut index = i;
-                loop {
-                    if let Some(via) = frag.via.as_mut() {
-                        if let Some(new_idx) = new_indexs[via.parent_frag] {
-                            via.parent_frag = new_idx;
-                            elided[index] = Some(frag);
-                            break;
-                        } else {
-                            let old_idx = via.parent_frag;
-                            let new_idx = elided.len();
-                            elided.push(None);
-                            via.parent_frag = new_idx;
-                            frag = all[old_idx];
-                            index = new_idx;
-                        }
-                    } else {
-                        elided[index] = Some(frag);
-                        break;
-                    }
-                }
-            } else {
-                continue;
-            }
-        }
-
-        Ok(Some(PathFindingOutput {
-            path_tree: Either::Right(elided),
-        }))
     }
+
+    fn node_check(&mut self, node: crate::multigraph::RNodeRef<'id>) -> bool {
+        true
+    }
+
+    fn fragment_check(
+        &mut self,
+        proposition: PathFragment<'id>,
+        dest_node: crate::multigraph::RNodeRef<'id>,
+        graph: &Multigraph<'id, NM, CM>,
+        bundle: &Bundle,
+    ) -> bool
+    {
+        let Some(ViaHop { contact, ..}) = proposition.via else {
+            return true;
+        };
+        !self.visited[NodeID::from(dest_node) as usize].contains(&contact)
+    }
+    
+
+
 }
 
 // TODO: Remake test based on hybrid parenting ones
