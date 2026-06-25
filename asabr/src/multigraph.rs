@@ -46,6 +46,12 @@ pub struct VNodeRef<'id> {
     id: Id<'id>,
 }
 
+impl From<VNodeRef<'_>> for usize {
+    fn from(value: VNodeRef) -> Self {
+        value.index
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NodeRef<'id> {
     R(RNodeRef<'id>),
@@ -194,6 +200,11 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
         self.real_nodes.len()
     }
 
+    /// Retrieve the number of vnode in the multigraph
+    pub fn get_vnode_count(&self) -> usize {
+        self.virtual_nodes.len()
+    }
+
     /// Retrieves a copy of the Id<'id>
     pub fn id(&self) -> Id<'id> {
         self.id
@@ -276,6 +287,10 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
             NodeRef::V(vnode_ref) => Either::Right(self.iter_virtualnode(vnode_ref)),
         }
     }
+    /// three element tuple:
+    /// - tx node manager
+    /// - real nodes neigbors, as an iterator over (neigbor_ref,iterator<contacts>)
+    /// - vnode neigbors, as an iterator over (neigbor_ref,iterator(rnoderef,contact))
     pub fn iter_iter_contacts(
         &self,
         noderef: RNodeRef<'id>,
@@ -286,6 +301,12 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
                 RNodeRef<'id>,
                 &Node<NM>,
                 impl Iterator<Item = (ContactRef<'id>, &Contact<CM>)>,
+            ),
+        >,
+        impl Iterator<
+            Item = (
+                VNodeRef<'id>,
+                impl Iterator<Item = (RNodeRef<'id>, &Node<NM>, ContactRef<'id>, &Contact<CM>)>,
             ),
         >,
     ) {
@@ -310,7 +331,11 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
                     }),
                 )
             });
-        (node, neighboor_iter)
+        // TODO: Fill the vnode iterator
+        (node, neighboor_iter, iter::empty::<(VNodeRef<'id>,iter::Empty<_>)>())
+    }
+    pub fn vnode_id(&self, vnode: VNodeRef) -> NodeID {
+        self.get_rnode_count() as NodeID + vnode.index as NodeID
     }
 }
 

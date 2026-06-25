@@ -3,9 +3,19 @@ use alloc::{vec, vec::Vec};
 
 use core::marker::PhantomData;
 
-use super::super::{PathFindingOutput, Pathfinding};
+use super::super::PathFindingOutput;
 use crate::{
-    bundle::Bundle, contact_manager::ContactManager, distance::Distance, multigraph::{Multigraph, RNodeRef}, node_manager::NodeManager, pathfinding::{disktra::{Disktra, DisktraWorkspace}, flatten}, paths::PathFragment, types::NodeID
+    bundle::Bundle,
+    contact_manager::ContactManager,
+    distance::Distance,
+    multigraph::{Multigraph, NodeRef, RNodeRef},
+    node_manager::NodeManager,
+    pathfinding::{
+        disktra::{Disktra, DisktraWorkspace},
+        flatten,
+    },
+    paths::PathFragment,
+    types::NodeID,
 };
 
 /// A trait that allows HybridParenting to handle the lexicographic costs.
@@ -56,8 +66,7 @@ struct HybridParentingWorkArea<
 }
 
 impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParentingOrd<NM, CM>>
-    DisktraWorkspace<'id,NM,CM> for
-    HybridParentingWorkArea<'id, NM, CM, D>
+    DisktraWorkspace<'id, NM, CM> for HybridParentingWorkArea<'id, NM, CM, D>
 {
     #[inline(always)]
     fn new(graph: &Multigraph<'id, NM, CM>) -> Self {
@@ -68,63 +77,66 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParen
         }
     }
 
-    fn into_pathfinding_output(self) -> PathFindingOutput<'id, 'static> {
-        flatten(&self.possible_paths, self.by_destination.into_iter().map(|possibilities| possibilities.first()))
+    fn into_pathfinding_output<'a>(self) -> PathFindingOutput<'id, 'a> {
+        flatten(
+            &self.possible_paths,
+            self.by_destination
+                .into_iter()
+                .map(|possibilities| possibilities.first().copied()),
+        )
     }
 
     fn try_insert(
         &mut self,
         proposition: PathFragment<'id>,
-        actual_node: RNodeRef<'id>,
-        graph: &Multigraph<'id, NM, CM>,
-        bundle: &Bundle
-    ) -> (Option<usize>,bool) {
-        let new_idx = self.possible_paths.len();
-        let routes_for_node = &mut self.by_destination[NodeID::from(actual_node) as usize];
-        if routes_for_node.iter().all(|path| {
-            D::keep_both(
-                &proposition,
-                &self.possible_paths[*path],
-                graph,
-                bundle,
-                actual_node,
-            )
-        }) {
-            routes_for_node.push(new_idx);
-            self.possible_paths.push(proposition);
-            (Some(new_idx),routes_for_node.len() == 1)
-        } else {
-            (None,false)
-        }
-    }
-    /// return true iif this path proposition merit being inserted in disktra priority queue
-    #[inline(always)]
-    fn fragment_check(
-        &mut self,
-        proposition: PathFragment<'id>,
-        dest_node: RNodeRef<'id>,
+        actual_node: NodeRef<'id>,
         graph: &Multigraph<'id, NM, CM>,
         bundle: &Bundle,
-    ) -> bool
-    {
-        let routes_for_node = &self.by_destination[NodeID::from(dest_node) as usize];
-        routes_for_node.iter().all(|path| {
-            D::keep_both(
-                &proposition,
-                &self.possible_paths[*path],
-                graph,
-                bundle,
-                dest_node,
-            )
-        })
+    ) -> Option<usize> {
+        match actual_node {
+            NodeRef::R(actual_node) => {
+                let new_idx = self.possible_paths.len();
+                let routes_for_node = &mut self.by_destination[NodeID::from(actual_node) as usize];
+                if routes_for_node.iter().all(|path| {
+                    D::keep_both(
+                        &proposition,
+                        &self.possible_paths[*path],
+                        graph,
+                        bundle,
+                        actual_node,
+                    )
+                }) {
+                    routes_for_node.push(new_idx);
+                    self.possible_paths.push(proposition);
+                    Some(new_idx)
+                } else {
+                    None
+                }
+            }
+            NodeRef::V(_) => todo!(),
+        }
     }
     #[inline(always)]
-    fn node_check(&mut self, node: RNodeRef<'id>) -> bool {
+    fn node_check(&mut self, _node: NodeRef<'id>) -> bool {
         true
+    }
+    fn poped_relevant_new(
+        &self,
+        frag: PathFragment<'id>,
+        node: NodeRef<'id>,
+        viaref: usize,
+    ) -> (bool, bool, Option<RNodeRef<'id>>)
+    {
+        todo!()
     }
 }
 
-pub type HybridParentig<'id,D:HybridParentingOrd<NM,CM> + Distance<NM,CM>, NM:NodeManager, CM:ContactManager> = Disktra<HybridParentingWorkArea<'id,NM,CM,D>,D>;
+pub type HybridParenting<
+    'id,
+    D: HybridParentingOrd<NM, CM> + Distance<NM, CM>,
+    NM: NodeManager,
+    CM: ContactManager,
+> = Disktra<HybridParentingWorkArea<'id, NM, CM, D>, D>;
 
 // #[cfg(test)]
 // mod tests {

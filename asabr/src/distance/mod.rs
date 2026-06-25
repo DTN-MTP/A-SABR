@@ -3,11 +3,8 @@ extern crate alloc;
 use core::cmp::Ordering;
 
 use crate::{
-    bundle::Bundle,
-    contact_manager::ContactManager,
-    multigraph::{Multigraph, RNodeRef},
-    node_manager::NodeManager,
-    paths::PathFragment,
+    bundle::Bundle, contact_manager::ContactManager, multigraph::Multigraph,
+    node_manager::NodeManager, paths::PathFragment,
 };
 
 pub mod hop;
@@ -42,8 +39,8 @@ where
     /// - `Ordering::Equal` if `first` and `second` are the same.
     /// - `Ordering::Greater` if `first` is longer than `second`.
     fn cmp<'id>(
-        first: &(PathFragment<'id>, RNodeRef<'id>),
-        second: &(PathFragment<'id>, RNodeRef<'id>),
+        first: &PathFragment<'id>,
+        second: &PathFragment<'id>,
         graph: &Multigraph<'id, NM, CM>,
         bundle: &Bundle,
     ) -> Ordering;

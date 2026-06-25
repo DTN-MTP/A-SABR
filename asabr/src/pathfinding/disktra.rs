@@ -9,8 +9,8 @@ use crate::{
     distance::{Distance, prio_queue::PrioQueue},
     multigraph::{Multigraph, NodeRef, RNodeRef},
     node_manager::NodeManager,
-    pathfinding::{PathFindingOutput, Pathfinding, try_make_hop},
-    paths::{PathFragment, ViaHop},
+    pathfinding::{PathFindingOutput, Pathfinding, destination::Destination, try_make_hop},
+    paths::PathFragment,
     types::{Date, NodeID},
 };
 
@@ -20,74 +20,91 @@ pub trait DisktraWorkspace<'id, NM: NodeManager, CM: ContactManager> {
     /// Initialise this Workspace
     fn new(graph: &Multigraph<'id, NM, CM>) -> Self;
     /// Convert self into a (static, aka vector form) pathfinding output
-    fn into_pathfinding_output(self) -> PathFindingOutput<'id, 'static>;
+    fn into_pathfinding_output<'a>(self) -> PathFindingOutput<'id, 'a>;
     /// Try to insert a new (better ?) path to a node in self.
     /// If the insert is sucessfull, return a suitable ViaRef to refer to the proposition.
-    /// Also return wether this node is a newly reached one or not
     fn try_insert(
         &mut self,
         proposition: PathFragment<'id>,
-        actual_node: RNodeRef<'id>,
+        node: NodeRef<'id>,
         graph: &Multigraph<'id, NM, CM>,
         bundle: &Bundle,
-    ) -> (Option<usize>, bool);
+    ) -> Option<usize>;
     /// Check if it is usefull to consider new paths to this node.
-    fn node_check(&mut self, node: RNodeRef<'id>) -> bool;
-    /// Check if it is usefull to add this path proposition in disktra prioqueue.
-    fn fragment_check(
-        &mut self,
-        proposition: PathFragment<'id>,
-        dest_node: RNodeRef<'id>,
-        graph: &Multigraph<'id, NM, CM>,
-        bundle: &Bundle,
-    ) -> bool;
+    fn node_check(&mut self, node: NodeRef<'id>) -> bool;
+    /// Is this path still relevant, and is it to a new node ?
+    /// Also, return the previous node on path if it exist
+    fn poped_relevant_new(
+        &self,
+        frag: PathFragment<'id>,
+        node: NodeRef<'id>,
+        viaref: usize,
+    ) -> (bool, bool, Option<RNodeRef<'id>>);
 }
 
 pub fn disktra<
     'id,
+    'a,
     NM: NodeManager,
     CM: ContactManager,
     W: DisktraWorkspace<'id, NM, CM>,
     D: Distance<NM, CM>,
+    De: Destination<'id>,
 >(
     multigraph: &mut Multigraph<'id, NM, CM>,
     current_time: Date,
     source: RNodeRef<'id>,
     bundle: &Bundle,
-) -> PathFindingOutput<'id, 'static> {
+    dest: &mut De,
+) -> Option<PathFindingOutput<'id, 'a>> {
     let mut work_area = W::new(multigraph);
 
-    let mut prioqueue = PrioQueue::<'_, D, NM, CM, ()>::with_capacity(multigraph.get_rnode_count());
+    let mut prioqueue = PrioQueue::<'_, D, NM, CM, _>::with_capacity(multigraph.get_rnode_count());
 
     let mut reachable: usize = 1;
     let mut reached: usize = 0;
 
     let mut reachables = vec![false; multigraph.get_rnode_count()];
+    let mut reachables_v = vec![false;multigraph.get_vnode_count()];
     reachables[NodeID::from(source) as usize] = true;
 
-    prioqueue.insert(
-        ((PathFragment::new_start(current_time), source), ()),
-        multigraph,
-        bundle,
-    );
+    let init_path = PathFragment::new_start(current_time);
+    let Some(viaref) = work_area.try_insert(init_path, NodeRef::R(source), multigraph, bundle)
+    else {
+        return None;
+    };
+
+    prioqueue.insert((init_path, (viaref, None)), multigraph, bundle);
 
     while reachable > reached
-        && let Some(((path, node), ())) = prioqueue.pop_min(multigraph, bundle)
+        && let Some((path, (viaref, isvnode))) = prioqueue.pop_min(multigraph, bundle)
     {
-        let (viaref, new) = work_area.try_insert(path, node, multigraph, bundle);
+        let node = match isvnode {
+            Some(vnoderef) => NodeRef::V(vnoderef),
+            None => NodeRef::R(path.rx_node),
+        };
+        let (relevant, new, previous_node) = work_area.poped_relevant_new(path, node, viaref);
+
         if new {
-            reached += 1
+            reached += 1;
+            if dest.now_reached(node) {
+                break;
+            }
         }
-        if let Some(viaref) = viaref {
-            let (current_node, iter) = multigraph.iter_iter_contacts(node);
-            for (neighbor, a, contacts) in iter {
-                if !work_area.node_check(neighbor) {
+
+        if isvnode.is_none() && relevant {
+            let node = path.rx_node;
+            let (current_node, iter_r, iter_v) = multigraph.iter_iter_contacts(node);
+
+            for (neighbor, _, contacts) in iter_r {
+                if !work_area.node_check(NodeRef::R(neighbor)) {
                     continue;
                 }
 
-                let delay = match path.via {
+                let delay = current_time;
+                match previous_node {
                     None => current_time,
-                    Some(ViaHop { tx_node, .. }) => current_node.manager.delay(
+                    Some(tx_node) => current_node.manager.delay(
                         bundle,
                         path.arrival_time,
                         tx_node.into(),
@@ -99,23 +116,58 @@ pub fn disktra<
                     (&path, viaref),
                     bundle,
                     node,
-                    neighbor,
                     delay,
-                    contacts,
+                    contacts.map(|(ctref, ct)| (node, &current_node.manager, ctref, ct)),
+                    previous_node,
                 ) {
                     if !reachables[NodeID::from(neighbor) as usize] {
                         reachable += 1;
                         reachables[NodeID::from(neighbor) as usize] = true
                     }
-                    if work_area.fragment_check(path, neighbor, multigraph, bundle) {
-                        prioqueue.insert(((path, neighbor), ()), multigraph, bundle);
+                    if let Some(viaref) =
+                        work_area.try_insert(path, NodeRef::R(neighbor), multigraph, bundle)
+                    {
+                        prioqueue.insert((path, (viaref, None)), multigraph, bundle);
+                    }
+                }
+            }
+
+            for (vnoderef, contacts) in iter_v {
+                if dest.is_useful(vnoderef) {
+                    let delay = current_time;
+                    match previous_node {
+                        None => current_time,
+                        Some(tx_node) => current_node.manager.delay(
+                            bundle,
+                            path.arrival_time,
+                            tx_node.into(),
+                            multigraph.vnode_id(vnoderef),
+                        ),
+                    };
+                    if let Some(path) = try_make_hop(
+                        multigraph,
+                        (&path, viaref),
+                        bundle,
+                        node,
+                        delay,
+                        contacts.map(|(rre, rno, ctre, ct)| (rre, &rno.manager, ctre, ct)),
+                        previous_node,
+                    ) {
+                        if !reachables_v[multigraph.vnode_id(vnoderef) as usize] {
+                            reachable += 1;
+                            reachables_v[multigraph.vnode_id(vnoderef) as usize] = true
+                        }
+                        if let Some(viaref) =
+                            work_area.try_insert(path, NodeRef::V(vnoderef), multigraph, bundle)
+                        {
+                            prioqueue.insert((path, (viaref, Some(vnoderef))), multigraph, bundle);
+                        }
                     }
                 }
             }
         }
     }
-
-    work_area.into_pathfinding_output()
+    Some(work_area.into_pathfinding_output())
 }
 
 pub struct Disktra<W, D> {
@@ -127,25 +179,27 @@ where
     W: DisktraWorkspace<'id, NM, CM>,
     D: Distance<NM, CM>,
     CM: ContactManager,
-    NM:NodeManager
+    NM: NodeManager,
 {
     fn new(id: generativity::Guard, multigraph: &Multigraph<'id, NM, CM>) -> Self {
         Self {
             _phantom: PhantomData,
         }
     }
-    fn find_path<'a>(
+    fn find_path<'a, De: Destination<'id>>(
         &'a mut self,
         multigraph: &mut Multigraph<'id, NM, CM>,
         current_time: Date,
         source: RNodeRef<'id>,
         bundle: &Bundle,
+        dest: &mut De,
     ) -> Result<Option<PathFindingOutput<'id, 'a>>, crate::errors::ASABRError> {
-        Ok(Some(disktra::<'id, NM, CM, W, D>(
+        Ok(disktra::<NM, CM, W, D, De>(
             multigraph,
             current_time,
             source,
             bundle,
-        )))
+            dest,
+        ))
     }
 }

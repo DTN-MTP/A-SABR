@@ -8,15 +8,18 @@ use crate::bundle::Bundle;
 use crate::contact::Contact;
 use crate::contact_manager::ContactManager;
 use crate::errors::ASABRError;
-use crate::multigraph::{ContactRef, Multigraph, NodeRef, RNodeRef};
+use crate::multigraph::{ContactRef, Multigraph, RNodeRef};
 use crate::node_manager::NodeManager;
 use crate::parsing::Either;
+use crate::pathfinding::destination::Destination;
 use crate::paths::{PathFragment, ViaHop};
 use crate::types::{Date, NodeID, TimeInterval};
 
 pub mod disktra;
 pub mod disktra_impl;
 pub use disktra_impl::*;
+pub mod destination;
+pub use destination::{Dest,All as DestAll};
 #[cfg(feature = "contact_suppression")]
 pub mod limiting_contact;
 #[cfg(test)]
@@ -101,12 +104,13 @@ pub trait Pathfinding<'id, NM: NodeManager, CM: ContactManager> {
     ///
     /// A `Result<PathFindingOutput<NM, CM>, ASABRError>` containing the results of the pathfinding operation,
     /// or an error if the operation fails.
-    fn find_path<'a>(
+    fn find_path<'a,D:Destination<'id>>(
         &'a mut self,
         multigraph: &mut Multigraph<'id, NM, CM>,
         current_time: Date,
         source: RNodeRef<'id>,
         bundle: &Bundle,
+        destination: &mut D
     ) -> Result<Option<PathFindingOutput<'id, 'a>>, ASABRError>;
 }
 /// Attempts to make a hop (i.e., a transmission between nodes) for the given route stage and bundle,
@@ -126,28 +130,29 @@ pub trait Pathfinding<'id, NM: NodeManager, CM: ContactManager> {
 /// # Returns
 ///
 /// An (potentially empty) iterator over effectively suitable PathFragment.
-fn try_make_hop<'id, NM: NodeManager, CM: ContactManager, T: AsRef<Contact<CM>>>(
+#[inline(always)]
+fn try_make_hop<'id,'a, NM: NodeManager+'a, CM: ContactManager, T: AsRef<Contact<CM>>>(
     graph: &Multigraph<'id, NM, CM>,
     last_hop: (&PathFragment<'id>, usize),
     bundle: &Bundle,
     current_node: RNodeRef<'id>,
-    next_node: RNodeRef<'id>,
     send_time: Date,
-    contacts: impl Iterator<Item = (ContactRef<'id>, T)>,
+    contacts: impl Iterator<Item = (RNodeRef<'id>,&'a NM,ContactRef<'id>, T)>,
+    previous_node: Option<RNodeRef<'id>>
 ) -> Option<PathFragment<'id>> {
     // remove suppressed contacts
-    let suppressed = contacts.filter(|(_, ct)| {
+    let suppressed = contacts.filter(|(_,_,_, ct)| {
         #[cfg(feature = "contact_suppression")]
         if ct.as_ref().suppressed {
             return false;
         }
         true
     });
-    let mut best: Option<(ContactRef<'id>, TimeInterval)> = None;
+    let mut best: Option<(ContactRef<'id>, TimeInterval, RNodeRef<'id>)> = None;
 
-    for (ctref, ct) in suppressed {
+    for (next_node_ref,next_node_manager,ctref, ct) in suppressed {
         // not better
-        if let Some((_, time)) = best
+        if let Some((_, time,_)) = best
             && time.end <= ct.as_ref().lifespan.start
         {
             break;
@@ -158,41 +163,40 @@ fn try_make_hop<'id, NM: NodeManager, CM: ContactManager, T: AsRef<Contact<CM>>>
                 .manager
                 .dry_run_tx(ct.as_ref().lifespan, send_time, bundle)
         {
-            if let Some((_, time)) = best
+            if let Some((_, time,_)) = best
                 && time.end < txdata.rx_window.end
             {
                 continue;
             }
-            if !graph[next_node]
-                .manager
+            if !next_node_manager
                 .accept(bundle, txdata.rx_window, current_node.into())
             {
                 continue;
             }
-            if let Some(previous) = &last_hop.0.via
+            if let Some(previous) = previous_node
                 && !graph[current_node].manager.dry_run_retention(
                     bundle,
                     last_hop.0.arrival_time,
-                    previous.tx_node.into(),
+                    previous.into(),
                     txdata.tx_window,
-                    next_node.into(),
+                    next_node_ref.into(),
                 )
             {
                 //early return if current node refuse, as it is unlikely making it wait for the bundle longer will make it accept
                 //Maybe replace that with the node returning a window of possible send time
                 break;
             }
-            best = Some((ctref, txdata.rx_window))
+            best = Some((ctref, txdata.rx_window,next_node_ref))
         }
     }
 
-    best.map(|(ct_ref, time)| PathFragment {
+    best.map(|(ct_ref, time,receiver)| PathFragment {
         via: Some(ViaHop {
             contact: ct_ref,
             parent_frag: last_hop.1,
-            tx_node: current_node,
         }),
         hop_count: last_hop.0.hop_count + 1,
+        rx_node: receiver,
         arrival_time: time,
     })
 }

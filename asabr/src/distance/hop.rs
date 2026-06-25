@@ -5,7 +5,7 @@ use crate::{
     contact_manager::ContactManager,
     multigraph::{Multigraph, RNodeRef},
     node_manager::NodeManager,
-    pathfinding::hybrid_parenting::HybridParentingOrd,
+    pathfinding::HybridParentingOrd,
     paths::PathFragment,
 };
 
@@ -42,12 +42,12 @@ impl<NM: NodeManager, CM: ContactManager> Distance<NM, CM> for Hop {
     /// This function is marked with `#[inline(always)]` for potential performance optimizations.
     #[inline(always)]
     fn cmp<'id>(
-        first: &(PathFragment<'id>, RNodeRef<'id>),
-        second: &(PathFragment<'id>, RNodeRef<'id>),
+        first: &PathFragment<'id>,
+        second: &PathFragment<'id>,
         _graph: &Multigraph<'id, NM, CM>,
         _bundle: &Bundle,
     ) -> Ordering {
-        super::cmp_by(first.0, second.0, |frag| {
+        super::cmp_by(first, second, |frag| {
             (frag.hop_count, frag.arrival_time.end)
         })
         // TODO: Readd expiration

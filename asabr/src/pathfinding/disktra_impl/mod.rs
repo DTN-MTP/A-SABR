@@ -11,15 +11,15 @@ pub use node_parenting::NodeParenting;
 
 use crate::{parsing::Either, pathfinding::PathFindingOutput, paths::PathFragment};
 
-pub fn flatten<'id>(paths: &[PathFragment<'id>],by_dest:impl Iterator<Item = Option<usize>>)->PathFindingOutput<'id,'static>{
+pub fn flatten<'id,'a>(paths: &[PathFragment<'id>],by_dest:impl Iterator<Item = Option<usize>>)->PathFindingOutput<'id,'a>{
     
         let mut elided_tree =
             Vec::new();
         let mut new_indexs = vec![None; paths.len()];
         for (i, possible_path) in by_dest.enumerate() {
             let path = possible_path.map(|index| {
-                new_indexs[*index] = Some(i);
-                paths[*index]
+                new_indexs[index] = Some(i);
+                paths[index]
             });
             elided_tree.push(path);
         }

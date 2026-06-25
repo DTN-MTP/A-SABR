@@ -5,7 +5,7 @@ use crate::{
     contact_manager::ContactManager,
     multigraph::{Multigraph, RNodeRef},
     node_manager::NodeManager,
-    pathfinding::hybrid_parenting::HybridParentingOrd,
+    pathfinding::HybridParentingOrd,
     paths::PathFragment,
 };
 
@@ -41,12 +41,12 @@ impl<NM: NodeManager, CM: ContactManager> Distance<NM, CM> for SABR {
     /// This function is marked with `#[inline(always)]` for potential performance optimizations.
     #[inline(always)]
     fn cmp<'id>(
-        first: &(PathFragment<'id>, RNodeRef<'id>),
-        second: &(PathFragment<'id>, RNodeRef<'id>),
+        first: &PathFragment<'id>,
+        second: &PathFragment<'id>,
         _graph: &Multigraph<'id, NM, CM>,
         _bundle: &Bundle,
     ) -> Ordering {
-        super::cmp_by(first.0, second.0, |path| {
+        super::cmp_by(first, second, |path| {
             (path.arrival_time.end, path.hop_count)
         })
         // TODO: Readd expiration

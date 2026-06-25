@@ -12,8 +12,6 @@ pub struct ViaHop<'id> {
     pub contact: ContactRef<'id>,
     /// A reference to the parent route stage for this hop.
     pub parent_frag: usize,
-    /// A reference to the transmitting node for this hop.
-    pub tx_node: RNodeRef<'id>,
 }
 
 /// Represents the end of a path to a Node.
@@ -36,6 +34,8 @@ pub struct PathFragment<'id> {
 
     /// The arrival time to the final node in the original disktra
     pub arrival_time: TimeInterval,
+    /// A reference to the receiving node for this hop.
+    pub rx_node: RNodeRef<'id>,
     // /// The cumulative transmission delay incurred on this path, often used for routing optimizations.
     // pub cumulative_delay: Duration,
     // /// The time at which this route stage expires, indicating when it is no longer valid.
