@@ -52,6 +52,12 @@ impl From<VNodeRef<'_>> for usize {
     }
 }
 
+impl From<RNodeRef<'_>> for usize {
+    fn from(value: RNodeRef) -> Self {
+        value.index
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NodeRef<'id> {
     R(RNodeRef<'id>),
@@ -103,7 +109,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
                 .virtual_nodes
                 .push_mut(Vec::with_capacity(vnode.rids.len()));
             for rid in vnode.rids {
-                if rid as usize >= r.real_nodes.len() {
+                if usize::from(rid) >= r.real_nodes.len() {
                     return Err(ASABRError::ContactPlanError("illegal node id"));
                 }
                 new.push(RNodeRef {
@@ -155,7 +161,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
     }
 
     pub fn node_id_ref(&self, id: NodeID) -> Result<NodeRef<'id>, ASABRError> {
-        let mut id = id as usize;
+        let mut id = usize::from(id);
         if id < self.real_nodes.len() {
             Ok(NodeRef::R(RNodeRef {
                 index: id,
@@ -190,7 +196,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
         }
     }
 
-    /// Retrieves the total number of vertices in the multigraph (rnode + vnode).
+    /// Retrieves the total number of vertices in the multigraph (rnode + enode + vnode).
     pub fn get_vertex_count(&self) -> usize {
         self.real_nodes.len() + self.virtual_nodes.len()
     }
@@ -208,6 +214,30 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
     /// Retrieves a copy of the Id<'id>
     pub fn id(&self) -> Id<'id> {
         self.id
+    }
+
+    /// Retrieve the number of routable elements (aka rnodes + vnodes, but not enodes)
+    pub fn get_routable_count(&self) -> usize {
+        self.get_rnode_count() + self.get_vnode_count()
+    }
+
+    /// Convert a NodeID into the usize index to use in routing operation
+    pub fn flatten_route_id(&self, id: NodeID) -> Result<usize, ASABRError> {
+        self.node_id_ref(id).map(|node| self.into_usize(node))
+    }
+
+    /// return a stable index between 0 and self.get_routable_count
+    pub fn into_usize(&self, node: NodeRef<'id>) -> usize {
+        match node {
+            NodeRef::R(rnode_ref) => rnode_ref.into(),
+            NodeRef::V(vnode_ref) => usize::from(vnode_ref) + self.get_rnode_count(),
+        }
+    }
+    pub fn vnode_id(&self, vnode: VNodeRef) -> NodeID {
+        (self.get_vertex_count() - self.get_vnode_count() + vnode.index).into()
+    }
+    pub fn get_nonvirtualnode_count(&self) -> usize {
+        self.get_rnode_count()
     }
 
     pub fn iter_contacts_withnodes(
@@ -338,9 +368,6 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
             iter::empty::<(VNodeRef<'id>, iter::Empty<_>)>(),
         )
     }
-    pub fn vnode_id(&self, vnode: VNodeRef) -> NodeID {
-        self.get_rnode_count() as NodeID + vnode.index as NodeID
-    }
 }
 
 impl<'id, NM: NodeManager, CM: ContactManager> Index<RNodeRef<'id>> for Multigraph<'id, NM, CM> {
@@ -404,7 +431,7 @@ where
 
 impl<'id> From<RNodeRef<'id>> for NodeID {
     fn from(value: RNodeRef<'id>) -> NodeID {
-        value.index as NodeID
+        value.index.into()
     }
 }
 

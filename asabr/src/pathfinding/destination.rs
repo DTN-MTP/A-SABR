@@ -126,6 +126,26 @@ impl<'id> Destination<'id> for VNodeRef<'id> {
     }
 }
 
+impl<'id> Destination<'id> for NodeRef<'id> {
+    #[inline(always)]
+    fn reinit(&mut self) {
+        
+    }
+
+    #[inline(always)]
+    fn now_reached(&mut self, node: NodeRef<'id>) -> bool {
+        node == *self
+    }
+
+    #[inline(always)]
+    fn is_useful(&self, node: VNodeRef<'id>) -> bool {
+        match self {
+            NodeRef::R(rnode_ref) => rnode_ref.is_useful(node),
+            NodeRef::V(vnode_ref) => vnode_ref.is_useful(node),
+        }
+    }
+}
+
 pub struct All;
 
 impl Destination<'_> for All {

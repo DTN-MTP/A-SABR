@@ -11,12 +11,12 @@ use crate::{
     node_manager::NodeManager,
     pathfinding::{PathFindingOutput, Pathfinding, destination::Destination, try_make_hop},
     paths::PathFragment,
-    types::{Date, NodeID},
+    types::Date,
 };
 
 /// Trait defining a custom DisktraWorkspace.
 /// implementing Pathfinding for T can then be done simply using the disktra function.
-pub trait DisktraWorkspace<'id, NM: NodeManager, CM: ContactManager> {
+pub trait DijkstraWorkspace<'id, NM: NodeManager, CM: ContactManager> {
     /// Initialise this Workspace
     fn new(graph: &Multigraph<'id, NM, CM>) -> Self;
     /// Convert self into a (static, aka vector form) pathfinding output
@@ -31,23 +31,23 @@ pub trait DisktraWorkspace<'id, NM: NodeManager, CM: ContactManager> {
         bundle: &Bundle,
     ) -> Option<usize>;
     /// Check if it is usefull to consider new paths to this node.
-    fn node_check(&mut self, node: NodeRef<'id>) -> bool;
+    fn node_check(&mut self, node: NodeRef<'id>, graph: &Multigraph<'id,NM,CM>) -> bool;
     /// Is this path still relevant, and is it to a new node ?
     /// Also, return the previous node on path if it exist
     fn poped_relevant_new(
-        &self,
+        &mut self,
         frag: PathFragment<'id>,
         node: NodeRef<'id>,
         viaref: usize,
     ) -> (bool, bool, Option<RNodeRef<'id>>);
 }
 
-pub fn disktra<
+pub fn dijkstra<
     'id,
     'a,
     NM: NodeManager,
     CM: ContactManager,
-    W: DisktraWorkspace<'id, NM, CM>,
+    W: DijkstraWorkspace<'id, NM, CM>,
     D: Distance<NM, CM>,
     De: Destination<'id>,
 >(
@@ -66,9 +66,9 @@ pub fn disktra<
 
     let mut reachables = vec![false; multigraph.get_rnode_count()];
     let mut reachables_v = vec![false; multigraph.get_vnode_count()];
-    reachables[NodeID::from(source) as usize] = true;
+    reachables[usize::from(source)] = true;
 
-    let init_path = PathFragment::new_start(current_time,source);
+    let init_path = PathFragment::new_start(current_time, source);
     let Some(viaref) = work_area.try_insert(init_path, NodeRef::R(source), multigraph, bundle)
     else {
         return None;
@@ -97,7 +97,7 @@ pub fn disktra<
             let (current_node, iter_r, iter_v) = multigraph.iter_iter_contacts(node);
 
             for (neighbor, _, contacts) in iter_r {
-                if !work_area.node_check(NodeRef::R(neighbor)) {
+                if !work_area.node_check(NodeRef::R(neighbor),multigraph) {
                     continue;
                 }
 
@@ -120,9 +120,9 @@ pub fn disktra<
                     contacts.map(|(ctref, ct)| (node, &current_node.manager, ctref, ct)),
                     previous_node,
                 ) {
-                    if !reachables[NodeID::from(neighbor) as usize] {
+                    if !reachables[usize::from(neighbor)] {
                         reachable += 1;
-                        reachables[NodeID::from(neighbor) as usize] = true
+                        reachables[usize::from(neighbor)] = true
                     }
                     if let Some(viaref) =
                         work_area.try_insert(path, NodeRef::R(neighbor), multigraph, bundle)
@@ -153,9 +153,9 @@ pub fn disktra<
                         contacts.map(|(rre, rno, ctre, ct)| (rre, &rno.manager, ctre, ct)),
                         previous_node,
                     ) {
-                        if !reachables_v[multigraph.vnode_id(vnoderef) as usize] {
+                        if !reachables_v[usize::from(vnoderef)] {
                             reachable += 1;
-                            reachables_v[multigraph.vnode_id(vnoderef) as usize] = true
+                            reachables_v[usize::from(vnoderef)] = true
                         }
                         if let Some(viaref) =
                             work_area.try_insert(path, NodeRef::V(vnoderef), multigraph, bundle)
@@ -170,23 +170,19 @@ pub fn disktra<
     Some(work_area.into_pathfinding_output())
 }
 
+#[derive(Default)]
 pub struct Disktra<W, D> {
     _phantom: PhantomData<fn(W, D)>,
 }
 
-impl<'id, W, D, NM, CM> Pathfinding<'id, NM, CM> for Disktra<W, D>
+impl<'id, W, D, NM, CM, De: Destination<'id>> Pathfinding<'id, NM, CM, De> for Disktra<W, D>
 where
-    W: DisktraWorkspace<'id, NM, CM>,
+    W: DijkstraWorkspace<'id, NM, CM>,
     D: Distance<NM, CM>,
     CM: ContactManager,
     NM: NodeManager,
 {
-    fn new(id: generativity::Guard, multigraph: &Multigraph<'id, NM, CM>) -> Self {
-        Self {
-            _phantom: PhantomData,
-        }
-    }
-    fn find_path<'a, De: Destination<'id>>(
+    fn find_path<'a>(
         &'a mut self,
         multigraph: &mut Multigraph<'id, NM, CM>,
         current_time: Date,
@@ -194,12 +190,20 @@ where
         bundle: &Bundle,
         dest: &mut De,
     ) -> Result<Option<PathFindingOutput<'id, 'a>>, crate::errors::ASABRError> {
-        Ok(disktra::<NM, CM, W, D, De>(
+        Ok(dijkstra::<NM, CM, W, D, De>(
             multigraph,
             current_time,
             source,
             bundle,
             dest,
         ))
+    }
+}
+
+impl<W, D> Disktra<W, D> {
+    pub fn new() -> Self {
+        Self {
+            _phantom: PhantomData,
+        }
     }
 }

@@ -13,7 +13,7 @@ use a_sabr::pathfinding::hybrid_parenting::HybridParentingPath;
 use a_sabr::types::Date;
 use a_sabr::types::Priority;
 use a_sabr::utils::init_pathfinding;
-use a_sabr::{choices, mk_graph_pathfinding, parse_transparent, transparent_NM};
+use a_sabr::{choices, mk_graph, parse_transparent, transparent_NM};
 
 #[derive(Debug)]
 struct Compressing {
@@ -98,7 +98,7 @@ fn edge_case_example<NM: NodeManager + LexFrom<str>>(
     // });
     // let mut mpt_graph =
     //     init_pathfinding::<NM, EVLManager, HybridParentingPath<NM, EVLManager, SABR>, _, _>(lines)?;
-    mk_graph_pathfinding!(graph,mpt_graph,NM,EVLManager,HybridParentingPath,cp_path,file);
+    mk_graph!(graph,mpt_graph,NM,EVLManager,HybridParentingPath,cp_path,file);
     println!(
         "\nRunning with contact plan location={cp_path}, destination node=3, and bundle priority={bundle_priority}"
     );

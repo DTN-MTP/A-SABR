@@ -2,22 +2,21 @@ extern crate alloc;
 use alloc::vec::Vec;
 use core::fmt::Debug;
 use core::ops::Deref;
-use generativity::Guard;
 
 use crate::bundle::Bundle;
 use crate::contact::Contact;
 use crate::contact_manager::ContactManager;
 use crate::errors::ASABRError;
-use crate::multigraph::{ContactRef, Multigraph, RNodeRef};
+use crate::multigraph::{ContactRef, Multigraph, NodeRef, RNodeRef};
 use crate::node_manager::NodeManager;
 use crate::parsing::Either;
 use crate::pathfinding::destination::Destination;
 use crate::paths::{PathFragment, ViaHop};
-use crate::types::{Date, NodeID, TimeInterval};
+use crate::types::{Date, TimeInterval};
 
-pub mod disktra;
-pub mod disktra_impl;
-pub use disktra_impl::*;
+pub mod dijkstra;
+pub mod dijkstra_impl;
+pub use dijkstra_impl::*;
 pub mod destination;
 pub use destination::{All as DestAll, Dest};
 #[cfg(feature = "contact_suppression")]
@@ -61,9 +60,10 @@ impl<'id, 'a> PathFindingOutput<'id, 'a> {
     /// Return the list of hops making this path, if it is still a valid (and detected) one,
     pub fn get_full_path<NM: NodeManager, CM: ContactManager>(
         &self,
-        destination: RNodeRef<'id>,
+        destination: NodeRef<'id>,
+        graph: &Multigraph<'id, NM, CM>,
     ) -> Option<Vec<PathFragment<'id>>> {
-        let mut next = self[NodeID::from(destination) as usize]?;
+        let mut next = self[graph.into_usize(destination)]?;
         let mut r = Vec::with_capacity(next.hop_count as usize + 1);
         r.push(next);
         while let Some(next_via) = next.via {
@@ -71,6 +71,38 @@ impl<'id, 'a> PathFindingOutput<'id, 'a> {
             r.push(next);
         }
         Some(r)
+    }
+    pub fn full_path_rev<NM: NodeManager, CM: ContactManager>(
+        &self,
+        destination: NodeRef<'id>,
+        graph: &Multigraph<'id, NM, CM>,
+    ) -> Option<impl Iterator<Item = PathFragment<'id>>> {
+        match self[graph.into_usize(destination)] {
+            None => None,
+            Some(_) => Some(PathIterator {
+                output: self,
+                last: Some(graph.into_usize(destination)),
+            }),
+        }
+    }
+}
+
+struct PathIterator<'id, 'a, 'b> {
+    output: &'b PathFindingOutput<'id, 'a>,
+    last: Option<usize>,
+}
+
+impl<'id, 'a, 'b> Iterator for PathIterator<'id, 'a, 'b> {
+    type Item = PathFragment<'id>;
+    fn next(&mut self) -> Option<Self::Item> {
+        let Some(idx) = self.last.take() else {
+            return None;
+        };
+        let frag = self.output[idx]?;
+        if let Some(hop) = frag.via {
+            self.last = Some(hop.parent_frag)
+        }
+        Some(frag)
     }
 }
 
@@ -81,18 +113,7 @@ impl<'id, 'a> PathFindingOutput<'id, 'a> {
 ///
 /// * `NM` - A generic type that implements the `NodeManager` trait.
 /// * `CM` - A generic type that implements the `ContactManager` trait.
-pub trait Pathfinding<'id, NM: NodeManager, CM: ContactManager> {
-    /// Creates a new instance of the pathfinding algorithm with the provided nodes and contacts.
-    ///
-    /// # Parameters
-    ///
-    /// * `multigraph` - A reference-counted, mutable pointer to the multigraph containing nodes and contacts for pathfinding.
-    ///
-    /// # Returns
-    ///
-    /// A new instance of the struct implementing `Pathfinding`.
-    fn new(id: Guard, multigraph: &Multigraph<'id, NM, CM>) -> Self;
-
+pub trait Pathfinding<'id, NM: NodeManager, CM: ContactManager, D: Destination<'id>> {
     /// Determines the next hop in the route for the given bundle, excluding specified nodes.
     ///
     /// # Parameters
@@ -106,7 +127,7 @@ pub trait Pathfinding<'id, NM: NodeManager, CM: ContactManager> {
     ///
     /// A `Result<PathFindingOutput<NM, CM>, ASABRError>` containing the results of the pathfinding operation,
     /// or an error if the operation fails.
-    fn find_path<'a, D: Destination<'id>>(
+    fn find_path<'a>(
         &'a mut self,
         multigraph: &mut Multigraph<'id, NM, CM>,
         current_time: Date,

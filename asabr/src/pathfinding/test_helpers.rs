@@ -3,13 +3,13 @@ extern crate alloc;
 use crate::{
     bundle::Bundle,
     contact::{Contact, ContactInfo},
-    contact_manager::legacy::evl::EVLManager,
+    contact_manager::{ContactManager, legacy::evl::EVLManager},
     contact_plan::{ContactPlan, RealNode, asabr_file_lexer::parse_from_iter},
-    mk_graph_pathfinding,
-    multigraph::Multigraph,
+    mk_graph,
+    multigraph::{Multigraph, NodeRef},
     node::{Node, NodeInfo},
     node_manager::{NodeManager, none::NoManagement},
-    pathfinding::{ASABRError, PathFindingOutput, Pathfinding},
+    pathfinding::{ASABRError, PathFindingOutput},
     paths::PathFragment,
     types::{Date, NodeID},
 };
@@ -108,11 +108,11 @@ impl NodeManager for MockNodeManager {
     }
 }
 
-pub(crate) fn make_vertex<NM: NodeManager>(id: u16, name: &str, nm: NM) -> RealNode<NM> {
+pub(crate) fn make_vertex<NM: NodeManager>(id: usize, name: &str, nm: NM) -> RealNode<NM> {
     RealNode::Inode(
         Node::try_new(
             NodeInfo {
-                id,
+                id: id.into(),
                 name: name.into(),
                 excluded: false,
             },
@@ -123,15 +123,15 @@ pub(crate) fn make_vertex<NM: NodeManager>(id: u16, name: &str, nm: NM) -> RealN
 }
 
 pub(crate) fn make_contact(
-    tx: u16,
-    rx: u16,
+    tx: usize,
+    rx: usize,
     start: i64,
     end: i64,
     rate: f64,
     delay: i64,
 ) -> (Contact<EVLManager>, usize, usize) {
     Contact::try_new(
-        ContactInfo::new(tx, rx, start, end),
+        ContactInfo::new(tx.into(), rx.into(), start, end),
         EVLManager::new(rate, delay),
     )
     .expect("Contact creation failed")
@@ -139,9 +139,13 @@ pub(crate) fn make_contact(
 
 pub(crate) fn make_source<'id>(
     at_time: Date,
-    _node_id: u16,
+    node_id: usize,
     _bundle: &Bundle,
+    graph: &Multigraph<'id, impl NodeManager, impl ContactManager>,
 ) -> PathFragment<'id> {
+    let Ok(NodeRef::R(node_ref)) = graph.node_id_ref(node_id.into()) else {
+        panic!()
+    };
     PathFragment::new(
         crate::types::TimeInterval {
             start: at_time,
@@ -149,12 +153,13 @@ pub(crate) fn make_source<'id>(
         },
         None,
         0,
+        node_ref,
     )
 }
 
 pub(crate) fn make_bundle(priority: i8, size: f64, expiration: Date) -> Bundle {
     Bundle {
-        source: 0,
+        source: 0usize.into(),
         priority,
         size,
         expiration,
@@ -213,16 +218,13 @@ pub const TEST_GRAPHS: [(&str, &str); 4] = [
     ),
 ];
 
-pub fn for_test_graph<A, P: for<'id> Pathfinding<'id, NoManagement, EVLManager>>(
+pub fn for_test_graph<A>(
     graph_index: usize,
-    f: impl for<'id> FnOnce(
-        &mut Multigraph<'id, NoManagement, EVLManager>,
-        &mut P,
-    ) -> Result<A, ASABRError>,
+    f: impl for<'id> FnOnce(&mut Multigraph<'id, NoManagement, EVLManager>) -> Result<A, ASABRError>,
 ) -> Result<A, ASABRError> {
     let graph = TEST_GRAPHS[graph_index].1;
-    mk_graph_pathfinding!(graph, finder, NoManagement, EVLManager, P, graph, raw);
-    f(&mut graph, &mut finder)
+    mk_graph!(graph, NoManagement, EVLManager, graph, raw);
+    f(&mut graph)
 }
 
 // pub(crate) struct HopContext<'id, T: Pathfinding<'id, NM, EVLManager>, NM: NodeManager> {

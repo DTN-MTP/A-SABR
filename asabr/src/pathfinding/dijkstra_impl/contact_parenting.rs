@@ -9,11 +9,10 @@ use crate::{
     multigraph::{ContactRef, Multigraph, NodeRef, RNodeRef},
     node_manager::NodeManager,
     pathfinding::{
-        disktra::{Disktra, DisktraWorkspace},
+        dijkstra::{DijkstraWorkspace, Disktra},
         flatten,
     },
     paths::{PathFragment, ViaHop},
-    types::NodeID,
 };
 
 use super::super::PathFindingOutput;
@@ -45,7 +44,7 @@ struct ContactParentingWorkArea<'id, NM: NodeManager, CM: ContactManager, D: Dis
     _phantom: PhantomData<fn(NM, CM, D)>,
 }
 
-impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> DisktraWorkspace<'id, NM, CM>
+impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> DijkstraWorkspace<'id, NM, CM>
     for ContactParentingWorkArea<'id, NM, CM, D>
 {
     /// Constructs a new `ContactParenting` instance with the provided nodes and contacts.
@@ -55,7 +54,7 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> DisktraWorks
             possible_paths: Vec::new(),
             by_destination: vec![None; graph.get_rnode_count()],
             by_dest_vnode: vec![None; graph.get_vnode_count()],
-            visited: vec![BTreeSet::new(); graph.get_rnode_count()],
+            visited: vec![BTreeSet::new(); graph.get_nonvirtualnode_count()],
             _phantom: PhantomData,
         }
     }
@@ -75,12 +74,12 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> DisktraWorks
     ) -> Option<usize> {
         let new_idx = self.possible_paths.len();
         let route_for_node = match node {
-            NodeRef::R(rnode) => &mut self.by_destination[NodeID::from(rnode) as usize],
+            NodeRef::R(rnode) => &mut self.by_destination[usize::from(rnode)],
             NodeRef::V(vnode) => &mut self.by_dest_vnode[usize::from(vnode)],
         };
 
         if proposition.via.is_none_or(|ViaHop { contact, .. }| {
-            self.visited[NodeID::from(proposition.rx_node) as usize].insert(contact)
+            self.visited[usize::from(proposition.rx_node)].insert(contact)
         }) {
             match route_for_node {
                 None => {
@@ -104,11 +103,11 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> DisktraWorks
         }
     }
 
-    fn node_check(&mut self, _node: NodeRef<'id>) -> bool {
+    fn node_check(&mut self, _node: NodeRef<'id>, _graph: &Multigraph<'id, NM, CM>) -> bool {
         true
     }
     fn poped_relevant_new(
-        &self,
+        &mut self,
         frag: PathFragment<'id>,
         node: NodeRef<'id>,
         viaref: usize,
@@ -120,7 +119,7 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> DisktraWorks
             match node {
                 NodeRef::R(rnode) => (
                     true,
-                    self.by_destination[NodeID::from(rnode) as usize] == Some(viaref),
+                    self.by_destination[usize::from(rnode)] == Some(viaref),
                     prev,
                 ),
                 NodeRef::V(_vnode) => (true, true, prev),

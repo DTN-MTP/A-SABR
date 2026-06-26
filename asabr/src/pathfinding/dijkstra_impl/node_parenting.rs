@@ -1,16 +1,19 @@
 extern crate alloc;
+use core::{cmp::Ordering, marker::PhantomData};
+
 use alloc::{vec, vec::Vec};
 
 use crate::{
     bundle::Bundle,
     contact_manager::ContactManager,
-    multigraph::Multigraph,
+    distance::Distance,
+    multigraph::{Multigraph, NodeRef},
     node_manager::NodeManager,
     pathfinding::{
         PathFragment,
-        disktra::{Disktra, DisktraWorkspace},
+        dijkstra::{DijkstraWorkspace, Disktra},
     },
-    types::NodeID,
+    paths::ViaHop,
 };
 
 use super::super::PathFindingOutput;
@@ -24,22 +27,26 @@ use super::super::PathFindingOutput;
 /// * `NM` - A type that implements the `NodeManager` trait.
 /// * `CM` - A type that implements the `ContactManager` trait.
 /// * `D` - A type that implements the `Distance<NM, CM>` trait.
-pub type NodeParenting<'id, D> = Disktra<NodeParentingWorkArea<'id>, D>;
+pub type NodeParenting<'id, D> = Disktra<NodeParentingWorkArea<'id, D>, D>;
 
-pub struct NodeParentingWorkArea<'id> {
+pub struct NodeParentingWorkArea<'id, D> {
     paths: Vec<Option<PathFragment<'id>>>,
+    visited: Vec<bool>,
+    _phantom: PhantomData<D>,
 }
 
-impl<'id, NM: NodeManager, CM: ContactManager> DisktraWorkspace<'id, NM, CM>
-    for NodeParentingWorkArea<'id>
+impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> DijkstraWorkspace<'id, NM, CM>
+    for NodeParentingWorkArea<'id, D>
 {
     fn new(graph: &Multigraph<'id, NM, CM>) -> Self {
         Self {
-            paths: vec![None; graph.get_rnode_count()],
+            paths: vec![None; graph.get_routable_count()],
+            visited: vec![false; graph.get_routable_count()],
+            _phantom: PhantomData,
         }
     }
 
-    fn into_pathfinding_output(self) -> PathFindingOutput<'id, 'static> {
+    fn into_pathfinding_output<'a>(self) -> PathFindingOutput<'id, 'a> {
         PathFindingOutput {
             path_tree: crate::parsing::Either::Right(self.paths),
         }
@@ -49,32 +56,42 @@ impl<'id, NM: NodeManager, CM: ContactManager> DisktraWorkspace<'id, NM, CM>
     fn try_insert(
         &mut self,
         proposition: PathFragment<'id>,
-        actual_node: crate::multigraph::RNodeRef<'id>,
+        node: NodeRef<'id>,
         graph: &Multigraph<'id, NM, CM>,
         bundle: &Bundle,
-    ) -> (Option<usize>, bool) {
-        let dest = &mut self.paths[NodeID::from(actual_node) as usize];
-        if dest.is_some() {
-            (None, false)
-        } else {
+    ) -> Option<usize> {
+        let dest = &mut self.paths[graph.into_usize(node)];
+        if dest
+            .as_ref()
+            .is_none_or(|old| D::cmp(&proposition, old, graph, bundle) == Ordering::Less)
+        {
             *dest = Some(proposition);
-            (Some(NodeID::from(actual_node) as usize), true)
+            Some(graph.into_usize(node))
+        } else {
+            None
         }
     }
     #[inline(always)]
-    fn node_check(&mut self, node: crate::multigraph::RNodeRef<'id>) -> bool {
-        self.paths[NodeID::from(node) as usize].is_none()
+    fn node_check(&mut self, node: NodeRef<'id>, graph: &Multigraph<'id, NM, CM>) -> bool {
+        !self.visited[graph.into_usize(node)]
     }
-
-    #[inline(always)]
-    fn fragment_check(
+    fn poped_relevant_new(
         &mut self,
-        proposition: PathFragment<'id>,
-        dest_node: crate::multigraph::RNodeRef<'id>,
-        graph: &Multigraph<'id, NM, CM>,
-        bundle: &Bundle,
-    ) -> bool {
-        true
+        frag: PathFragment<'id>,
+        _node: NodeRef<'id>,
+        viaref: usize,
+    ) -> (bool, bool, Option<crate::multigraph::RNodeRef<'id>>) {
+        if self.visited[viaref] {
+            (false, false, None)
+        } else {
+            self.visited[viaref] = true;
+            (
+                true,
+                true,
+                frag.via
+                    .map(|ViaHop { parent_frag, .. }| self.paths[parent_frag].unwrap().rx_node),
+            )
+        }
     }
 }
 

@@ -11,11 +11,10 @@ use crate::{
     multigraph::{Multigraph, NodeRef, RNodeRef},
     node_manager::NodeManager,
     pathfinding::{
-        disktra::{Disktra, DisktraWorkspace},
+        dijkstra::{DijkstraWorkspace, Disktra},
         flatten,
     },
     paths::{PathFragment, ViaHop},
-    types::NodeID,
 };
 
 /// A trait that allows HybridParenting to handle the lexicographic costs.
@@ -67,7 +66,7 @@ struct HybridParentingWorkArea<
 }
 
 impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParentingOrd<NM, CM>>
-    DisktraWorkspace<'id, NM, CM> for HybridParentingWorkArea<'id, NM, CM, D>
+    DijkstraWorkspace<'id, NM, CM> for HybridParentingWorkArea<'id, NM, CM, D>
 {
     #[inline(always)]
     fn new(graph: &Multigraph<'id, NM, CM>) -> Self {
@@ -99,7 +98,7 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParen
         match actual_node {
             NodeRef::R(actual_node) => {
                 let new_idx = self.possible_paths.len();
-                let routes_for_node = &mut self.by_destination[NodeID::from(actual_node) as usize];
+                let routes_for_node = &mut self.by_destination[usize::from(actual_node)];
                 for prop in routes_for_node.iter() {
                     if D::cmp(&proposition, &self.possible_paths[*prop], graph, bundle)
                         == Ordering::Less
@@ -142,11 +141,11 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParen
         }
     }
     #[inline(always)]
-    fn node_check(&mut self, _node: NodeRef<'id>) -> bool {
+    fn node_check(&mut self, _node: NodeRef<'id>, _graph: &Multigraph<'id, NM, CM>) -> bool {
         true
     }
     fn poped_relevant_new(
-        &self,
+        &mut self,
         frag: PathFragment<'id>,
         node: NodeRef<'id>,
         viaref: usize,
@@ -160,10 +159,7 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParen
             match node {
                 NodeRef::R(rnode) => (
                     true,
-                    Some(viaref)
-                        == self.by_destination[NodeID::from(rnode) as usize]
-                            .first()
-                            .copied(),
+                    Some(viaref) == self.by_destination[usize::from(rnode)].first().copied(),
                     prev,
                 ),
                 NodeRef::V(_vnode) => (true, true, prev),
