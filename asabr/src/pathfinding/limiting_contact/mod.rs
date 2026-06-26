@@ -43,11 +43,11 @@ pub fn get_next_to_suppress<
 >(
     graph: &Multigraph<'id, NM, CM>,
     paths: &PathFindingOutput<'id, 'a>,
-    bundle: &Bundle,
+    viaref: usize,
     better_for_suppression_than_fn: fn(&Contact<CM>, &Contact<CM>) -> bool,
 ) -> Option<ContactRef<'id>> {
     let mut to_suppress_opt: Option<ContactRef> = None;
-    let mut next_route_option = paths[bundle.destinations[0] as usize];
+    let mut next_route_option = paths[viaref];
     while let Some(curr_route) = next_route_option.take() {
         {
             if let Some(ref via) = curr_route.via {
@@ -159,7 +159,7 @@ macro_rules! create_new_alternative_path_variant {
             /// # Returns
             ///
             /// * `Result<PathFindingOutput<NM, CM>, ASABRError>` - The resulting pathfinding output, including the routes found.
-            fn find_path<'a>(
+            fn find_path<'a,D: $crate::pathfinding::destination::Destination<'id>>(
                 &'a mut self,
                 multigraph: &mut $crate::multigraph::Multigraph<'id, NM, CM>,
                 current_time: $crate::types::Date,

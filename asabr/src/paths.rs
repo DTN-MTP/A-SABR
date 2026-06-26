@@ -6,7 +6,7 @@ use core::fmt::Display;
 ///
 /// This struct encapsulates the `Contact` and parent `RouteStage` information necessary to move from
 /// one stage to the next.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ViaHop<'id> {
     /// A reference to the contact for this hop, representing the intermediate node.
     pub contact: ContactRef<'id>,
@@ -22,7 +22,7 @@ pub struct ViaHop<'id> {
 ///   contact's operations.
 /// - `NM`: A type implementing the `NodeManager` trait, responsible for managing the
 ///   node's operations.
-#[derive(derivative::Derivative, Copy, Clone)]
+#[derive(derivative::Derivative, Copy, Clone, PartialEq, Eq)]
 #[derivative(Debug)]
 pub struct PathFragment<'id> {
     // /// A flag that indicates if this path is disabled.
@@ -58,17 +58,18 @@ impl<'id> PathFragment<'id> {
         arrival_time: TimeInterval,
         via_hop: Option<ViaHop<'id>>,
         hop_count: HopCount,
+        rx_node: RNodeRef<'id>,
     ) -> Self {
         Self {
             arrival_time,
-            // is_disabled: false,
             via: via_hop,
             hop_count,
+            rx_node,
             // cumulative_delay: 0.0,
             // expiration: Date::MAX,
         }
     }
-    pub fn new_start(time: Date) -> Self {
+    pub fn new_start(time: Date, node: RNodeRef<'id>) -> Self {
         Self {
             via: None,
             hop_count: 0,
@@ -76,6 +77,7 @@ impl<'id> PathFragment<'id> {
                 start: time,
                 end: time,
             },
+            rx_node: node,
         }
     }
 }

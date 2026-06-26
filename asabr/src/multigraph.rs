@@ -332,7 +332,11 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
                 )
             });
         // TODO: Fill the vnode iterator
-        (node, neighboor_iter, iter::empty::<(VNodeRef<'id>,iter::Empty<_>)>())
+        (
+            node,
+            neighboor_iter,
+            iter::empty::<(VNodeRef<'id>, iter::Empty<_>)>(),
+        )
     }
     pub fn vnode_id(&self, vnode: VNodeRef) -> NodeID {
         self.get_rnode_count() as NodeID + vnode.index as NodeID

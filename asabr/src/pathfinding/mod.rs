@@ -19,7 +19,7 @@ pub mod disktra;
 pub mod disktra_impl;
 pub use disktra_impl::*;
 pub mod destination;
-pub use destination::{Dest,All as DestAll};
+pub use destination::{All as DestAll, Dest};
 #[cfg(feature = "contact_suppression")]
 pub mod limiting_contact;
 #[cfg(test)]
@@ -27,8 +27,10 @@ mod test_helpers;
 
 /// Data structure that holds the results of a pathfinding operation.
 ///
-/// This struct encapsulates information necessary for the outcome of a pathfinding algorithm,
-/// including the associated bundle, excluded nodes, and organized route stages by destination.
+/// It is a path Tree where the end of the path from the initial node to a node N with nodeID id is self[id as usize].
+/// None mean no path.
+/// Viaref ParenFrag ar index in the path tree.
+/// Access is meant to be done using the deref to slice impl, not matching on the variants, these should be used only to construct a pathfinding output
 ///
 /// # Type Parameters
 ///
@@ -104,13 +106,13 @@ pub trait Pathfinding<'id, NM: NodeManager, CM: ContactManager> {
     ///
     /// A `Result<PathFindingOutput<NM, CM>, ASABRError>` containing the results of the pathfinding operation,
     /// or an error if the operation fails.
-    fn find_path<'a,D:Destination<'id>>(
+    fn find_path<'a, D: Destination<'id>>(
         &'a mut self,
         multigraph: &mut Multigraph<'id, NM, CM>,
         current_time: Date,
         source: RNodeRef<'id>,
         bundle: &Bundle,
-        destination: &mut D
+        destination: &mut D,
     ) -> Result<Option<PathFindingOutput<'id, 'a>>, ASABRError>;
 }
 /// Attempts to make a hop (i.e., a transmission between nodes) for the given route stage and bundle,
@@ -131,17 +133,17 @@ pub trait Pathfinding<'id, NM: NodeManager, CM: ContactManager> {
 ///
 /// An (potentially empty) iterator over effectively suitable PathFragment.
 #[inline(always)]
-fn try_make_hop<'id,'a, NM: NodeManager+'a, CM: ContactManager, T: AsRef<Contact<CM>>>(
+fn try_make_hop<'id, 'a, NM: NodeManager + 'a, CM: ContactManager, T: AsRef<Contact<CM>>>(
     graph: &Multigraph<'id, NM, CM>,
     last_hop: (&PathFragment<'id>, usize),
     bundle: &Bundle,
     current_node: RNodeRef<'id>,
     send_time: Date,
-    contacts: impl Iterator<Item = (RNodeRef<'id>,&'a NM,ContactRef<'id>, T)>,
-    previous_node: Option<RNodeRef<'id>>
+    contacts: impl Iterator<Item = (RNodeRef<'id>, &'a NM, ContactRef<'id>, T)>,
+    previous_node: Option<RNodeRef<'id>>,
 ) -> Option<PathFragment<'id>> {
     // remove suppressed contacts
-    let suppressed = contacts.filter(|(_,_,_, ct)| {
+    let suppressed = contacts.filter(|(_, _, _, ct)| {
         #[cfg(feature = "contact_suppression")]
         if ct.as_ref().suppressed {
             return false;
@@ -150,9 +152,9 @@ fn try_make_hop<'id,'a, NM: NodeManager+'a, CM: ContactManager, T: AsRef<Contact
     });
     let mut best: Option<(ContactRef<'id>, TimeInterval, RNodeRef<'id>)> = None;
 
-    for (next_node_ref,next_node_manager,ctref, ct) in suppressed {
+    for (next_node_ref, next_node_manager, ctref, ct) in suppressed {
         // not better
-        if let Some((_, time,_)) = best
+        if let Some((_, time, _)) = best
             && time.end <= ct.as_ref().lifespan.start
         {
             break;
@@ -163,14 +165,12 @@ fn try_make_hop<'id,'a, NM: NodeManager+'a, CM: ContactManager, T: AsRef<Contact
                 .manager
                 .dry_run_tx(ct.as_ref().lifespan, send_time, bundle)
         {
-            if let Some((_, time,_)) = best
+            if let Some((_, time, _)) = best
                 && time.end < txdata.rx_window.end
             {
                 continue;
             }
-            if !next_node_manager
-                .accept(bundle, txdata.rx_window, current_node.into())
-            {
+            if !next_node_manager.accept(bundle, txdata.rx_window, current_node.into()) {
                 continue;
             }
             if let Some(previous) = previous_node
@@ -186,11 +186,11 @@ fn try_make_hop<'id,'a, NM: NodeManager+'a, CM: ContactManager, T: AsRef<Contact
                 //Maybe replace that with the node returning a window of possible send time
                 break;
             }
-            best = Some((ctref, txdata.rx_window,next_node_ref))
+            best = Some((ctref, txdata.rx_window, next_node_ref))
         }
     }
 
-    best.map(|(ct_ref, time,receiver)| PathFragment {
+    best.map(|(ct_ref, time, receiver)| PathFragment {
         via: Some(ViaHop {
             contact: ct_ref,
             parent_frag: last_hop.1,

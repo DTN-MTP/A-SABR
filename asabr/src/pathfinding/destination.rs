@@ -34,16 +34,16 @@ impl<'id> Destination<'id> for Dest<'id> {
 
     fn now_reached(&mut self, node: NodeRef<'id>) -> bool {
         match (self, node) {
-            (Self::RNode(dest), NodeRef::R(node)) => dest == node,
-            (Self::VNode(dest), NodeRef::V(_)) => true,
+            (Self::RNode(dest), NodeRef::R(node)) => *dest == node,
+            (Self::VNode(_), NodeRef::V(_)) => true, // because the correct vnode is the only one accepted
             (Self::AllNodes(), _) => false,
             (Self::AnyCast(dests), NodeRef::R(node)) => dests.binary_search(&node).is_ok(),
             (Self::MultiCast(dests, reached, counter), NodeRef::R(node)) => {
                 if let Ok(idx) = dests.binary_search(&node) {
                     if !reached[idx] {
                         reached[idx] = true;
-                        counter += 1;
-                        counter == dests.len()
+                        *counter += 1;
+                        *counter == dests.len()
                     } else {
                         false
                     }
@@ -56,10 +56,9 @@ impl<'id> Destination<'id> for Dest<'id> {
     }
     fn is_useful(&self, node: VNodeRef<'id>) -> bool {
         match self {
-            Self::VNode(dest) => dest == node,
+            Self::VNode(dest) => *dest == node,
             Self::AllNodes() => true,
-            _ => false
-             
+            _ => false,
         }
     }
 }
@@ -83,7 +82,7 @@ impl<'id> From<NodeRef<'id>> for Dest<'id> {
     }
 }
 impl<'id> From<All> for Dest<'id> {
-    fn from(value: All) -> Self {
+    fn from(_value: All) -> Self {
         Self::AllNodes()
     }
 }
@@ -92,16 +91,14 @@ impl<'id> Dest<'id> {
         Self::AnyCast(casts)
     }
     pub fn multicast(casts: Rc<[RNodeRef<'id>]>) -> Self {
-        let bools = unsafe {Box::new_zeroed_slice(casts.len()).assume_init()};
+        let bools = unsafe { Box::new_zeroed_slice(casts.len()).assume_init() };
         Self::MultiCast(casts, bools, 0)
     }
 }
 
 impl<'id> Destination<'id> for RNodeRef<'id> {
     #[inline(always)]
-    fn reinit(&mut self) {
-        
-    }
+    fn reinit(&mut self) {}
 
     #[inline(always)]
     fn now_reached(&mut self, node: NodeRef<'id>) -> bool {
@@ -109,16 +106,14 @@ impl<'id> Destination<'id> for RNodeRef<'id> {
     }
 
     #[inline(always)]
-    fn is_useful(&self, node: VNodeRef<'id>) -> bool {
+    fn is_useful(&self, _node: VNodeRef<'id>) -> bool {
         false
     }
 }
 
 impl<'id> Destination<'id> for VNodeRef<'id> {
     #[inline(always)]
-    fn reinit(&mut self) {
-        
-    }
+    fn reinit(&mut self) {}
 
     #[inline(always)]
     fn now_reached(&mut self, node: NodeRef<'id>) -> bool {
@@ -127,25 +122,23 @@ impl<'id> Destination<'id> for VNodeRef<'id> {
 
     #[inline(always)]
     fn is_useful(&self, node: VNodeRef<'id>) -> bool {
-        
         node == *self
-    }    
+    }
 }
 
 pub struct All;
 
 impl Destination<'_> for All {
     #[inline(always)]
-    fn reinit(&mut self) {
-    }
+    fn reinit(&mut self) {}
 
     #[inline(always)]
-    fn now_reached(&mut self, node: NodeRef<'_>) -> bool {
+    fn now_reached(&mut self, _node: NodeRef<'_>) -> bool {
         false
     }
 
     #[inline(always)]
-    fn is_useful(&self, node: VNodeRef<'_>) -> bool {
+    fn is_useful(&self, _node: VNodeRef<'_>) -> bool {
         true
     }
 }

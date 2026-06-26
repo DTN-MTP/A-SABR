@@ -1,12 +1,22 @@
 extern crate alloc;
 use alloc::{collections::BTreeSet, vec, vec::Vec};
-use core::marker::PhantomData;
+use core::{cmp::Ordering, marker::PhantomData};
 
 use crate::{
-    bundle::Bundle, contact_manager::ContactManager, distance::Distance, multigraph::{ContactRef, Multigraph}, node_manager::NodeManager, pathfinding::{disktra::{Disktra, DisktraWorkspace}, flatten}, paths::{PathFragment, ViaHop}, types::NodeID
+    bundle::Bundle,
+    contact_manager::ContactManager,
+    distance::Distance,
+    multigraph::{ContactRef, Multigraph, NodeRef, RNodeRef},
+    node_manager::NodeManager,
+    pathfinding::{
+        disktra::{Disktra, DisktraWorkspace},
+        flatten,
+    },
+    paths::{PathFragment, ViaHop},
+    types::NodeID,
 };
 
-use super::super::PathFindingOutput ;
+use super::super::PathFindingOutput;
 
 /// A contact parenting (contact graph) implementation of Dijkstra algorithm.
 ///
@@ -22,25 +32,21 @@ pub type ContactParenting<
     NM: NodeManager,
     CM: ContactManager,
     D: Distance<NM, CM>,
-> = Disktra<ContactParentingWorkArea<'id,NM,CM,D>,D>;
+> = Disktra<ContactParentingWorkArea<'id, NM, CM, D>, D>;
 
-struct ContactParentingWorkArea<
-    'id,
-    NM: NodeManager,
-    CM: ContactManager,
-    D: Distance<NM,CM>
-> {
+struct ContactParentingWorkArea<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> {
     /// A vector storing all keeped path to a node without sorting for easy reference.
     possible_paths: Vec<PathFragment<'id>>,
     /// A vector containing (option of index of) pathfragment, to reach a given destination.
     by_destination: Vec<Option<usize>>,
+    by_dest_vnode: Vec<Option<usize>>,
     /// Visited contacts, grouped by node.
     visited: Vec<BTreeSet<ContactRef<'id>>>,
     _phantom: PhantomData<fn(NM, CM, D)>,
 }
 
-impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>>
-    DisktraWorkspace<'id,NM,CM> for ContactParentingWorkArea<'id,NM,CM,D>
+impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> DisktraWorkspace<'id, NM, CM>
+    for ContactParentingWorkArea<'id, NM, CM, D>
 {
     /// Constructs a new `ContactParenting` instance with the provided nodes and contacts.
     #[inline(always)]
@@ -48,64 +54,81 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>>
         Self {
             possible_paths: Vec::new(),
             by_destination: vec![None; graph.get_rnode_count()],
-            visited : vec![BTreeSet::new(); graph.get_rnode_count()],
-                    _phantom: PhantomData,
+            by_dest_vnode: vec![None; graph.get_vnode_count()],
+            visited: vec![BTreeSet::new(); graph.get_rnode_count()],
+            _phantom: PhantomData,
         }
     }
-    fn into_pathfinding_output(self) -> PathFindingOutput<'id, 'static> {
-        flatten(&self.possible_paths, self.by_destination.into_iter())
+    fn into_pathfinding_output<'a>(self) -> PathFindingOutput<'id, 'a> {
+        flatten(
+            &self.possible_paths,
+            self.by_destination.into_iter().chain(self.by_dest_vnode),
+        )
     }
 
     fn try_insert(
         &mut self,
         proposition: PathFragment<'id>,
-        actual_node: crate::multigraph::RNodeRef<'id>,
+        node: NodeRef<'id>,
         graph: &Multigraph<'id, NM, CM>,
         bundle: &Bundle,
-    ) -> (Option<usize>, bool)
-    {
+    ) -> Option<usize> {
         let new_idx = self.possible_paths.len();
-        let route_for_node = &mut self.by_destination[NodeID::from(actual_node) as usize];
-        let Some(ViaHop{contact,..}) = proposition.via else {
-            if route_for_node.is_some(){
-                return (None,false);
-            }
-            self.possible_paths.push(proposition);
-            *route_for_node = Some(new_idx);
-            return (Some(new_idx),true); 
+        let route_for_node = match node {
+            NodeRef::R(rnode) => &mut self.by_destination[NodeID::from(rnode) as usize],
+            NodeRef::V(vnode) => &mut self.by_dest_vnode[usize::from(vnode)],
         };
-        let new = route_for_node.is_none();
-        if new {
-            *route_for_node = Some(new_idx);
-        }
-        if !self.visited[NodeID::from(actual_node) as usize].insert(contact)  {
-            self.possible_paths.push(proposition);
-            (Some(new_idx),new)
+
+        if proposition.via.is_none_or(|ViaHop { contact, .. }| {
+            self.visited[NodeID::from(proposition.rx_node) as usize].insert(contact)
+        }) {
+            match route_for_node {
+                None => {
+                    self.possible_paths.push(proposition);
+                    *route_for_node = Some(new_idx);
+                    return Some(new_idx);
+                }
+                Some(old) => {
+                    if D::cmp(&proposition, &self.possible_paths[*old], graph, bundle)
+                        == Ordering::Less
+                    {
+                        self.possible_paths[*old] = proposition;
+                        return Some(*old);
+                    } else {
+                        None
+                    }
+                }
+            }
         } else {
-            (None,false)
+            return None;
         }
     }
 
-    fn node_check(&mut self, node: crate::multigraph::RNodeRef<'id>) -> bool {
+    fn node_check(&mut self, _node: NodeRef<'id>) -> bool {
         true
     }
-
-    fn fragment_check(
-        &mut self,
-        proposition: PathFragment<'id>,
-        dest_node: crate::multigraph::RNodeRef<'id>,
-        graph: &Multigraph<'id, NM, CM>,
-        bundle: &Bundle,
-    ) -> bool
-    {
-        let Some(ViaHop { contact, ..}) = proposition.via else {
-            return true;
-        };
-        !self.visited[NodeID::from(dest_node) as usize].contains(&contact)
+    fn poped_relevant_new(
+        &self,
+        frag: PathFragment<'id>,
+        node: NodeRef<'id>,
+        viaref: usize,
+    ) -> (bool, bool, Option<RNodeRef<'id>>) {
+        if self.possible_paths[viaref] == frag {
+            let prev = frag
+                .via
+                .map(|ViaHop { parent_frag, .. }| self.possible_paths[parent_frag].rx_node);
+            match node {
+                NodeRef::R(rnode) => (
+                    true,
+                    self.by_destination[NodeID::from(rnode) as usize] == Some(viaref),
+                    prev,
+                ),
+                NodeRef::V(_vnode) => (true, true, prev),
+            }
+        } else {
+            (false, false, None)
+        }
     }
-    
-
-
 }
 
 // TODO: Remake test based on hybrid parenting ones

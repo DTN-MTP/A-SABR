@@ -1,7 +1,7 @@
 extern crate alloc;
 use alloc::{vec, vec::Vec};
 
-use core::marker::PhantomData;
+use core::{cmp::Ordering, marker::PhantomData};
 
 use super::super::PathFindingOutput;
 use crate::{
@@ -14,7 +14,7 @@ use crate::{
         disktra::{Disktra, DisktraWorkspace},
         flatten,
     },
-    paths::PathFragment,
+    paths::{PathFragment, ViaHop},
     types::NodeID,
 };
 
@@ -62,6 +62,7 @@ struct HybridParentingWorkArea<
     /// Each inner vector represents possible routes to a specific destination,
     /// sorted in order of preference.
     by_destination: Vec<Vec<usize>>,
+    by_dest_vnode: Vec<Option<usize>>,
     _phantom: PhantomData<fn(NM, CM, D)>,
 }
 
@@ -73,6 +74,7 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParen
         Self {
             possible_paths: Vec::new(),
             by_destination: vec![Vec::new(); graph.get_rnode_count()],
+            by_dest_vnode: vec![None; graph.get_vnode_count()],
             _phantom: PhantomData,
         }
     }
@@ -82,7 +84,8 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParen
             &self.possible_paths,
             self.by_destination
                 .into_iter()
-                .map(|possibilities| possibilities.first().copied()),
+                .map(|possibilities| possibilities.first().copied())
+                .chain(self.by_dest_vnode),
         )
     }
 
@@ -97,23 +100,45 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParen
             NodeRef::R(actual_node) => {
                 let new_idx = self.possible_paths.len();
                 let routes_for_node = &mut self.by_destination[NodeID::from(actual_node) as usize];
-                if routes_for_node.iter().all(|path| {
-                    D::keep_both(
+                for prop in routes_for_node.iter() {
+                    if D::cmp(&proposition, &self.possible_paths[*prop], graph, bundle)
+                        == Ordering::Less
+                    {
+                        self.possible_paths[*prop] = proposition;
+                        return Some(*prop);
+                    }
+                    if !D::keep_both(
                         &proposition,
-                        &self.possible_paths[*path],
+                        &self.possible_paths[*prop],
                         graph,
                         bundle,
                         actual_node,
-                    )
-                }) {
-                    routes_for_node.push(new_idx);
-                    self.possible_paths.push(proposition);
-                    Some(new_idx)
-                } else {
-                    None
+                    ) {
+                        return None;
+                    }
                 }
+                routes_for_node.push(new_idx);
+                self.possible_paths.push(proposition);
+                Some(new_idx)
             }
-            NodeRef::V(_) => todo!(),
+            NodeRef::V(vnode) => match &mut self.by_dest_vnode[usize::from(vnode)] {
+                a @ None => {
+                    let new_idx = self.possible_paths.len();
+                    self.possible_paths.push(proposition);
+                    *a = Some(new_idx);
+                    Some(new_idx)
+                }
+                Some(old) => {
+                    if D::cmp(&proposition, &self.possible_paths[*old], graph, bundle)
+                        == Ordering::Less
+                    {
+                        self.possible_paths[*old] = proposition;
+                        Some(*old)
+                    } else {
+                        None
+                    }
+                }
+            },
         }
     }
     #[inline(always)]
@@ -125,9 +150,25 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParen
         frag: PathFragment<'id>,
         node: NodeRef<'id>,
         viaref: usize,
-    ) -> (bool, bool, Option<RNodeRef<'id>>)
-    {
-        todo!()
+    ) -> (bool, bool, Option<RNodeRef<'id>>) {
+        if self.possible_paths[viaref] != frag {
+            (false, false, None)
+        } else {
+            let prev = self.possible_paths[viaref]
+                .via
+                .map(|ViaHop { parent_frag, .. }| self.possible_paths[parent_frag].rx_node);
+            match node {
+                NodeRef::R(rnode) => (
+                    true,
+                    Some(viaref)
+                        == self.by_destination[NodeID::from(rnode) as usize]
+                            .first()
+                            .copied(),
+                    prev,
+                ),
+                NodeRef::V(_vnode) => (true, true, prev),
+            }
+        }
     }
 }
 

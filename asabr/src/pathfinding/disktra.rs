@@ -65,10 +65,10 @@ pub fn disktra<
     let mut reached: usize = 0;
 
     let mut reachables = vec![false; multigraph.get_rnode_count()];
-    let mut reachables_v = vec![false;multigraph.get_vnode_count()];
+    let mut reachables_v = vec![false; multigraph.get_vnode_count()];
     reachables[NodeID::from(source) as usize] = true;
 
-    let init_path = PathFragment::new_start(current_time);
+    let init_path = PathFragment::new_start(current_time,source);
     let Some(viaref) = work_area.try_insert(init_path, NodeRef::R(source), multigraph, bundle)
     else {
         return None;

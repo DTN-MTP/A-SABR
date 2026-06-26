@@ -29,7 +29,7 @@ pub type DataRate = f64;
 /// Represents the count of hops in a routing path.
 pub type HopCount = u16;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TimeInterval {
     pub start: Date,
     pub end: Date,

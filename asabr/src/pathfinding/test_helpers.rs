@@ -13,7 +13,6 @@ use crate::{
     paths::PathFragment,
     types::{Date, NodeID},
 };
-use alloc::vec;
 
 #[derive(Debug)]
 pub(crate) struct MockNodeManager {
@@ -153,10 +152,9 @@ pub(crate) fn make_source<'id>(
     )
 }
 
-pub(crate) fn make_bundle(dest: NodeID, priority: i8, size: f64, expiration: Date) -> Bundle {
+pub(crate) fn make_bundle(priority: i8, size: f64, expiration: Date) -> Bundle {
     Bundle {
         source: 0,
-        destinations: vec![dest],
         priority,
         size,
         expiration,
@@ -215,9 +213,12 @@ pub const TEST_GRAPHS: [(&str, &str); 4] = [
     ),
 ];
 
-pub fn for_test_graph<'id, A, P: Pathfinding<'id, NoManagement, EVLManager>>(
+pub fn for_test_graph<A, P: for<'id> Pathfinding<'id, NoManagement, EVLManager>>(
     graph_index: usize,
-    f: impl FnOnce(&mut Multigraph<'id, NoManagement, EVLManager>, &mut P) -> Result<A, ASABRError>,
+    f: impl for<'id> FnOnce(
+        &mut Multigraph<'id, NoManagement, EVLManager>,
+        &mut P,
+    ) -> Result<A, ASABRError>,
 ) -> Result<A, ASABRError> {
     let graph = TEST_GRAPHS[graph_index].1;
     mk_graph_pathfinding!(graph, finder, NoManagement, EVLManager, P, graph, raw);
