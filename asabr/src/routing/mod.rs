@@ -2,17 +2,15 @@
 #![allow(clippy::needless_borrow)]
 
 extern crate alloc;
-use alloc::{collections::BTreeMap as HashMap, rc::Rc, vec, vec::Vec};
-use core::cell::RefCell;
+use alloc::vec::Vec;
 
 use crate::{
     bundle::Bundle,
-    contact::Contact,
     contact_manager::ContactManager,
     errors::ASABRError,
-    multigraph::{self, ContactRef, Multigraph, RNodeRef},
+    multigraph::{ContactRef, Multigraph, RNodeRef},
     node_manager::NodeManager,
-    pathfinding::{PathFindingOutput, Pathfinding},
+    pathfinding::{PathFindingOutput, destination::Destination},
     paths::PathFragment,
     types::{Date, NodeID},
 };
@@ -46,7 +44,7 @@ pub struct RoutingOutputMulticast<'id,'a, T: 'a + Iterator<Item = (ContactRef<'i
 }
 
 /// A trait to allow generic initialization of routers.
-pub trait Router<'id, NM: NodeManager, CM: ContactManager> {
+pub trait Router<'id, NM: NodeManager, CM: ContactManager, D:Destination<'id>> {
     /// Routes a bundle to its destination(s) using either unicast or multicast routing,
     /// depending on the number of destinations.
     ///
@@ -62,13 +60,23 @@ pub trait Router<'id, NM: NodeManager, CM: ContactManager> {
     /// # Returns
     /// An `Result<Option<RoutingOutput<NM, CM>>, ASABRError>`, where `Some(RoutingOutput)` contains the routing details if
     /// successful, and `None` if no route is found, or an error if the operation fails.
-    fn route_monocast(
-        &mut self,
+    fn route_unicast<'a>(
+        &'a mut self,
         source: RNodeRef<'id>,
         bundle: &Bundle,
+        dest: D,
         curr_time: Date,
         excluded_nodes: &[RNodeRef<'id>],
-    ) -> Result<Option<RoutingOutput<'id>>, ASABRError>;
+    ) -> Result<Option<RoutingOutputSingle<'id,'a>>, ASABRError>;
+
+    fn route_multicast<'a>(
+        &'a mut self,
+        source: RNodeRef<'id>,
+        bundle: &Bundle,
+        dest: D,
+        curr_time: Date,
+        excluded_nodes: &[RNodeRef<'id>],
+    ) -> Result<Option<RoutingOutputMulticast<'id,'a,impl Iterator<Item = (ContactRef<'id>,Vec<RNodeRef<'id>>)>>>,ASABRError>;
 }
 
 impl<'id> RoutingOutput<'id> {

@@ -31,6 +31,12 @@ impl From<(NodeID, NodeID, Date, Date)> for ContactInfo {
     }
 }
 
+impl From<ContactInfo> for TimeInterval {
+    fn from(value: ContactInfo) -> Self {
+        TimeInterval { start: value.start, end: value.end }
+    }
+}
+
 impl ContactInfo {
     /// Creates a new `ContactInfo` instance.
     ///

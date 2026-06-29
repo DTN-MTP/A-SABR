@@ -22,11 +22,11 @@ pub type Date = Duration;
 /// Represents the priority of a task or node.
 pub type Priority = i8;
 
-/// Represents the volume of data (in bytes, for example).
-pub type Volume = f64;
+/// Represents the volume of data (arbitrary unit, recomended in bytes for interop).
+pub type Volume = i64;
 
-/// Represents a data transfer rate (in bits per second).
-pub type DataRate = f64;
+/// Represents a data transfer rate (arbtitrary unit, recomended in bits per second for interop.).
+pub type DataRate = i64;
 
 /// Represents the count of hops in a routing path.
 pub type HopCount = u16;

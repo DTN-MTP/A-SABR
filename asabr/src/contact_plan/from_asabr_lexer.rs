@@ -52,7 +52,7 @@ impl<NM: NodeManager, CM: ContactManager> Builder<NM, CM> {
     // Checkers
 
     fn check_real_id(&self, id: NodeID) -> Result<(), &'static str> {
-        if (id as usize) >= self.real_nodes_count() {
+        if (usize::from(id)) >= self.real_nodes_count() {
             return Err(
                 "Contact tx/rx ids or virtual node rids must match an already declared real node id. ID,node_count:",
             );
@@ -61,7 +61,7 @@ impl<NM: NodeManager, CM: ContactManager> Builder<NM, CM> {
     }
 
     fn check_new_real_id(&self, id: NodeID) -> Result<(), &'static str> {
-        if (id as usize) != self.real_nodes_count() {
+        if (usize::from(id)) != self.real_nodes_count() {
             return Err(
                 "Declare real nodes before virtual nodes, in increasing id order. ID,node_count:",
             );
@@ -70,7 +70,7 @@ impl<NM: NodeManager, CM: ContactManager> Builder<NM, CM> {
     }
 
     fn check_new_virtual_id(&self, id: NodeID) -> Result<(), &'static str> {
-        if (id as usize) != self.rnodes.len() + self.vnodes.len() {
+        if (usize::from(id)) != self.rnodes.len() + self.vnodes.len() {
             return Err(
                 "Declare virtual nodes after the real nodes, in increasing id order. ID,vertice_count:",
             );
@@ -101,8 +101,8 @@ impl<NM: NodeManager, CM: ContactManager> Builder<NM, CM> {
     }
 
     fn add_contact(&mut self, contact: (Contact<CM>, usize, usize)) -> Result<(), &'static str> {
-        self.check_real_id(contact.1 as u16)?;
-        self.check_real_id(contact.2 as u16)?;
+        self.check_real_id(contact.1.into())?;
+        self.check_real_id(contact.2.into())?;
         self.contacts.push(contact);
         Ok(())
     }
@@ -111,7 +111,7 @@ impl<NM: NodeManager, CM: ContactManager> Builder<NM, CM> {
         self.check_new_virtual_id(vnode.vid)?;
         for rid in &vnode.rids {
             self.check_real_id(*rid)?;
-            if let RealNode::Enode(node) = &mut self.rnodes[*rid as usize] {
+            if let RealNode::Enode(node) = &mut self.rnodes[usize::from(*rid)] {
                 node.info.excluded = true
             }
         }

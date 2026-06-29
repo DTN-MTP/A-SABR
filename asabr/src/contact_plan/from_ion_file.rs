@@ -122,7 +122,7 @@ fn manage_aliases(
     if let Some(value) = name_to_id_map.get(candidate_name) {
         *value
     } else {
-        let next = name_to_id_map.len() as NodeID;
+        let next = name_to_id_map.len().into();
         name_to_id_map.insert(candidate_name.to_string(), next);
         vertices.push(RealNode::Inode(
             Node::try_new(
@@ -213,7 +213,7 @@ impl IONContactPlan {
                         tx_node_id,
                         rx_node_id,
                         data_rate,
-                        delay: 0.0,
+                        delay: 0,
                         _confidence: confidence,
                     },
                 );

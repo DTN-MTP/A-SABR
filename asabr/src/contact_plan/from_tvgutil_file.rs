@@ -97,11 +97,11 @@ impl TVGUtilContactPlan {
             .ok_or(ASABRError::ContactPlanError("no \"vertice\" in json"))?;
 
         for (node_id, (node_name, _node_data)) in json_nodes.iter().enumerate() {
-            map_id_map.insert(node_name, node_id as NodeID);
+            map_id_map.insert(node_name, node_id.into());
             vertices.push(RealNode::Inode(
                 Node::try_new(
                     NodeInfo {
-                        id: node_id as NodeID,
+                        id: node_id.into(),
                         name: node_name.into(),
                         excluded: false,
                     },
