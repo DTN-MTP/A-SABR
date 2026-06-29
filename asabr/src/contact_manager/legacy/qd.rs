@@ -1,19 +1,20 @@
-use crate::generate_prio_volume_manager;
+//! With queue delay, the delay due to the queue is taken into account (from the start of the contact)
+//! and the updates are automatic (we do not "scan" an actual local queue), we increase
+//! the queue size when we schedule a bundle
 
-// With queue delay, the delay due to the queue is taken into account (from the start of the contact)
-// and the updates are automatic (we do not "scan" an actual local queue), we increase
-// the queue size when we schedule a bundle
-generate_prio_volume_manager!(QDManager, true, true, 1, false);
-// with priorities (3 levels)
-generate_prio_volume_manager!(PQDManager, true, true, 3, false);
-// with priorities (3 levels) and maximum budgets per level
-generate_prio_volume_manager!(PBQDManager, true, true, 3, true);
+use crate::contact_manager::legacy::LegacyManager;
+
+pub type QDManager = LegacyManager<true,true,1,false>;
+pub type PQDManager = LegacyManager<true,true,3,false>;
+pub type PBQDManager = LegacyManager<true,true,3,true>;
+
 
 #[cfg(test)]
 mod tests {
     use super::{PBQDManager, PQDManager, QDManager};
     use crate::contact_manager::ContactManager;
     use crate::contact_manager::legacy::test_helpers::*;
+use crate::types::TimeInterval;
 
     fn qd() -> QDManager {
         let mut manager = QDManager::new(RATE, DELAY);
@@ -39,15 +40,18 @@ mod tests {
     #[test]
     fn queue_delay_shifts_tx_start_from_contact_start() {
         let mut manager = qd();
-        let contact = make_contact_info(C_START, C_END);
+        let ti = TimeInterval {
+            start: C_START,
+            end: C_END,
+        };
 
         manager
-            .schedule_tx(&contact, C_START, &bp0(2000.0))
+            .schedule_tx(ti, C_START, &bp0(2000.0))
             .unwrap();
 
-        let data = manager.dry_run_tx(&contact, C_START, &bp0(100.0)).unwrap();
+        let data = manager.dry_run_tx(ti, C_START, &bp0(100.0)).unwrap();
         assert_eq!(
-            data.tx_start, 2.0,
+            data.tx_window.start, 2,
             "TEST FAILED: tx_start should be shifted by queue delay from contact start."
         );
     }
@@ -55,15 +59,18 @@ mod tests {
     #[test]
     fn late_arriving_bundle_ignores_queue_shift() {
         let mut manager = qd();
-        let contact = make_contact_info(C_START, C_END);
+        let ti = TimeInterval {
+            start: C_START,
+            end: C_END,
+        };
 
         manager
-            .schedule_tx(&contact, C_START, &bp0(2000.0))
+            .schedule_tx(ti, C_START, &bp0(2000.0))
             .unwrap();
 
-        let data = manager.dry_run_tx(&contact, 5.0, &bp0(100.0)).unwrap();
+        let data = manager.dry_run_tx(ti, 5, &bp0(100.0)).unwrap();
         assert_eq!(
-            data.tx_start, 5.0,
+            data.tx_window.start, 5,
             "TEST FAILED: tx_start should be at_time when it arrives after the queue shift."
         );
     }
@@ -71,12 +78,15 @@ mod tests {
     #[test]
     fn queue_shift_can_push_bundle_past_contact_end() {
         let mut manager = qd();
-        let contact = make_contact_info(C_START, C_END);
+        let ti = TimeInterval {
+            start: C_START,
+            end: C_END,
+        };
         manager
-            .schedule_tx(&contact, C_START, &bp0(9900.0))
+            .schedule_tx(ti, C_START, &bp0(9900.0))
             .unwrap();
         assert!(
-            manager.dry_run_tx(&contact, C_START, &bp0(200.0)).is_none(),
+            manager.dry_run_tx(ti, C_START, &bp0(200.0)).is_none(),
             "TEST FAILED: Bundle should not fit when queue shift pushes tx_end past contact end."
         );
     }

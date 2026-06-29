@@ -1,19 +1,18 @@
-use crate::generate_prio_volume_manager;
+use crate::contact_manager::legacy::LegacyManager;
 
 // With ETO the delay due to the queue is taken into account (from the current time)
 // and the updates are not automatic, the queue is expected to be modified by
 // external means
-generate_prio_volume_manager!(ETOManager, true, false, 1, false);
-// with priorities (3 levels)
-generate_prio_volume_manager!(PETOManager, true, false, 3, false);
-// with priorities (3 levels) and maximum budgets per level
-generate_prio_volume_manager!(PBETOManager, true, false, 3, true);
+pub type ETOManager = LegacyManager<true, false, 1, false>;
+pub type PETOManager = LegacyManager<true, false, 3, false>;
+pub type PBETOManager = LegacyManager<true, false, 3, true>;
 
 #[cfg(test)]
 mod tests {
     use super::{ETOManager, PBETOManager, PETOManager};
     use crate::contact_manager::ContactManager;
     use crate::contact_manager::legacy::test_helpers::*;
+    use crate::types::TimeInterval;
 
     fn eto() -> ETOManager {
         let mut manager = ETOManager::new(RATE, DELAY);
@@ -37,12 +36,13 @@ mod tests {
     #[test]
     fn schedule_tx_does_not_consume_volume() {
         let mut manager = eto();
-        let contact = make_contact_info(C_START, C_END);
+        let ti = TimeInterval {
+            start: C_START,
+            end: C_END,
+        };
         for i in 0..20 {
             assert!(
-                manager
-                    .schedule_tx(&contact, C_START, &bp0(1000.0))
-                    .is_some(),
+                manager.schedule_tx(ti, C_START, &bp0(1000.0)).is_some(),
                 "TEST FAILED: ETO schedule_tx should never saturate (call {}).",
                 i + 1
             );
@@ -52,10 +52,13 @@ mod tests {
     #[test]
     fn schedule_tx_always_returns_same_result() {
         let mut manager = eto();
-        let contact = make_contact_info(C_START, C_END);
+        let ti = TimeInterval {
+            start: C_START,
+            end: C_END,
+        };
         let bundle = bp0(1000.0);
-        let first = manager.schedule_tx(&contact, C_START, &bundle);
-        let second = manager.schedule_tx(&contact, C_START, &bundle);
+        let first = manager.schedule_tx(ti, C_START, &bundle);
+        let second = manager.schedule_tx(ti, C_START, &bundle);
 
         assert_eq!(
             first, second,
@@ -67,11 +70,14 @@ mod tests {
     #[test]
     fn manual_enqueue_shifts_tx_start_from_at_time() {
         let mut manager = eto();
-        let contact = make_contact_info(C_START, C_END);
+        let ti = TimeInterval {
+            start: C_START,
+            end: C_END,
+        };
         manager.manual_enqueue(&bp0(2000.0));
-        let data = manager.dry_run_tx(&contact, 3.0, &bp0(100.0)).unwrap();
+        let data = manager.dry_run_tx(ti, 3, &bp0(100.0)).unwrap();
         assert_eq!(
-            data.tx_start, 5.0,
+            data.tx_window.start, 5,
             "TEST FAILED: tx_start should be at_time + queue/rate for ETO."
         );
     }
@@ -80,10 +86,13 @@ mod tests {
     #[test]
     fn manual_enqueue_shift_can_push_past_contact_end() {
         let mut manager = eto();
-        let contact = make_contact_info(C_START, C_END);
+        let ti = TimeInterval {
+            start: C_START,
+            end: C_END,
+        };
         manager.manual_enqueue(&bp0(9900.0));
         assert!(
-            manager.dry_run_tx(&contact, C_START, &bp0(200.0)).is_none(),
+            manager.dry_run_tx(ti, C_START, &bp0(200.0)).is_none(),
             "TEST FAILED: Bundle should not fit when manual queue shift pushes tx_end past contact end."
         );
     }

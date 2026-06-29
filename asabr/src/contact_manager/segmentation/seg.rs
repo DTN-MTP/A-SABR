@@ -7,7 +7,7 @@ use crate::{
         ContactManager, ContactManagerTxData,
         segmentation::{BaseSegmentationManager, Segment},
     },
-    types::{DataRate, Date, Duration},
+    types::{DataRate, Date, Duration, TimeInterval},
 };
 
 extern crate alloc;
@@ -93,7 +93,7 @@ impl ContactManager for SegmentationManager {
     /// Optionally returns `ContactManagerTxData` with transmission start and end times, or `None` if the bundle can't be transmitted.
     fn dry_run_tx(
         &self,
-        _contact_data: &ContactInfo,
+        _contact_data: TimeInterval,
         at_time: Date,
         bundle: &Bundle,
     ) -> Option<ContactManagerTxData> {
@@ -112,11 +112,15 @@ impl ContactManager for SegmentationManager {
 
             let (d_start, d_end) = super::get_delays(tx_start, tx_end, &self.delay_intervals);
             return Some(ContactManagerTxData {
-                tx_start,
-                tx_end,
+                tx_window: TimeInterval {
+                    start: tx_start,
+                    end: tx_end,
+                },
                 expiration: free_seg.end,
-                rx_start: tx_start + d_start,
-                rx_end: tx_end + d_end,
+                rx_window: TimeInterval {
+                    start: tx_start + d_start,
+                    end: tx_end + d_end,
+                },
             });
         }
         None
@@ -137,13 +141,13 @@ impl ContactManager for SegmentationManager {
     /// Optionally returns `ContactManagerTxData` with transmission start and end times, or `None` if the bundle can't be transmitted.
     fn schedule_tx(
         &mut self,
-        _contact_data: &ContactInfo,
+        _contact_data: TimeInterval,
         at_time: Date,
         bundle: &Bundle,
     ) -> Option<ContactManagerTxData> {
-        let mut tx_start = 0.0;
+        let mut tx_start = 0;
         let mut index = 0;
-        let mut tx_end = 0.0;
+        let mut tx_end = 0;
 
         for free_seg in &self.free_intervals {
             if free_seg.end < at_time {
@@ -178,11 +182,15 @@ impl ContactManager for SegmentationManager {
         }
 
         Some(ContactManagerTxData {
-            tx_start,
-            tx_end,
+            tx_window: TimeInterval {
+                start: tx_start,
+                end: tx_end,
+            },
             expiration,
-            rx_start: tx_start + d_start,
-            rx_end: tx_end + d_end,
+            rx_window: TimeInterval {
+                start: tx_start + d_start,
+                end: tx_end + d_end,
+            },
         })
     }
 
@@ -242,10 +250,11 @@ mod tests {
         contact_end: Date,
         input: Vec<InputSeg>,
         output: Vec<OutputSeg>,
-        requests: Vec<(Bundle, f64, bool)>,
+        requests: Vec<(Bundle, i64, bool)>,
     ) {
         // Create the contact
-        let contact_info = ContactInfo::new(0, 1, contact_start, contact_end);
+        let contact_info =
+            ContactInfo::new(0usize.into(), 1usize.into(), contact_start, contact_end);
 
         // Separate delay and rate segments
         let mut delay_segments: Vec<Segment<Duration>> = Vec::new();
@@ -269,7 +278,14 @@ mod tests {
 
         // Test each request (bundle)
         for (i, (bundle, at_time, expect_success)) in requests.iter().enumerate() {
-            let dry_run_res = manager.dry_run_tx(&contact_info, *at_time, bundle);
+            let dry_run_res = manager.dry_run_tx(
+                TimeInterval {
+                    start: contact_start,
+                    end: contact_end,
+                },
+                *at_time,
+                bundle,
+            );
 
             // Check if dry_run behaves as expected
             assert_eq!(
@@ -283,7 +299,7 @@ mod tests {
 
             // If it should succeed -> test schedule_tx too
             if *expect_success {
-                let schedule_tx_res = manager.schedule_tx(&contact_info, *at_time, bundle);
+                let schedule_tx_res = manager.schedule_tx(contact_info.into(), *at_time, bundle);
 
                 assert!(
                     schedule_tx_res.is_some(),
@@ -298,24 +314,16 @@ mod tests {
 
                 if let (Some(dry), Some(sched)) = (dry_run_res, schedule_tx_res) {
                     assert_eq!(
-                        dry.tx_start, sched.tx_start,
-                        "TEST N°{i} FAILED: tx_start mismatch."
-                    );
-                    assert_eq!(
-                        dry.tx_end, sched.tx_end,
-                        "TEST N°{i} FAILED: tx_end mismatch."
+                        dry.tx_window, sched.tx_window,
+                        "TEST N°{i} FAILED: tx_window mismatch."
                     );
                     assert_eq!(
                         dry.expiration, sched.expiration,
                         "TEST N°{i} FAILED: expiration mismatch."
                     );
                     assert_eq!(
-                        dry.rx_start, sched.rx_start,
-                        "TEST N°{i} FAILED: rx_start mismatch."
-                    );
-                    assert_eq!(
-                        dry.rx_end, sched.rx_end,
-                        "TEST N°{i} FAILED: rx_end mismatch."
+                        dry.rx_window, sched.rx_window,
+                        "TEST N°{i} FAILED: rx_window mismatch."
                     );
                 }
             }
@@ -337,176 +345,134 @@ mod tests {
     #[test]
     fn test_single_bundle_insertions() {
         // Simple case: one delay segment + one rate segment
-        let input = vec![
-            InputSeg::Delay(0.0, 200.0, 4.0),
-            InputSeg::Rate(0.0, 200.0, 100.0),
-        ];
+        let input = vec![InputSeg::Delay(0, 200, 4), InputSeg::Rate(0, 200, 100.0)];
 
         // Small bundle -> should fit easily
         let bundle1 = Bundle {
-            source: 0,
-            destinations: vec![1],
+            source: 0usize.into(),
             priority: 1,
             size: 100.0,
-            expiration: 1000.0,
+            expiration: 1000,
         };
 
         // It uses a small part at the beginning -> remaining is [1,200]
-        let output1 = vec![OutputSeg::Free(1.0, 200.0)];
-        start_test(
-            0.0,
-            200.0,
-            input.clone(),
-            output1,
-            vec![(bundle1, 0.0, true)],
-        );
+        let output1 = vec![OutputSeg::Free(1, 200)];
+        start_test(0, 200, input.clone(), output1, vec![(bundle1, 0, true)]);
 
         // Bigger bundle -> cuts a chunk in the middle
         let bundle2 = Bundle {
-            source: 0,
-            destinations: vec![1],
+            source: 0.into(),
             priority: 1,
             size: 4000.0,
-            expiration: 1000.0,
+            expiration: 1000,
         };
 
         // Free intervals are now split in two
-        let output2 = vec![OutputSeg::Free(0.0, 80.0), OutputSeg::Free(120.0, 200.0)];
-        start_test(
-            0.0,
-            200.0,
-            input.clone(),
-            output2,
-            vec![(bundle2, 80.0, true)],
-        );
+        let output2 = vec![OutputSeg::Free(0, 80), OutputSeg::Free(120, 200)];
+        start_test(0, 200, input.clone(), output2, vec![(bundle2, 80, true)]);
 
         // Even bigger bundle -> takes a large portion
         let bundle3 = Bundle {
-            source: 0,
-            destinations: vec![1],
+            source: 0.into(),
             priority: 2,
             size: 5000.0,
-            expiration: 1000.0,
+            expiration: 1000,
         };
 
-        let output3 = vec![OutputSeg::Free(0.0, 150.0), OutputSeg::Free(200.0, 200.0)];
-        start_test(
-            0.0,
-            200.0,
-            input.clone(),
-            output3,
-            vec![(bundle3, 150.0, true)],
-        );
+        let output3 = vec![OutputSeg::Free(0, 150), OutputSeg::Free(200, 200)];
+        start_test(0, 200, input.clone(), output3, vec![(bundle3, 150, true)]);
 
         // Too large -> should fail and not modify anything
         let bundle_too_large = Bundle {
-            source: 0,
-            destinations: vec![1],
+            source: 0.into(),
             priority: 1,
             size: 50_000.0,
-            expiration: 1000.0,
+            expiration: 1000,
         };
 
-        let output4 = vec![OutputSeg::Free(0.0, 200.0)];
-        start_test(
-            0.0,
-            200.0,
-            input,
-            output4,
-            vec![(bundle_too_large, 0.0, false)],
-        );
+        let output4 = vec![OutputSeg::Free(0, 200)];
+        start_test(0, 200, input, output4, vec![(bundle_too_large, 0, false)]);
     }
 
     #[test]
     fn test_multiple_insertions_on_same_contact() {
-        let input = vec![
-            InputSeg::Delay(0.0, 200.0, 4.0),
-            InputSeg::Rate(0.0, 200.0, 100.0),
-        ];
+        let input = vec![InputSeg::Delay(0, 200, 4), InputSeg::Rate(0, 200, 100.0)];
 
         // We insert multiple bundles sequentially
         let bundle1 = Bundle {
-            source: 0,
-            destinations: vec![1],
+            source: 0.into(),
             priority: 1,
             size: 1000.0,
-            expiration: 1000.0,
+            expiration: 1000,
         };
 
         let bundle2 = Bundle {
-            source: 0,
-            destinations: vec![1],
+            source: 0.into(),
             priority: 1,
             size: 500.0,
-            expiration: 1000.0,
+            expiration: 1000,
         };
 
         let bundle3 = Bundle {
-            source: 0,
-            destinations: vec![1],
+            source: 0.into(),
             priority: 1,
             size: 1000.0,
-            expiration: 1000.0,
+            expiration: 1000,
         };
 
         // They should be placed one after another
         let requests = vec![
-            (bundle1, 0.0, true),  // [0,10]
-            (bundle2, 10.0, true), // [10,15]
-            (bundle3, 15.0, true), // [15,25]
+            (bundle1, 0, true),  // [0,10]
+            (bundle2, 10, true), // [10,15]
+            (bundle3, 15, true), // [15,25]
         ];
 
-        let output = vec![OutputSeg::Free(25.0, 200.0)];
+        let output = vec![OutputSeg::Free(25, 200)];
 
-        start_test(0.0, 200.0, input, output, requests);
+        start_test(0, 200, input, output, requests);
     }
 
     #[test]
     fn test_variable_rate_segments() {
         let input = vec![
-            InputSeg::Delay(0.0, 200.0, 4.0),
-            InputSeg::Rate(0.0, 50.0, 100.0),
-            InputSeg::Rate(50.0, 200.0, 50.0),
+            InputSeg::Delay(0, 200, 4),
+            InputSeg::Rate(0, 50, 100.0),
+            InputSeg::Rate(50, 200, 50.0),
         ];
 
         let bundle = Bundle {
-            source: 0,
-            destinations: vec![1],
+            source: 0.into(),
             priority: 1,
             size: 7500.0,
-            expiration: 1000.0,
+            expiration: 1000,
         };
 
-        let requests = vec![(bundle, 0.0, true)];
+        let requests = vec![(bundle, 0, true)];
 
         // First part is fast (0–50), then slower -> finishes at 100
-        let output = vec![OutputSeg::Free(100.0, 200.0)];
+        let output = vec![OutputSeg::Free(100, 200)];
 
-        start_test(0.0, 200.0, input, output, requests);
+        start_test(0, 200, input, output, requests);
     }
 
     #[test]
     fn test_start_time_handling() {
-        let input = vec![
-            InputSeg::Delay(5.0, 15.0, 1.0),
-            InputSeg::Rate(5.0, 15.0, 2.0),
-        ];
+        let input = vec![InputSeg::Delay(5, 15, 1), InputSeg::Rate(5, 15, 2.0)];
 
         let bundle = Bundle {
-            source: 0,
-            destinations: vec![1],
+            source: 0.into(),
             priority: 1,
             size: 4.0,
-            expiration: 1000.0,
+            expiration: 1000,
         };
 
         let requests = vec![
-            (bundle, 0.0, true), // should start at contact start (5.0)
+            (bundle, 0, true), // should start at contact start (5.0)
         ];
 
         // It uses [5,7], so remaining is [7,15]
-        let output = vec![OutputSeg::Free(7.0, 15.0)];
+        let output = vec![OutputSeg::Free(7, 15)];
 
-        start_test(5.0, 15.0, input, output, requests);
+        start_test(5, 15, input, output, requests);
     }
 }

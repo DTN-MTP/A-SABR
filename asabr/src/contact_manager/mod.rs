@@ -61,7 +61,7 @@ pub trait ContactManager {
     /// Optionally returns `ContactManagerTxData` if the bundle can be transmitted.
     fn schedule_tx(
         &mut self,
-        contact_data: &ContactInfo,
+        contact_lifespan: TimeInterval,
         at_time: Date,
         bundle: &Bundle,
     ) -> Option<ContactManagerTxData>;
@@ -128,11 +128,11 @@ impl<T: AsMut<dyn ContactManager> + AsRef<dyn ContactManager>> ContactManager fo
     /// Delegates the schedule method to the boxed object.
     fn schedule_tx(
         &mut self,
-        contact_data: &ContactInfo,
+        contact_lifespan: TimeInterval,
         at_time: Date,
         bundle: &Bundle,
     ) -> Option<ContactManagerTxData> {
-        self.as_mut().schedule_tx(contact_data, at_time, bundle)
+        self.as_mut().schedule_tx(contact_lifespan, at_time, bundle)
     }
 
     /// Delegates the try_init method to the boxed object.
@@ -177,11 +177,11 @@ macro_rules! transparent_CM {
 
             fn schedule_tx(
                 &mut self,
-                contact_data: &$crate::contact::ContactInfo,
+                contact_lifespan: $crate::types::TimeInterval,
                 at_time: $crate::types::Date,
                 bundle: &$crate::bundle::Bundle,
             ) -> Option<$crate::contact_manager::ContactManagerTxData> {
-                self.0.schedule_tx(contact_data, at_time, bundle)
+                self.0.schedule_tx(contact_lifespan, at_time, bundle)
             }
 
             fn try_init(&mut self, contact_data: &$crate::contact::ContactInfo) -> bool {

@@ -1,3 +1,11 @@
+use crate::{
+    bundle::Bundle,
+    contact::ContactInfo,
+    contact_manager::{ContactManager, ContactManagerTxData},
+    parsing::{LexFrom, Parse},
+    types::{DataRate, Date, Duration, TimeInterval, Volume},
+};
+
 pub mod eto;
 pub mod evl;
 pub mod qd;
@@ -5,363 +13,252 @@ pub mod qd;
 #[cfg(test)]
 pub(crate) mod test_helpers;
 
-/// Generates a legacy volume management structure and a part of its implementation based on the provided parameters. This
-/// macro is called by the generate_prio_volume_manager macro.
-///
-/// This macro is designed to generate boilerplate code for legacy volume management systems with
-/// specific configurations of priority levels and queue size types.
-///  Budget approach by Longrui Ma
-///
-/// # Arguments
-///
-/// - `$manager_name`: The identifier to be used as the name of the generated structure (e.g., `ETOManager`).
-/// - `$priority_count`: A priority count is set to 1, means no priority levels are supported.
-/// - `$budgeted`: Boolean flag to indicate that each priority volume limit is budgeted.
-#[macro_export]
-macro_rules! generate_struct_management {
-    ($manager_name:ident, 1, false) => {
-        /// Macro-generated.
-        #[derive(Debug)]
-        pub struct $manager_name {
-            /// The data transmission rate.
-            rate: $crate::types::DataRate,
-            /// The transmission delay.
-            delay: $crate::types::Duration,
-            /// The volume scheduled for this contact, or the queue size.
-            queue_size: $crate::types::Volume,
-            /// The total volume at initialization.
-            original_volume: $crate::types::Volume,
-        }
-        impl $manager_name {
-            #[doc = concat!( "Creates a new `", stringify!($manager_name),"`  with specified average rate and delay.")]
-            ///
-            /// # Arguments
-            ///
-            /// * `rate` - The average data rate for this contact.
-            /// * `delay` - The link delay for this contact.
-            ///
-            /// # Returns
-            ///
-            #[doc = concat!( " A new instance of  `", stringify!($manager_name),"`.")]
-            pub fn new(rate: $crate::types::DataRate, delay: $crate::types::Duration) -> Self {
-                Self {
-                    rate,
-                    delay,
-                    queue_size: 0.0,
-                    original_volume: 0.0,
-                }
-            }
-            #[inline(always)]
-            fn get_queue_size(&self, _bundle: &$crate::bundle::Bundle) -> $crate::types::Volume {
-                    self.queue_size
-            }
-           #[inline(always)]
-            fn enqueue(&mut self, bundle: &$crate::bundle::Bundle)  {
-                 self.queue_size += bundle.size;
-            }
-            #[allow(dead_code)]
-            #[inline(always)]
-            fn dequeue(&mut self, bundle: &$crate::bundle::Bundle)  {
-                self.queue_size -= bundle.size;
-            }
-            #[inline(always)]
-            fn get_budget(&self, _bundle: &$crate::bundle::Bundle) -> $crate::types::Volume  {
-               return self.original_volume;
-            }
-        }
-        $crate::parse_transparent!($manager_name,($crate::types::DataRate,$crate::types::Duration));
-        impl From<($crate::types::DataRate,$crate::types::Duration)> for $manager_name {
-            fn from((rate,delay): ($crate::types::DataRate,$crate::types::Duration)) -> Self {
-                $manager_name::new(rate, delay)
-            }
-        }
-    };
-    ($manager_name:ident, $prio_count:tt, false) => {
-
-        #[derive(Debug)]
-        pub struct $manager_name {
-            /// The data transmission rate.
-            rate: $crate::types::DataRate,
-            /// The transmission delay.
-            delay: $crate::types::Duration,
-            /// The volume scheduled for this contact for each priority.
-            queue_size: [$crate::types::Volume; $prio_count],
-            /// The total volume at initialization.
-            original_volume: $crate::types::Volume,
-        }
-
-        impl $manager_name {
-            #[doc = concat!( "Creates a new `", stringify!($manager_name),"`  with specified average rate and delay.")]
-            ///
-            /// # Arguments
-            ///
-            /// * `rate` - The average data rate for this contact.
-            /// * `delay` - The link delay for this contact.
-            ///
-            /// # Returns
-            ///
-             #[doc = concat!( " A new instance of  `", stringify!($manager_name),"`.")]
-            pub fn new(rate: $crate::types::DataRate, delay: $crate::types::Duration) -> Self {
-                Self {
-                    rate,
-                    delay,
-                    queue_size: [0.0; $prio_count],
-                    original_volume: 0.0,
-                }
-            }
-
-            #[inline(always)]
-            fn get_queue_size(&self, bundle: &$crate::bundle::Bundle) -> $crate::types::Volume {
-                    self.queue_size[(bundle.priority as usize).min($prio_count - 1)]
-            }
-            #[inline(always)]
-            fn enqueue(&mut self, bundle: &$crate::bundle::Bundle)  {
-                for prio in 0..(bundle.priority as usize + 1).min($prio_count) {
-                    self.queue_size[prio] += bundle.size;
-                }
-            }
-            #[allow(dead_code)]
-            #[inline(always)]
-            fn dequeue(&mut self, bundle: &$crate::bundle::Bundle)  {
-                for prio in 0..(bundle.priority as usize + 1).min($prio_count) {
-                    self.queue_size[prio] -= bundle.size;
-                }
-            }
-            #[inline(always)]
-            fn get_budget(&self, _bundle: &$crate::bundle::Bundle) -> $crate::types::Volume  {
-               return self.original_volume;
-            }
-        }
-        $crate::parse_transparent!($manager_name,($crate::types::DataRate,$crate::types::Duration));
-        impl From<($crate::types::DataRate,$crate::types::Duration)> for $manager_name {
-            fn from((rate,delay): ($crate::types::DataRate,$crate::types::Duration)) -> Self {
-                $manager_name::new(rate, delay)
-            }
-        }
-    };
-    // if the priority count is different than one, queue_size is an array
-    ($manager_name:ident, $prio_count:tt, true) => {
-
-        #[derive(Debug)]
-        pub struct $manager_name {
-            /// The data transmission rate.
-            rate: $crate::types::DataRate,
-            /// The transmission delay.
-            delay: $crate::types::Duration,
-            /// The volume scheduled for this contact for each priority.
-            queue_size: [$crate::types::Volume; $prio_count],
-            /// The budget for each priority.
-            budgets: [$crate::types::Volume; $prio_count],
-            /// The total volume at initialization.
-            original_volume: $crate::types::Volume,
-        }
-
-        impl $manager_name {
-            #[doc = concat!( "Creates a new `", stringify!($manager_name),"`  with specified average rate and delay.")]
-            ///
-            /// # Arguments
-            ///
-            /// * `rate` - The average data rate for this contact.
-            /// * `delay` - The link delay for this contact.
-            /// * `budgets` - The budget for each priority.
-            ///
-            /// # Returns
-            ///
-             #[doc = concat!( " A new instance of  `", stringify!($manager_name),"`.")]
-            pub fn new(rate: $crate::types::DataRate, delay: $crate::types::Duration, budgets: [$crate::types::Volume; $prio_count] ) -> Self {
-                Self {
-                    rate,
-                    delay,
-                    queue_size: [0.0; $prio_count],
-                    budgets,
-                    original_volume: 0.0,
-                }
-            }
-
-            #[inline(always)]
-            fn get_queue_size(&self, bundle: &$crate::bundle::Bundle) -> $crate::types::Volume {
-                    self.queue_size[(bundle.priority as usize).min($prio_count - 1)]
-            }
-            #[inline(always)]
-            fn enqueue(&mut self, bundle: &$crate::bundle::Bundle)  {
-                for prio in 0..(bundle.priority as usize + 1).min($prio_count) {
-                    self.queue_size[prio] += bundle.size;
-                }
-            }
-            #[allow(dead_code)]
-            #[inline(always)]
-            fn dequeue(&mut self, bundle: &$crate::bundle::Bundle)  {
-                for prio in 0..(bundle.priority as usize + 1).min($prio_count) {
-                    self.queue_size[prio] -= bundle.size;
-                }
-            }
-            #[inline(always)]
-            fn get_budget(&self, bundle: &$crate::bundle::Bundle) -> $crate::types::Volume  {
-               return self.budgets[(bundle.priority as usize).min($prio_count - 1)];
-            }
-        }
-        $crate::parse_transparent!($manager_name,($crate::types::DataRate,$crate::types::Duration,[$crate::types::Volume;$prio_count]));
-        impl From<($crate::types::DataRate,$crate::types::Duration,[$crate::types::Volume;$prio_count])> for $manager_name {
-            fn from((rate,delay,budgets): ($crate::types::DataRate,$crate::types::Duration,[$crate::types::Volume;$prio_count])) -> Self {
-                $manager_name::new(rate, delay, budgets)
-            }
-        }
-    };
+#[derive(Debug)]
+/// A generic legacy volume manager. ETO, PB, ... are newtype on specialisation of this one
+struct VolumeManager<const prio_count: usize, const budgeted: bool> {
+    rate: DataRate,
+    delay: Duration,
+    queue_size: [Volume; prio_count],
+    budgets: [Volume; prio_count],
+    original_volume: Volume,
 }
 
-/// When the feature "manual_queueing" is enabled, allows to provide public methods
-/// for enqueueing/dequeueing to maintain a transmission queue. This macro is called
-/// by the generate_prio_volume_manager macro.
-#[macro_export]
-macro_rules! generate_manual_enqueue {
-    (false) => {
-        fn manual_enqueue(&mut self, bundle: &$crate::bundle::Bundle) -> bool {
-            self.enqueue(bundle);
-            true
+impl<const prio_count: usize> VolumeManager<prio_count, false> {
+    /// create a VolumeManager.
+    pub fn new(rate: DataRate, delay: Duration) -> Self {
+        Self {
+            rate,
+            delay,
+            queue_size: [0.; prio_count],
+            budgets: [0.; prio_count],
+            original_volume: 0.0,
         }
-        fn manual_dequeue(&mut self, bundle: &$crate::bundle::Bundle) -> bool {
-            self.dequeue(bundle);
-            true
-        }
-    };
-    (true) => {
-        // Keep default impl if auto update
-    };
+    }
 }
 
-/// Generates a legacy volume management structure and implementation based on the provided parameters.
+impl<const prio_count: usize> VolumeManager<prio_count, true> {
+    /// create a VolumeManager.
+    pub fn new(rate: DataRate, delay: Duration, budgets: [Volume; prio_count]) -> Self {
+        Self {
+            rate,
+            delay,
+            queue_size: [0.; prio_count],
+            budgets,
+            original_volume: 0.0,
+        }
+    }
+}
+
+impl<const prio_count: usize, const budgeted: bool> VolumeManager<prio_count, budgeted> {
+    #[inline(always)]
+    fn get_queue_size(&self, bundle: &Bundle) -> Volume {
+        self.queue_size[(bundle.priority as usize).min(prio_count - 1)]
+    }
+    #[inline(always)]
+    fn enqueue(&mut self, bundle: &Bundle) {
+        for prio in 0..(bundle.priority as usize + 1).min(prio_count) {
+            self.queue_size[prio] += bundle.size;
+        }
+    }
+    #[allow(dead_code)]
+    #[inline(always)]
+    fn dequeue(&mut self, bundle: &Bundle) {
+        for prio in 0..(bundle.priority as usize + 1).min(prio_count) {
+            self.queue_size[prio] -= bundle.size;
+        }
+    }
+    #[inline(always)]
+    fn get_budget(&self, bundle: &Bundle) -> Volume {
+        if budgeted {
+            self.budgets[(bundle.priority as usize).min(prio_count - 1)]
+        } else {
+            self.original_volume
+        }
+    }
+}
+
+impl<const pc: usize> From<(DataRate, Duration)> for VolumeManager<pc, false> {
+    fn from(value: (DataRate, Duration)) -> Self {
+        Self::new(value.0, value.1)
+    }
+}
+impl<const pc: usize> From<(DataRate, Duration, [Volume; pc])> for VolumeManager<pc, true> {
+    fn from(value: (DataRate, Duration, [Volume; pc])) -> Self {
+        Self::new(value.0, value.1, value.2)
+    }
+}
+
+// inlined parse_transparent to template on cp. yup, ugly, i know.
+impl<const ad: bool, const au: bool, const cp: usize> Parse for LegacyManager<ad, au, cp, false> {
+    type Token = <(DataRate, Duration) as Parse>::Token;
+    type Parser = <(DataRate, Duration) as Parse>::Parser;
+    fn parse(p: Self::Parser) -> Result<Self, &'static str> {
+        Ok(LegacyManager(
+            <(DataRate, Duration) as Parse>::parse(p)?.into(),
+        ))
+    }
+    fn feed(tok: Self::Token, parser: &mut Self::Parser) -> Result<bool, &'static str> {
+        <(DataRate, Duration) as Parse>::feed(tok, parser)
+    }
+}
+impl<T: ?Sized, const ad: bool, const au: bool, const cp: usize> LexFrom<T>
+    for LegacyManager<ad, au, cp, false>
+where
+    (DataRate, Duration): LexFrom<T>,
+{
+    fn lex(t: &T, p: &Self::Parser) -> Result<Self::Token, &'static str> {
+        <(DataRate, Duration) as LexFrom<T>>::lex(t, p)
+    }
+}
+
+// inlined parse_transparent to template on cp. yup, ugly, i know.
+impl<const ad: bool, const au: bool, const pc: usize> Parse for LegacyManager<ad, au, pc, true> {
+    type Token = <(DataRate, Duration, [Volume; pc]) as Parse>::Token;
+    type Parser = <(DataRate, Duration, [Volume; pc]) as Parse>::Parser;
+    fn parse(p: Self::Parser) -> Result<Self, &'static str> {
+        Ok(LegacyManager(
+            <(DataRate, Duration, [Volume; _]) as Parse>::parse(p)?.into(),
+        ))
+    }
+    fn feed(tok: Self::Token, parser: &mut Self::Parser) -> Result<bool, &'static str> {
+        <(DataRate, Duration, [Volume; _]) as Parse>::feed(tok, parser)
+    }
+}
+impl<T: ?Sized, const ad: bool, const au: bool, const pc: usize> LexFrom<T>
+    for LegacyManager<ad, au, pc, true>
+where
+    (DataRate, Duration, [Volume; pc]): LexFrom<T>,
+{
+    fn lex(t: &T, p: &Self::Parser) -> Result<Self::Token, &'static str> {
+        <(DataRate, Duration, [Volume; _]) as LexFrom<T>>::lex(t, p)
+    }
+}
+
+/// A legacy volume manager implementation.
 ///
 /// Budget approach by Longrui Ma
 ///
 // # Arguments
 ///
-/// - `$manager_name`: The identifier to be used as the name of the generated structure (e.g., `ETOManager`).
-/// - `$add_delay`:A flag (`true` or `false`) that determines whether delay logic should be added depending
+/// - `add_delay`:A flag (`true` or `false`) that determines whether delay logic should be added depending
 ///   volume already booked.
-/// - `$auto_update`: A flag (`true` or `false`) that specifies if the volume must be updated by the manager
+/// - `auto_update`: A flag (`true` or `false`) that specifies if the volume must be updated by the manager
 ///   or manually (like for ETO), this impact the $auto_update behavior, if set to fase, the booked volume is
 ///   considered as real time queue occupancy.
-/// - `$prio_count`: The number of priority levels. A value of `1` means no priority logic is applied.
-/// - `$with_budget`: A flag (`true` or `false`) to conditionnally add budgets (for priorities only).
-#[macro_export]
-macro_rules! generate_prio_volume_manager {
+/// - `prio_count`: The number of priority levels. A value of `1` means no priority logic is applied.
+/// - `with_budget`: A flag (`true` or `false`) to conditionnally add budgets (for priorities only).
+pub struct LegacyManager<
+    const add_delay: bool,
+    const auto_update: bool,
+    const prio_count: usize,
+    const budgeted: bool,
+>(VolumeManager<prio_count, budgeted>);
 
-    ($manager_name:ident, $add_delay:tt, $auto_update:tt, $prio_count:tt, $with_budget:tt)  => {
+impl<const add_delay: bool, const auto_update: bool, const prio_count: usize, const budgeted: bool>
+    ContactManager for LegacyManager<add_delay, auto_update, prio_count, budgeted>
+{
+    #[cfg(feature = "manual_queueing")]
+    fn manual_enqueue(&mut self, bundle: &Bundle) -> bool {
+        if auto_update {
+            false
+        } else {
+            self.0.enqueue(bundle);
+            true
+        }
+    }
+    #[cfg(feature = "manual_queueing")]
+    fn manual_dequeue(&mut self, bundle: &Bundle) -> bool {
+        if auto_update {
+            false
+        } else {
+            self.0.dequeue(bundle);
+            true
+        }
+    }
 
-        $crate::generate_struct_management!($manager_name, $prio_count, $with_budget);
+    fn dry_run_tx(
+        &self,
+        contact_lifespan: TimeInterval,
+        at_time: Date,
+        bundle: &Bundle,
+    ) -> Option<ContactManagerTxData> {
+        // This function call should be expanded at compile time
+        let queue_size = self.0.get_queue_size(&bundle);
 
-        impl $crate::contact_manager::ContactManager for $manager_name {
-            #[cfg(feature = "manual_queueing")]
-            $crate::generate_manual_enqueue!($auto_update);
-
-            /// Simulates the transmission of a bundle based on the contact data and available free intervals.
-            ///
-            #[doc = concat!( "The transmission time start time will be offset by the queue size: ", stringify!($add_delay),"`.")]
-            ///
-            /// # Arguments
-            ///
-            /// * `contact_data` - Reference to the contact information.
-            /// * `at_time` - The current time for scheduling purposes.
-            /// * `bundle` - The bundle to be transmitted.
-            ///
-            /// # Returns
-            ///
-            /// Optionally returns `ContactManagerTxData` with transmission start and end times, or `None` if the bundle can't be transmitted.
-            fn dry_run_tx(
-                &self,
-                contact_data: &$crate::contact::ContactInfo,
-                at_time: $crate::types::Date,
-                bundle: &$crate::bundle::Bundle,
-            ) -> Option<$crate::contact_manager::ContactManagerTxData> {
-
-                // This function call should be expanded at compile time
-                let queue_size = self.get_queue_size(&bundle);
-
-                if bundle.size > self.get_budget(&bundle) - queue_size {
-                    return None;
-                }
-
-                let mut contact_start = contact_data.start;
-                // add_delay case 1 : if not eto, we push the eto from the contact start time
-                if ($add_delay && $auto_update) {
-                    contact_start += queue_size / self.rate;
-                }
-                let mut tx_start = if (contact_start > at_time) {
-                    contact_start
-                } else {
-                    at_time
-                };
-
-                // add_delay case 2 : eto, bundles are still in queue
-                if ($add_delay && !$auto_update) {
-                    tx_start += queue_size / self.rate;
-                }
-
-                let tx_end = tx_start + bundle.size / self.rate;
-                if tx_end > contact_data.end {
-                    return None;
-                }
-                Some($crate::contact_manager::ContactManagerTxData {
-                    tx_start,
-                    tx_end,
-                    expiration: contact_data.end,
-                    rx_start: self.delay + tx_start,
-                    rx_end: self.delay + tx_end,
-                })
-            }
-
-            /// Schedule the transmission of a bundle based on the contact data and available free intervals.
-            ///
-            /// This method shall be called after a dry run !Implementations might not ensure a clean behavior otherwise.
-            #[doc = concat!( "The queue volume will be updated by this method: ", stringify!($auto_update),"`.")]
-            /// # Arguments
-            ///
-            /// * `contact_data` - Reference to the contact information.
-            /// * `at_time` - The current time for scheduling purposes.
-            /// * `bundle` - The bundle to be transmitted.
-            ///
-            /// # Returns
-            ///
-            /// Optionally returns `ContactManagerTxData` with transmission start and end times, or `None` if the bundle can't be transmitted.
-            fn schedule_tx(
-                &mut self,
-                contact_data: &$crate::contact_manager::ContactInfo,
-                at_time: $crate::types::Date,
-                bundle: &$crate::bundle::Bundle,
-            ) -> Option<$crate::contact_manager::ContactManagerTxData> {
-                let data = self.dry_run_tx(contact_data, at_time, bundle)?;
-                // Conditionally update queue size based on $auto_update
-                // Can overflow with overbooking
-                if $auto_update {
-                    self.enqueue(bundle);
-                }
-                return Some(data);
-            }
-
-            /// Initializes the segmentation manager by checking that rate and delay intervals have no gaps.
-            ///
-            /// # Arguments
-            ///
-            /// * `contact_data` - Reference to the contact information.
-            ///
-            /// # Returns
-            ///
-            /// Returns `true` if initialization is successful, or `false` if there are gaps in the intervals.
-            fn try_init(&mut self, contact_data: &$crate::contact::ContactInfo) -> bool {
-                self.original_volume = (contact_data.end - contact_data.start) * self.rate;
-                true
-            }
-
-            /// Returns the original volume of the object.
-            ///
-            /// # Returns
-            ///
-            /// A `Volume` representing the original volume.
-            #[cfg(feature = "first_depleted")]
-            fn get_original_volume(&self) -> $crate::types::Volume {
-                self.original_volume
-            }
+        if bundle.size > self.0.get_budget(&bundle) - queue_size {
+            return None;
         }
 
+        let mut contact_start = contact_lifespan.start;
+        // add_delay case 1 : if not eto, we push the eto from the contact start time
+        if add_delay && auto_update {
+            contact_start += (queue_size / self.0.rate) as Duration;
+        }
+        let mut tx_start = if contact_start > at_time {
+            contact_start
+        } else {
+            at_time
+        };
+
+        // add_delay case 2 : eto, bundles are still in queue
+        if add_delay && !auto_update {
+            tx_start += (queue_size / self.0.rate) as Duration;
+        }
+
+        let tx_end = tx_start + (bundle.size / self.0.rate) as Duration;
+        if tx_end > contact_lifespan.end {
+            return None;
+        }
+        Some(ContactManagerTxData {
+            tx_window: TimeInterval {
+                start: tx_start,
+                end: tx_end,
+            },
+            expiration: contact_lifespan.end,
+            rx_window: TimeInterval {
+                start: tx_start + self.0.delay,
+                end: tx_end + self.0.delay,
+            },
+        })
+    }
+
+    fn schedule_tx(
+        &mut self,
+        contact_data: TimeInterval,
+        at_time: Date,
+        bundle: &Bundle,
+    ) -> Option<ContactManagerTxData> {
+        let data = self.dry_run_tx(contact_data, at_time, bundle)?;
+        // Conditionally update queue size based on $auto_update
+        // Can overflow with overbooking
+        if auto_update {
+            self.0.enqueue(bundle);
+        }
+        return Some(data);
+    }
+
+    fn try_init(&mut self, contact_data: &ContactInfo) -> bool {
+        self.0.original_volume = (contact_data.end - contact_data.start) as f64 * self.0.rate;
+        true
+    }
+
+    #[cfg(feature = "first_depleted")]
+    fn get_original_volume(&self) -> Volume {
+        self.0.original_volume
+    }
+}
+
+impl<const add_delay: bool, const auto_update: bool, const prio_count: usize>
+    LegacyManager<add_delay, auto_update, prio_count, false>
+{
+    pub fn new(rate: DataRate, delay: Duration) -> Self {
+        LegacyManager(VolumeManager::<_, false>::new(rate, delay))
+    }
+}
+impl<const add_delay: bool, const auto_update: bool, const prio_count: usize>
+    LegacyManager<add_delay, auto_update, prio_count, true>
+{
+    pub fn new(rate: DataRate, delay: Duration, budgets: [Volume; prio_count]) -> Self {
+        LegacyManager(VolumeManager::<_, true>::new(rate, delay, budgets))
     }
 }

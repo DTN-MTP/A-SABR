@@ -1,19 +1,17 @@
-use crate::generate_prio_volume_manager;
+use crate::contact_manager::legacy::LegacyManager;
 
 // With EVL, the delay due to the queue is not taken into account
 // and the updates are automatic (we do not "scan" an actual local queue),
 // we just reduce the volume available
-generate_prio_volume_manager!(EVLManager, false, true, 1, false);
-// with priorities (3 levels)
-generate_prio_volume_manager!(PEVLManager, false, true, 3, false);
-// with priorities (3 levels) and maximum budgets per level
-generate_prio_volume_manager!(PBEVLManager, false, true, 3, true);
-
+pub type EVLManager = LegacyManager<false, true, 1, false>;
+pub type PEVLManager = LegacyManager<false, true, 3, false>;
+pub type PBEVLManager = LegacyManager<false, true, 3, true>;
 #[cfg(test)]
 mod tests {
     use super::{EVLManager, PBEVLManager, PEVLManager};
     use crate::contact_manager::ContactManager;
     use crate::contact_manager::legacy::test_helpers::*;
+    use crate::types::TimeInterval;
 
     fn evl() -> EVLManager {
         let mut manager = EVLManager::new(RATE, DELAY);
@@ -39,22 +37,19 @@ mod tests {
     #[test]
     fn tx_start_unaffected_by_queue_occupancy() {
         let mut manager = evl();
-        let contact = make_contact_info(C_START, C_END);
-        let before = manager.dry_run_tx(&contact, C_START, &bp0(1000.0)).unwrap();
-        manager
-            .schedule_tx(&contact, C_START, &bp0(1000.0))
-            .unwrap();
-        manager
-            .schedule_tx(&contact, C_START, &bp0(1000.0))
-            .unwrap();
-        manager
-            .schedule_tx(&contact, C_START, &bp0(1000.0))
-            .unwrap();
+        let ti = TimeInterval {
+            start: C_START,
+            end: C_END,
+        };
+        let before = manager.dry_run_tx(ti, C_START, &bp0(1000.0)).unwrap();
+        manager.schedule_tx(ti, C_START, &bp0(1000.0)).unwrap();
+        manager.schedule_tx(ti, C_START, &bp0(1000.0)).unwrap();
+        manager.schedule_tx(ti, C_START, &bp0(1000.0)).unwrap();
 
-        let after = manager.dry_run_tx(&contact, C_START, &bp0(1000.0)).unwrap();
+        let after = manager.dry_run_tx(ti, C_START, &bp0(1000.0)).unwrap();
 
         assert_eq!(
-            before.tx_start, after.tx_start,
+            before.tx_window.start, after.tx_window.start,
             "TEST FAILED: EVL tx_start should not be affected by queue occupancy."
         );
     }
