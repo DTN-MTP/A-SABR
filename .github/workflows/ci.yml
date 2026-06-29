@@ -5,15 +5,28 @@ on:
     branches: ["**"]
   pull_request:
     branches: ["**"]
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Job to run
+        type: choice
+        required: true
+        default: benchmarks
+        options:
+          - lint
+          - tests
+          - benchmarks
+          - coverage
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   lint:
     name: Lint and Style (Pre-commit)
     runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || inputs.job == 'lint'
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -24,8 +37,13 @@ jobs:
 
   tests:
     name: Run Tests
-    needs: lint
     runs-on: ubuntu-latest
+    needs: [lint]
+    if: | # always() to allow manual job to run without its dependencies (don't skip it)
+      always() && (
+        (github.event_name == 'workflow_dispatch' && inputs.job == 'tests') ||
+        (github.event_name != 'workflow_dispatch' && needs.lint.result == 'success')
+      )
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -38,8 +56,12 @@ jobs:
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    needs: tests
+    needs: [tests]
+    if: |
+      always() && (
+        (github.event_name == 'workflow_dispatch' && inputs.job == 'coverage') ||
+        (github.event_name != 'workflow_dispatch' && github.ref == 'refs/heads/main' && needs.tests.result == 'success')
+      )
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -51,11 +73,16 @@ jobs:
           name: code-coverage-report
           path: tarpaulin-report.html
           retention-days: 7
+
   benchs:
     name: Benchmarks
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    needs: tests
+    needs: [tests]
+    if: |
+      always() && (
+        (github.event_name == 'workflow_dispatch' && inputs.job == 'benchmarks') ||
+        (github.event_name != 'workflow_dispatch' && github.ref == 'refs/heads/main' && needs.tests.result == 'success')
+      )
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
