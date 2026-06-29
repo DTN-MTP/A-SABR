@@ -29,9 +29,9 @@ impl<const prio_count: usize> VolumeManager<prio_count, false> {
         Self {
             rate,
             delay,
-            queue_size: [0.; prio_count],
-            budgets: [0.; prio_count],
-            original_volume: 0.0,
+            queue_size: [0; prio_count],
+            budgets: [0; prio_count],
+            original_volume: 0,
         }
     }
 }
@@ -42,9 +42,9 @@ impl<const prio_count: usize> VolumeManager<prio_count, true> {
         Self {
             rate,
             delay,
-            queue_size: [0.; prio_count],
+            queue_size: [0; prio_count],
             budgets,
-            original_volume: 0.0,
+            original_volume: 0,
         }
     }
 }
@@ -238,7 +238,7 @@ impl<const add_delay: bool, const auto_update: bool, const prio_count: usize, co
     }
 
     fn try_init(&mut self, contact_data: &ContactInfo) -> bool {
-        self.0.original_volume = (contact_data.end - contact_data.start) as f64 * self.0.rate;
+        self.0.original_volume = (contact_data.end - contact_data.start) * self.0.rate;
         true
     }
 

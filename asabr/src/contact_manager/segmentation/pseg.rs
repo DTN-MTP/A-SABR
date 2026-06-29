@@ -45,7 +45,7 @@ impl PSegmentationManager {
             rate_intervals,
             delay_intervals,
             #[cfg(feature = "first_depleted")]
-            original_volume: 0.0,
+            original_volume: 0,
         }
     }
 }
@@ -332,10 +332,10 @@ mod tests {
         let bundle1 = Bundle {
             source: 0.into(),
             priority: 1,
-            size: 100.0,
+            size: 100,
             expiration: 1000,
         };
-        let input = vec![InputSeg::Delay(0, 200, 4), InputSeg::Rate(0, 200, 100.0)];
+        let input = vec![InputSeg::Delay(0, 200, 4), InputSeg::Rate(0, 200, 100)];
 
         let output1 = vec![OutputSeg::Booking(0, 1, 1), OutputSeg::Booking(1, 200, -1)];
         start_test(input.clone(), output1, vec![(bundle1, 0, true)]);
@@ -353,7 +353,7 @@ mod tests {
         let bundle2 = Bundle {
             source: 0.into(),
             priority: 1,
-            size: 4000.0,
+            size: 4000,
             expiration: 1000,
         };
         let output2 = vec![
@@ -381,7 +381,7 @@ mod tests {
         let bundle3 = Bundle {
             source: 0.into(),
             priority: 2,
-            size: 5000.0,
+            size: 5000,
             expiration: 1000,
         };
         let output3 = vec![
@@ -408,7 +408,7 @@ mod tests {
         let bundle_too_large = Bundle {
             source: 0.into(),
             priority: 1,
-            size: 50_000.0,
+            size: 50_000,
             expiration: 1000,
         };
 
@@ -437,24 +437,24 @@ mod tests {
 
     #[test]
     fn test_bundles_priorities() {
-        let input = vec![InputSeg::Delay(0, 200, 4), InputSeg::Rate(0, 200, 100.0)];
+        let input = vec![InputSeg::Delay(0, 200, 4), InputSeg::Rate(0, 200, 100)];
 
         let bundle_prio_1 = Bundle {
             source: 0.into(),
             priority: 1,
-            size: 10000.0,
+            size: 10000,
             expiration: 1000,
         };
         let bundle_prio_0 = Bundle {
             source: 0.into(),
             priority: 0,
-            size: 1000.0,
+            size: 1000,
             expiration: 1000,
         };
         let bundle_prio_2 = Bundle {
             source: 0.into(),
             priority: 2,
-            size: 100.0,
+            size: 100,
             expiration: 1000,
         };
 
@@ -504,14 +504,14 @@ mod tests {
     fn test_overlapping_multiple_segments() {
         let input = vec![
             InputSeg::Delay(0, 200, 4),
-            InputSeg::Rate(0, 50, 100.0),
-            InputSeg::Rate(50, 200, 50.0),
+            InputSeg::Rate(0, 50, 100),
+            InputSeg::Rate(50, 200, 50),
         ];
 
         let bundle = Bundle {
             source: 0.into(),
             priority: 1,
-            size: 7500.0,
+            size: 7500,
             expiration: 1000,
         };
 
@@ -551,19 +551,19 @@ mod tests {
 
     #[test]
     fn test_preemption_across_multiple_segments() {
-        let input = vec![InputSeg::Delay(0, 200, 4), InputSeg::Rate(0, 200, 100.0)];
+        let input = vec![InputSeg::Delay(0, 200, 4), InputSeg::Rate(0, 200, 100)];
 
         let bundle_preempted = Bundle {
             source: 0.into(),
             priority: 1,
-            size: 1000.0,
+            size: 1000,
             expiration: 1000,
         };
 
         let bundle_preempting_large = Bundle {
             source: 0.into(),
             priority: 2,
-            size: 3000.0,
+            size: 3000,
             expiration: 1000,
         };
 
@@ -614,7 +614,7 @@ mod tests {
     fn test_existing_booking() {
         let input = vec![
             InputSeg::Delay(0, 200, 4),
-            InputSeg::Rate(0, 200, 100.0),
+            InputSeg::Rate(0, 200, 100),
             InputSeg::Booking(0, 50, -1),
             InputSeg::Booking(50, 100, 1),
             InputSeg::Booking(100, 200, -1),
@@ -623,7 +623,7 @@ mod tests {
         let bundle = Bundle {
             source: 0.into(),
             priority: 2,
-            size: 1000.0,
+            size: 1000,
             expiration: 1000,
         };
 
@@ -674,7 +674,7 @@ mod tests {
 
         let input = vec![
             InputSeg::Delay(0, 200, 4),
-            InputSeg::Rate(0, 200, 100.0),
+            InputSeg::Rate(0, 200, 100),
             InputSeg::Booking(0, 20, 1),
             InputSeg::Booking(20, 80, -1),
             InputSeg::Booking(80, 100, 1),
@@ -684,7 +684,7 @@ mod tests {
         let bundle_low_prio = Bundle {
             source: 0.into(),
             priority: 0,
-            size: 3000.0,
+            size: 3000,
             expiration: 1000,
         };
 
@@ -722,7 +722,7 @@ mod tests {
 
         let input = vec![
             InputSeg::Delay(0, 200, 4),
-            InputSeg::Rate(0, 200, 100.0),
+            InputSeg::Rate(0, 200, 100),
             InputSeg::Booking(0, 100, 0),
             InputSeg::Booking(100, 120, 1),
             InputSeg::Booking(120, 200, -1),
@@ -731,7 +731,7 @@ mod tests {
         let bundle_prio2 = Bundle {
             source: 0.into(),
             priority: 2,
-            size: 8000.0,
+            size: 8000,
             expiration: 1000,
         };
 

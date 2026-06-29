@@ -4,17 +4,16 @@
 
 use crate::contact_manager::legacy::LegacyManager;
 
-pub type QDManager = LegacyManager<true,true,1,false>;
-pub type PQDManager = LegacyManager<true,true,3,false>;
-pub type PBQDManager = LegacyManager<true,true,3,true>;
-
+pub type QDManager = LegacyManager<true, true, 1, false>;
+pub type PQDManager = LegacyManager<true, true, 3, false>;
+pub type PBQDManager = LegacyManager<true, true, 3, true>;
 
 #[cfg(test)]
 mod tests {
     use super::{PBQDManager, PQDManager, QDManager};
     use crate::contact_manager::ContactManager;
     use crate::contact_manager::legacy::test_helpers::*;
-use crate::types::TimeInterval;
+    use crate::types::TimeInterval;
 
     fn qd() -> QDManager {
         let mut manager = QDManager::new(RATE, DELAY);
@@ -45,11 +44,9 @@ use crate::types::TimeInterval;
             end: C_END,
         };
 
-        manager
-            .schedule_tx(ti, C_START, &bp0(2000.0))
-            .unwrap();
+        manager.schedule_tx(ti, C_START, &bp0(2000)).unwrap();
 
-        let data = manager.dry_run_tx(ti, C_START, &bp0(100.0)).unwrap();
+        let data = manager.dry_run_tx(ti, C_START, &bp0(100)).unwrap();
         assert_eq!(
             data.tx_window.start, 2,
             "TEST FAILED: tx_start should be shifted by queue delay from contact start."
@@ -64,11 +61,9 @@ use crate::types::TimeInterval;
             end: C_END,
         };
 
-        manager
-            .schedule_tx(ti, C_START, &bp0(2000.0))
-            .unwrap();
+        manager.schedule_tx(ti, C_START, &bp0(2000)).unwrap();
 
-        let data = manager.dry_run_tx(ti, 5, &bp0(100.0)).unwrap();
+        let data = manager.dry_run_tx(ti, 5, &bp0(100)).unwrap();
         assert_eq!(
             data.tx_window.start, 5,
             "TEST FAILED: tx_start should be at_time when it arrives after the queue shift."
@@ -82,11 +77,9 @@ use crate::types::TimeInterval;
             start: C_START,
             end: C_END,
         };
-        manager
-            .schedule_tx(ti, C_START, &bp0(9900.0))
-            .unwrap();
+        manager.schedule_tx(ti, C_START, &bp0(9900)).unwrap();
         assert!(
-            manager.dry_run_tx(ti, C_START, &bp0(200.0)).is_none(),
+            manager.dry_run_tx(ti, C_START, &bp0(200)).is_none(),
             "TEST FAILED: Bundle should not fit when queue shift pushes tx_end past contact end."
         );
     }

@@ -41,12 +41,12 @@ mod tests {
             start: C_START,
             end: C_END,
         };
-        let before = manager.dry_run_tx(ti, C_START, &bp0(1000.0)).unwrap();
-        manager.schedule_tx(ti, C_START, &bp0(1000.0)).unwrap();
-        manager.schedule_tx(ti, C_START, &bp0(1000.0)).unwrap();
-        manager.schedule_tx(ti, C_START, &bp0(1000.0)).unwrap();
+        let before = manager.dry_run_tx(ti, C_START, &bp0(1000)).unwrap();
+        manager.schedule_tx(ti, C_START, &bp0(1000)).unwrap();
+        manager.schedule_tx(ti, C_START, &bp0(1000)).unwrap();
+        manager.schedule_tx(ti, C_START, &bp0(1000)).unwrap();
 
-        let after = manager.dry_run_tx(ti, C_START, &bp0(1000.0)).unwrap();
+        let after = manager.dry_run_tx(ti, C_START, &bp0(1000)).unwrap();
 
         assert_eq!(
             before.tx_window.start, after.tx_window.start,

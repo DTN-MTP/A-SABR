@@ -47,7 +47,7 @@ impl SegmentationManager {
     /// # Feature Flags
     ///
     /// When the `first_depleted` feature is enabled, the `original_volume`
-    /// field is initialized to `0.0`.
+    /// field is initialized to `0`.
     ///
     /// # Returns
     ///
@@ -63,7 +63,7 @@ impl SegmentationManager {
             rate_intervals,
             delay_intervals,
             #[cfg(feature = "first_depleted")]
-            original_volume: 0.0,
+            original_volume: 0,
         }
     }
 }
@@ -345,13 +345,13 @@ mod tests {
     #[test]
     fn test_single_bundle_insertions() {
         // Simple case: one delay segment + one rate segment
-        let input = vec![InputSeg::Delay(0, 200, 4), InputSeg::Rate(0, 200, 100.0)];
+        let input = vec![InputSeg::Delay(0, 200, 4), InputSeg::Rate(0, 200, 100)];
 
         // Small bundle -> should fit easily
         let bundle1 = Bundle {
             source: 0usize.into(),
             priority: 1,
-            size: 100.0,
+            size: 100,
             expiration: 1000,
         };
 
@@ -363,7 +363,7 @@ mod tests {
         let bundle2 = Bundle {
             source: 0.into(),
             priority: 1,
-            size: 4000.0,
+            size: 4000,
             expiration: 1000,
         };
 
@@ -375,7 +375,7 @@ mod tests {
         let bundle3 = Bundle {
             source: 0.into(),
             priority: 2,
-            size: 5000.0,
+            size: 5000,
             expiration: 1000,
         };
 
@@ -386,7 +386,7 @@ mod tests {
         let bundle_too_large = Bundle {
             source: 0.into(),
             priority: 1,
-            size: 50_000.0,
+            size: 50_000,
             expiration: 1000,
         };
 
@@ -396,27 +396,27 @@ mod tests {
 
     #[test]
     fn test_multiple_insertions_on_same_contact() {
-        let input = vec![InputSeg::Delay(0, 200, 4), InputSeg::Rate(0, 200, 100.0)];
+        let input = vec![InputSeg::Delay(0, 200, 4), InputSeg::Rate(0, 200, 100)];
 
         // We insert multiple bundles sequentially
         let bundle1 = Bundle {
             source: 0.into(),
             priority: 1,
-            size: 1000.0,
+            size: 1000,
             expiration: 1000,
         };
 
         let bundle2 = Bundle {
             source: 0.into(),
             priority: 1,
-            size: 500.0,
+            size: 500,
             expiration: 1000,
         };
 
         let bundle3 = Bundle {
             source: 0.into(),
             priority: 1,
-            size: 1000.0,
+            size: 1000,
             expiration: 1000,
         };
 
@@ -436,14 +436,14 @@ mod tests {
     fn test_variable_rate_segments() {
         let input = vec![
             InputSeg::Delay(0, 200, 4),
-            InputSeg::Rate(0, 50, 100.0),
-            InputSeg::Rate(50, 200, 50.0),
+            InputSeg::Rate(0, 50, 100),
+            InputSeg::Rate(50, 200, 50),
         ];
 
         let bundle = Bundle {
             source: 0.into(),
             priority: 1,
-            size: 7500.0,
+            size: 7500,
             expiration: 1000,
         };
 
@@ -457,17 +457,17 @@ mod tests {
 
     #[test]
     fn test_start_time_handling() {
-        let input = vec![InputSeg::Delay(5, 15, 1), InputSeg::Rate(5, 15, 2.0)];
+        let input = vec![InputSeg::Delay(5, 15, 1), InputSeg::Rate(5, 15, 2)];
 
         let bundle = Bundle {
             source: 0.into(),
             priority: 1,
-            size: 4.0,
+            size: 4,
             expiration: 1000,
         };
 
         let requests = vec![
-            (bundle, 0, true), // should start at contact start (5.0)
+            (bundle, 0, true), // should start at contact start (5)
         ];
 
         // It uses [5,7], so remaining is [7,15]

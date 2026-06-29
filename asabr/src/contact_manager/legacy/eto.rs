@@ -42,7 +42,7 @@ mod tests {
         };
         for i in 0..20 {
             assert!(
-                manager.schedule_tx(ti, C_START, &bp0(1000.0)).is_some(),
+                manager.schedule_tx(ti, C_START, &bp0(1000)).is_some(),
                 "TEST FAILED: ETO schedule_tx should never saturate (call {}).",
                 i + 1
             );
@@ -56,7 +56,7 @@ mod tests {
             start: C_START,
             end: C_END,
         };
-        let bundle = bp0(1000.0);
+        let bundle = bp0(1000);
         let first = manager.schedule_tx(ti, C_START, &bundle);
         let second = manager.schedule_tx(ti, C_START, &bundle);
 
@@ -74,8 +74,8 @@ mod tests {
             start: C_START,
             end: C_END,
         };
-        manager.manual_enqueue(&bp0(2000.0));
-        let data = manager.dry_run_tx(ti, 3, &bp0(100.0)).unwrap();
+        manager.manual_enqueue(&bp0(2000));
+        let data = manager.dry_run_tx(ti, 3, &bp0(100)).unwrap();
         assert_eq!(
             data.tx_window.start, 5,
             "TEST FAILED: tx_start should be at_time + queue/rate for ETO."
@@ -90,9 +90,9 @@ mod tests {
             start: C_START,
             end: C_END,
         };
-        manager.manual_enqueue(&bp0(9900.0));
+        manager.manual_enqueue(&bp0(9900));
         assert!(
-            manager.dry_run_tx(ti, C_START, &bp0(200.0)).is_none(),
+            manager.dry_run_tx(ti, C_START, &bp0(200)).is_none(),
             "TEST FAILED: Bundle should not fit when manual queue shift pushes tx_end past contact end."
         );
     }
