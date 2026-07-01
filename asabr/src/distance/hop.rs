@@ -63,12 +63,12 @@ impl<NM: NodeManager, CM: ContactManager> HybridParentingOrd<NM, CM> for Hop {
         _bundle: &Bundle,
         _actual_node: RNodeRef<'id>,
     ) -> bool {
-        match (
-            first.hop_count.cmp(&second.hop_count),
-            first.arrival_time.end.cmp(&second.arrival_time.end),
-        ) {
-            (Ordering::Less, Ordering::Greater) | (Ordering::Greater, Ordering::Less) => true,
-            _ => false,
-        }
+        matches!(
+            (
+                first.hop_count.cmp(&second.hop_count),
+                first.arrival_time.end.cmp(&second.arrival_time.end)
+            ),
+            (Ordering::Less, Ordering::Greater) | (Ordering::Greater, Ordering::Less)
+        )
     }
 }

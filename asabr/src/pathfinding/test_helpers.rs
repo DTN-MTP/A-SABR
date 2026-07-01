@@ -127,7 +127,7 @@ pub(crate) fn make_contact(
     rx: usize,
     start: i64,
     end: i64,
-    rate: f64,
+    rate: i64,
     delay: i64,
 ) -> (Contact<EVLManager>, usize, usize) {
     Contact::try_new(
@@ -157,7 +157,7 @@ pub(crate) fn make_source<'id>(
     )
 }
 
-pub(crate) fn make_bundle(priority: i8, size: f64, expiration: Date) -> Bundle {
+pub(crate) fn make_bundle(priority: i8, size: i64, expiration: Date) -> Bundle {
     Bundle {
         source: 0usize.into(),
         priority,

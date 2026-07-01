@@ -29,6 +29,7 @@ use super::super::PathFindingOutput;
 /// * `D` - A type that implements the `Distance<NM, CM>` trait.
 pub type NodeParenting<'id, D> = Disktra<NodeParentingWorkArea<'id, D>, D>;
 
+/// Not intended for public use, use `NodeParenting` directly
 pub struct NodeParentingWorkArea<'id, D> {
     paths: Vec<Option<PathFragment<'id>>>,
     visited: Vec<bool>,

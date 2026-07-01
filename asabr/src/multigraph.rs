@@ -1,3 +1,5 @@
+#![allow(clippy::type_complexity)]
+
 extern crate alloc;
 
 use alloc::vec::Vec;
@@ -94,7 +96,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
         let mut r = Self {
             real_nodes: Vec::with_capacity(realnodes.len()),
             virtual_nodes: Vec::with_capacity(vnodes.len()),
-            id: id,
+            id,
         };
 
         for node in realnodes {
@@ -317,13 +319,15 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
             NodeRef::V(vnode_ref) => Either::Right(self.iter_virtualnode(vnode_ref)),
         }
     }
-    /// three element tuple:
-    /// - tx node manager
-    /// - real nodes neigbors, as an iterator over (neigbor_ref,iterator<contacts>)
-    /// - vnode neigbors, as an iterator over (neigbor_ref,iterator(rnoderef,contact))
+
+    /// For a given node, return a three element tuple containing:
+    /// - the node manager
+    /// - real nodes neigbors, as an iterator over (ref of a neighbor,manager of the neighbor,iterator<contacts between the two>)
+    /// - vnode neigbors, as an iterator over (ref of a neighbor,iterator(real_node,it's manager,contact))
     pub fn iter_iter_contacts(
         &self,
         noderef: RNodeRef<'id>,
+        _prune_time: Option<Date>, //TODO: prune old contacts
     ) -> (
         &Node<NM>,
         impl Iterator<

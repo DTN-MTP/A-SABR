@@ -37,19 +37,10 @@ where
     ) -> bool;
 }
 
-/// A structure representing a work area for multi-path tracking (MPT) pathfinding.
-///
-/// `HybridParentingWorkArea` maintains information about the current routing state, including
-/// the initial bundle, the source route stage, excluded nodes, and routes grouped by destination.
-/// This structure is used in pathfinding operations to manage and organize route stages for
-/// efficient routing in a multi-destination network.
-///
-/// This type is designed to derive easily a PathFindingOutput from this work area.
-///
-/// # Type Parameters
-/// - `NM`: A type implementing the `NodeManager` trait.
-/// - `CM`: A type implementing the `ContactManager` trait, which handles contacts for routing.
-struct HybridParentingWorkArea<
+pub type HybridParenting<'id, D, NM, CM> = Disktra<HybridParentingWorkArea<'id, NM, CM, D>, D>;
+
+/// Not intended for public use, use `HybridParenting` directly
+pub struct HybridParentingWorkArea<
     'id,
     NM: NodeManager,
     CM: ContactManager,
@@ -167,13 +158,6 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParen
         }
     }
 }
-
-pub type HybridParenting<
-    'id,
-    D: HybridParentingOrd<NM, CM> + Distance<NM, CM>,
-    NM: NodeManager,
-    CM: ContactManager,
-> = Disktra<HybridParentingWorkArea<'id, NM, CM, D>, D>;
 
 // #[cfg(test)]
 // mod tests {

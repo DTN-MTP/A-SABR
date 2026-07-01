@@ -1,5 +1,12 @@
 extern crate alloc;
-use crate::multigraph::{NodeRef, RNodeRef, VNodeRef};
+use crate::{
+    bundle::Bundle,
+    contact_manager::ContactManager,
+    multigraph::{Multigraph, NodeRef, RNodeRef, VNodeRef},
+    node_manager::NodeManager,
+    pathfinding::PathFindingOutput,
+    types::Date,
+};
 use alloc::{boxed::Box, rc::Rc};
 
 pub trait Destination<'id> {
@@ -9,6 +16,14 @@ pub trait Destination<'id> {
     fn now_reached(&mut self, node: NodeRef<'id>) -> bool;
     /// Should paths to this vnode be considered ?
     fn is_useful(&self, node: VNodeRef<'id>) -> bool;
+    /// Wether this path tree is still valid to pass a bundle
+    fn validate(
+        &self,
+        paths: &PathFindingOutput<'id, '_>,
+        time: Date,
+        bundle: &Bundle,
+        graph: &Multigraph<'id, impl NodeManager, impl ContactManager>,
+    ) -> bool;
 }
 
 pub enum Dest<'id> {
@@ -21,14 +36,11 @@ pub enum Dest<'id> {
 
 impl<'id> Destination<'id> for Dest<'id> {
     fn reinit(&mut self) {
-        match self {
-            Self::MultiCast(_, reached, counter) => {
-                for r in reached.iter_mut() {
-                    *r = false
-                }
-                *counter = 0
+        if let Self::MultiCast(_, reached, counter) = self {
+            for r in reached.iter_mut() {
+                *r = false
             }
-            _ => (),
+            *counter = 0
         }
     }
 
@@ -59,6 +71,27 @@ impl<'id> Destination<'id> for Dest<'id> {
             Self::VNode(dest) => *dest == node,
             Self::AllNodes() => true,
             _ => false,
+        }
+    }
+
+    fn validate(
+        &self,
+        paths: &PathFindingOutput<'id, '_>,
+        time: Date,
+        bundle: &Bundle,
+        graph: &Multigraph<'id, impl NodeManager, impl ContactManager>,
+    ) -> bool {
+        match self {
+            Dest::RNode(rnode_ref) => paths.validate(NodeRef::R(*rnode_ref), time, bundle, graph),
+            Dest::VNode(vnode_ref) => paths.validate(NodeRef::V(*vnode_ref), time, bundle, graph),
+            Dest::AllNodes() => true,
+            Dest::AnyCast(rnode_refs) => rnode_refs
+                .iter()
+                .any(|dest| paths.validate(NodeRef::R(*dest), time, bundle, graph)),
+            Dest::MultiCast(rnode_refs, _items, _) => rnode_refs
+                .iter()
+                // This path is not technically fully valid, but hey, it is still interesting, so we want to extract it
+                .any(|dest| paths.validate(NodeRef::R(*dest), time, bundle, graph)),
         }
     }
 }
@@ -109,6 +142,16 @@ impl<'id> Destination<'id> for RNodeRef<'id> {
     fn is_useful(&self, _node: VNodeRef<'id>) -> bool {
         false
     }
+
+    fn validate(
+        &self,
+        paths: &PathFindingOutput<'id, '_>,
+        time: Date,
+        bundle: &Bundle,
+        graph: &Multigraph<'id, impl NodeManager, impl ContactManager>,
+    ) -> bool {
+        paths.validate(NodeRef::R(*self), time, bundle, graph)
+    }
 }
 
 impl<'id> Destination<'id> for VNodeRef<'id> {
@@ -124,13 +167,21 @@ impl<'id> Destination<'id> for VNodeRef<'id> {
     fn is_useful(&self, node: VNodeRef<'id>) -> bool {
         node == *self
     }
+
+    fn validate(
+        &self,
+        paths: &PathFindingOutput<'id, '_>,
+        time: Date,
+        bundle: &Bundle,
+        graph: &Multigraph<'id, impl NodeManager, impl ContactManager>,
+    ) -> bool {
+        paths.validate(NodeRef::V(*self), time, bundle, graph)
+    }
 }
 
 impl<'id> Destination<'id> for NodeRef<'id> {
     #[inline(always)]
-    fn reinit(&mut self) {
-        
-    }
+    fn reinit(&mut self) {}
 
     #[inline(always)]
     fn now_reached(&mut self, node: NodeRef<'id>) -> bool {
@@ -143,6 +194,15 @@ impl<'id> Destination<'id> for NodeRef<'id> {
             NodeRef::R(rnode_ref) => rnode_ref.is_useful(node),
             NodeRef::V(vnode_ref) => vnode_ref.is_useful(node),
         }
+    }
+    fn validate(
+        &self,
+        paths: &PathFindingOutput<'id, '_>,
+        time: Date,
+        bundle: &Bundle,
+        graph: &Multigraph<'id, impl NodeManager, impl ContactManager>,
+    ) -> bool {
+        paths.validate(*self, time, bundle, graph)
     }
 }
 
@@ -159,6 +219,15 @@ impl Destination<'_> for All {
 
     #[inline(always)]
     fn is_useful(&self, _node: VNodeRef<'_>) -> bool {
+        true
+    }
+    fn validate(
+        &self,
+        _paths: &PathFindingOutput<'_, '_>,
+        _time: Date,
+        _bundle: &Bundle,
+        _graph: &Multigraph<'_, impl NodeManager, impl ContactManager>,
+    ) -> bool {
         true
     }
 }

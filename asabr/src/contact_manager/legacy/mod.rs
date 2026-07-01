@@ -15,81 +15,81 @@ pub(crate) mod test_helpers;
 
 #[derive(Debug)]
 /// A generic legacy volume manager. ETO, PB, ... are newtype on specialisation of this one
-struct VolumeManager<const prio_count: usize, const budgeted: bool> {
+struct VolumeManager<const PRIO_COUNT: usize, const BUDGETED: bool> {
     rate: DataRate,
     delay: Duration,
-    queue_size: [Volume; prio_count],
-    budgets: [Volume; prio_count],
+    queue_size: [Volume; PRIO_COUNT],
+    budgets: [Volume; PRIO_COUNT],
     original_volume: Volume,
 }
 
-impl<const prio_count: usize> VolumeManager<prio_count, false> {
+impl<const PRIO_COUNT: usize> VolumeManager<PRIO_COUNT, false> {
     /// create a VolumeManager.
     pub fn new(rate: DataRate, delay: Duration) -> Self {
         Self {
             rate,
             delay,
-            queue_size: [0; prio_count],
-            budgets: [0; prio_count],
+            queue_size: [0; PRIO_COUNT],
+            budgets: [0; PRIO_COUNT],
             original_volume: 0,
         }
     }
 }
 
-impl<const prio_count: usize> VolumeManager<prio_count, true> {
+impl<const PRIO_COUNT: usize> VolumeManager<PRIO_COUNT, true> {
     /// create a VolumeManager.
-    pub fn new(rate: DataRate, delay: Duration, budgets: [Volume; prio_count]) -> Self {
+    pub fn new(rate: DataRate, delay: Duration, budgets: [Volume; PRIO_COUNT]) -> Self {
         Self {
             rate,
             delay,
-            queue_size: [0; prio_count],
+            queue_size: [0; PRIO_COUNT],
             budgets,
             original_volume: 0,
         }
     }
 }
 
-impl<const prio_count: usize, const budgeted: bool> VolumeManager<prio_count, budgeted> {
+impl<const PRIO_COUNT: usize, const BUDGETED: bool> VolumeManager<PRIO_COUNT, BUDGETED> {
     #[inline(always)]
     fn get_queue_size(&self, bundle: &Bundle) -> Volume {
-        self.queue_size[(bundle.priority as usize).min(prio_count - 1)]
+        self.queue_size[(bundle.priority as usize).min(PRIO_COUNT - 1)]
     }
     #[inline(always)]
     fn enqueue(&mut self, bundle: &Bundle) {
-        for prio in 0..(bundle.priority as usize + 1).min(prio_count) {
+        for prio in 0..(bundle.priority as usize + 1).min(PRIO_COUNT) {
             self.queue_size[prio] += bundle.size;
         }
     }
     #[allow(dead_code)]
     #[inline(always)]
     fn dequeue(&mut self, bundle: &Bundle) {
-        for prio in 0..(bundle.priority as usize + 1).min(prio_count) {
+        for prio in 0..(bundle.priority as usize + 1).min(PRIO_COUNT) {
             self.queue_size[prio] -= bundle.size;
         }
     }
     #[inline(always)]
     fn get_budget(&self, bundle: &Bundle) -> Volume {
-        if budgeted {
-            self.budgets[(bundle.priority as usize).min(prio_count - 1)]
+        if BUDGETED {
+            self.budgets[(bundle.priority as usize).min(PRIO_COUNT - 1)]
         } else {
             self.original_volume
         }
     }
 }
 
-impl<const pc: usize> From<(DataRate, Duration)> for VolumeManager<pc, false> {
+impl<const PC: usize> From<(DataRate, Duration)> for VolumeManager<PC, false> {
     fn from(value: (DataRate, Duration)) -> Self {
         Self::new(value.0, value.1)
     }
 }
-impl<const pc: usize> From<(DataRate, Duration, [Volume; pc])> for VolumeManager<pc, true> {
-    fn from(value: (DataRate, Duration, [Volume; pc])) -> Self {
+impl<const PC: usize> From<(DataRate, Duration, [Volume; PC])> for VolumeManager<PC, true> {
+    fn from(value: (DataRate, Duration, [Volume; PC])) -> Self {
         Self::new(value.0, value.1, value.2)
     }
 }
 
 // inlined parse_transparent to template on cp. yup, ugly, i know.
-impl<const ad: bool, const au: bool, const cp: usize> Parse for LegacyManager<ad, au, cp, false> {
+impl<const AD: bool, const AU: bool, const CP: usize> Parse for LegacyManager<AD, AU, CP, false> {
     type Token = <(DataRate, Duration) as Parse>::Token;
     type Parser = <(DataRate, Duration) as Parse>::Parser;
     fn parse(p: Self::Parser) -> Result<Self, &'static str> {
@@ -101,8 +101,8 @@ impl<const ad: bool, const au: bool, const cp: usize> Parse for LegacyManager<ad
         <(DataRate, Duration) as Parse>::feed(tok, parser)
     }
 }
-impl<T: ?Sized, const ad: bool, const au: bool, const cp: usize> LexFrom<T>
-    for LegacyManager<ad, au, cp, false>
+impl<T: ?Sized, const AD: bool, const AU: bool, const PC: usize> LexFrom<T>
+    for LegacyManager<AD, AU, PC, false>
 where
     (DataRate, Duration): LexFrom<T>,
 {
@@ -112,9 +112,9 @@ where
 }
 
 // inlined parse_transparent to template on cp. yup, ugly, i know.
-impl<const ad: bool, const au: bool, const pc: usize> Parse for LegacyManager<ad, au, pc, true> {
-    type Token = <(DataRate, Duration, [Volume; pc]) as Parse>::Token;
-    type Parser = <(DataRate, Duration, [Volume; pc]) as Parse>::Parser;
+impl<const AD: bool, const AU: bool, const PC: usize> Parse for LegacyManager<AD, AU, PC, true> {
+    type Token = <(DataRate, Duration, [Volume; PC]) as Parse>::Token;
+    type Parser = <(DataRate, Duration, [Volume; PC]) as Parse>::Parser;
     fn parse(p: Self::Parser) -> Result<Self, &'static str> {
         Ok(LegacyManager(
             <(DataRate, Duration, [Volume; _]) as Parse>::parse(p)?.into(),
@@ -124,10 +124,10 @@ impl<const ad: bool, const au: bool, const pc: usize> Parse for LegacyManager<ad
         <(DataRate, Duration, [Volume; _]) as Parse>::feed(tok, parser)
     }
 }
-impl<T: ?Sized, const ad: bool, const au: bool, const pc: usize> LexFrom<T>
-    for LegacyManager<ad, au, pc, true>
+impl<T: ?Sized, const AD: bool, const AU: bool, const PC: usize> LexFrom<T>
+    for LegacyManager<AD, AU, PC, true>
 where
-    (DataRate, Duration, [Volume; pc]): LexFrom<T>,
+    (DataRate, Duration, [Volume; PC]): LexFrom<T>,
 {
     fn lex(t: &T, p: &Self::Parser) -> Result<Self::Token, &'static str> {
         <(DataRate, Duration, [Volume; _]) as LexFrom<T>>::lex(t, p)
@@ -148,18 +148,18 @@ where
 /// - `prio_count`: The number of priority levels. A value of `1` means no priority logic is applied.
 /// - `with_budget`: A flag (`true` or `false`) to conditionnally add budgets (for priorities only).
 pub struct LegacyManager<
-    const add_delay: bool,
-    const auto_update: bool,
-    const prio_count: usize,
-    const budgeted: bool,
->(VolumeManager<prio_count, budgeted>);
+    const ADD_DELAY: bool,
+    const AUTO_UPDATE: bool,
+    const PRIO_COUNT: usize,
+    const BUDGETED: bool,
+>(VolumeManager<PRIO_COUNT, BUDGETED>);
 
-impl<const add_delay: bool, const auto_update: bool, const prio_count: usize, const budgeted: bool>
-    ContactManager for LegacyManager<add_delay, auto_update, prio_count, budgeted>
+impl<const ADD_DELAY: bool, const AUTO_UPDATE: bool, const PRIO_COUNT: usize, const BUDGETED: bool>
+    ContactManager for LegacyManager<ADD_DELAY, AUTO_UPDATE, PRIO_COUNT, BUDGETED>
 {
     #[cfg(feature = "manual_queueing")]
     fn manual_enqueue(&mut self, bundle: &Bundle) -> bool {
-        if auto_update {
+        if AUTO_UPDATE {
             false
         } else {
             self.0.enqueue(bundle);
@@ -168,7 +168,7 @@ impl<const add_delay: bool, const auto_update: bool, const prio_count: usize, co
     }
     #[cfg(feature = "manual_queueing")]
     fn manual_dequeue(&mut self, bundle: &Bundle) -> bool {
-        if auto_update {
+        if AUTO_UPDATE {
             false
         } else {
             self.0.dequeue(bundle);
@@ -183,15 +183,15 @@ impl<const add_delay: bool, const auto_update: bool, const prio_count: usize, co
         bundle: &Bundle,
     ) -> Option<ContactManagerTxData> {
         // This function call should be expanded at compile time
-        let queue_size = self.0.get_queue_size(&bundle);
+        let queue_size = self.0.get_queue_size(bundle);
 
-        if bundle.size > self.0.get_budget(&bundle) - queue_size {
+        if bundle.size > self.0.get_budget(bundle) - queue_size {
             return None;
         }
 
         let mut contact_start = contact_lifespan.start;
         // add_delay case 1 : if not eto, we push the eto from the contact start time
-        if add_delay && auto_update {
+        if ADD_DELAY && AUTO_UPDATE {
             contact_start += (queue_size / self.0.rate) as Duration;
         }
         let mut tx_start = if contact_start > at_time {
@@ -201,7 +201,7 @@ impl<const add_delay: bool, const auto_update: bool, const prio_count: usize, co
         };
 
         // add_delay case 2 : eto, bundles are still in queue
-        if add_delay && !auto_update {
+        if ADD_DELAY && !AUTO_UPDATE {
             tx_start += (queue_size / self.0.rate) as Duration;
         }
 
@@ -231,10 +231,10 @@ impl<const add_delay: bool, const auto_update: bool, const prio_count: usize, co
         let data = self.dry_run_tx(contact_data, at_time, bundle)?;
         // Conditionally update queue size based on $auto_update
         // Can overflow with overbooking
-        if auto_update {
+        if AUTO_UPDATE {
             self.0.enqueue(bundle);
         }
-        return Some(data);
+        Some(data)
     }
 
     fn try_init(&mut self, contact_data: &ContactInfo) -> bool {
@@ -248,17 +248,17 @@ impl<const add_delay: bool, const auto_update: bool, const prio_count: usize, co
     }
 }
 
-impl<const add_delay: bool, const auto_update: bool, const prio_count: usize>
-    LegacyManager<add_delay, auto_update, prio_count, false>
+impl<const ADD_DELAY: bool, const AUTO_UPDATE: bool, const PRIO_COUNT: usize>
+    LegacyManager<ADD_DELAY, AUTO_UPDATE, PRIO_COUNT, false>
 {
     pub fn new(rate: DataRate, delay: Duration) -> Self {
         LegacyManager(VolumeManager::<_, false>::new(rate, delay))
     }
 }
-impl<const add_delay: bool, const auto_update: bool, const prio_count: usize>
-    LegacyManager<add_delay, auto_update, prio_count, true>
+impl<const ADD_DELAY: bool, const AUTO_UPDATE: bool, const PRIO_COUNT: usize>
+    LegacyManager<ADD_DELAY, AUTO_UPDATE, PRIO_COUNT, true>
 {
-    pub fn new(rate: DataRate, delay: Duration, budgets: [Volume; prio_count]) -> Self {
+    pub fn new(rate: DataRate, delay: Duration, budgets: [Volume; PRIO_COUNT]) -> Self {
         LegacyManager(VolumeManager::<_, true>::new(rate, delay, budgets))
     }
 }

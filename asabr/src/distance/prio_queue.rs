@@ -11,6 +11,7 @@ use crate::{
 
 /// A custom if fairly classical implementation of a priority queue using a binary heap, allowing to pass a reference to the graph in order to compare elements
 /// This is a min priority queue respective to the distance D
+#[derive(Debug,Default)]
 pub struct PrioQueue<'id, D: Distance<NM, CM>, NM: NodeManager, CM: ContactManager, T: Copy> {
     /// Triplet pathfragment, node reached by it, custom aditional data
     elts: Vec<(PathFragment<'id>, T)>,
@@ -80,7 +81,7 @@ impl<'id, D: Distance<NM, CM>, NM: NodeManager, CM: ContactManager, T: Copy>
     }
     /// Check the minimum element
     pub fn peek_min(&self) -> Option<&(PathFragment<'id>, T)> {
-        self.elts.get(0)
+        self.elts.first()
     }
     /// Pop the minimum element, returning it. Reorganize the queue according to the distance D, requiring a reference to the graph to do the comparison.
     /// It is obviously a logic error to change the multigraph in a way wich change the distance while having a live queue
@@ -89,10 +90,10 @@ impl<'id, D: Distance<NM, CM>, NM: NodeManager, CM: ContactManager, T: Copy>
         graph: &Multigraph<'id, NM, CM>,
         bundle: &Bundle,
     ) -> Option<(PathFragment<'id>, T)> {
-        if self.elts.len() == 0 {
+        if self.elts.is_empty() {
             cold_path();
 
-            return None;
+            None
         } else {
             let ret = self.elts[0];
             let fst = self.elts.pop().unwrap();

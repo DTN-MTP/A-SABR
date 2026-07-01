@@ -33,7 +33,10 @@ impl From<(NodeID, NodeID, Date, Date)> for ContactInfo {
 
 impl From<ContactInfo> for TimeInterval {
     fn from(value: ContactInfo) -> Self {
-        TimeInterval { start: value.start, end: value.end }
+        TimeInterval {
+            start: value.start,
+            end: value.end,
+        }
     }
 }
 
@@ -126,7 +129,7 @@ impl<CM: ContactManager> Contact<CM> {
     }
 }
 
-impl<CM:ContactManager> AsRef<Self> for Contact<CM> {
+impl<CM: ContactManager> AsRef<Self> for Contact<CM> {
     fn as_ref(&self) -> &Self {
         self
     }

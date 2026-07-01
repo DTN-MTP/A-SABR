@@ -1,6 +1,7 @@
 extern crate alloc;
 use alloc::vec::Vec;
 use core::fmt::Debug;
+use core::hint::cold_path;
 use core::ops::Deref;
 
 use crate::bundle::Bundle;
@@ -37,13 +38,13 @@ mod test_helpers;
 /// * `CM` - A generic type that implements the `ContactManager` trait.
 #[derive(Debug)]
 pub struct PathFindingOutput<'id, 'a> {
-    pub path_tree: Either<&'a [Option<PathFragment<'id>>], Vec<Option<PathFragment<'id>>>>,
+    path_tree: Either<&'a [Option<PathFragment<'id>>], Vec<Option<PathFragment<'id>>>>,
 }
 
 impl<'id, 'a> AsRef<[Option<PathFragment<'id>>]> for PathFindingOutput<'id, 'a> {
     fn as_ref(&self) -> &[Option<PathFragment<'id>>] {
         match &self.path_tree {
-            Either::Left(l) => *l,
+            Either::Left(l) => l,
             Either::Right(r) => r.as_ref(),
         }
     }
@@ -53,6 +54,21 @@ impl<'id, 'a> Deref for PathFindingOutput<'id, 'a> {
     type Target = [Option<PathFragment<'id>>];
     fn deref(&self) -> &Self::Target {
         self.as_ref()
+    }
+}
+
+impl<'id, 'a> From<Vec<Option<PathFragment<'id>>>> for PathFindingOutput<'id, 'a> {
+    fn from(value: Vec<Option<PathFragment<'id>>>) -> Self {
+        Self {
+            path_tree: Either::Right(value),
+        }
+    }
+}
+impl<'id, 'a> From<&'a [Option<PathFragment<'id>>]> for PathFindingOutput<'id, 'a> {
+    fn from(value: &'a [Option<PathFragment<'id>>]) -> Self {
+        Self {
+            path_tree: Either::Left(value),
+        }
     }
 }
 
@@ -77,13 +93,82 @@ impl<'id, 'a> PathFindingOutput<'id, 'a> {
         destination: NodeRef<'id>,
         graph: &Multigraph<'id, NM, CM>,
     ) -> Option<impl Iterator<Item = PathFragment<'id>>> {
-        match self[graph.into_usize(destination)] {
-            None => None,
-            Some(_) => Some(PathIterator {
-                output: self,
-                last: Some(graph.into_usize(destination)),
-            }),
+        self[graph.into_usize(destination)].map(|_| PathIterator {
+            output: self,
+            last: Some(graph.into_usize(destination)),
+        })
+    }
+    pub fn clone<'b>(self) -> PathFindingOutput<'id, 'b> {
+        let vec = match self.path_tree {
+            Either::Left(value) => value.to_vec(),
+            Either::Right(vec) => vec,
+        };
+        PathFindingOutput {
+            path_tree: Either::Right(vec),
         }
+    }
+    pub fn validate(
+        &self,
+        dest: NodeRef<'id>,
+        time: Date,
+        bundle: &Bundle,
+        graph: &Multigraph<'id, impl NodeManager, impl ContactManager>,
+    ) -> bool {
+        let path = self.get_full_path(dest, graph);
+        path.is_some_and(|path| {
+            let mut last_time = TimeInterval {
+                start: time,
+                end: time,
+            };
+            if let Some(PathFragment { via: Some(via), .. }) = path.get(2) {
+                let ct = &graph[via.contact];
+                let Some(txdata) = ct.manager.dry_run_tx(ct.lifespan, time, bundle) else {
+                    return false;
+                };
+                last_time = txdata.rx_window
+            }
+            for [fst, snd, third] in path.array_windows() {
+                if let Some(via) = snd.via {
+                    let node = &graph[snd.rx_node];
+                    let delay = node.manager.delay(
+                        bundle,
+                        last_time,
+                        fst.rx_node.into(),
+                        third.rx_node.into(),
+                    );
+
+                    let contact = &graph[via.contact];
+                    let Some(txdata) = contact.manager.dry_run_tx(contact.lifespan, delay, bundle)
+                    else {
+                        return false;
+                    };
+                    if !node.manager.dry_run_retention(
+                        bundle,
+                        last_time,
+                        fst.rx_node.into(),
+                        txdata.tx_window,
+                        third.rx_node.into(),
+                    ) {
+                        return false;
+                    }
+                    last_time = txdata.rx_window
+                }
+            }
+            if path.len() >= 2
+                && let [
+                    PathFragment { rx_node: prev, .. },
+                    PathFragment { rx_node, .. },
+                ] = path[path.len() - 2..]
+            {
+                graph[rx_node]
+                    .manager
+                    .dry_run_multi(bundle, last_time, prev.into(), &[])
+                    .is_some()
+            } else {
+                cold_path();
+                true
+            }
+        })
     }
 }
 
@@ -95,9 +180,7 @@ struct PathIterator<'id, 'a, 'b> {
 impl<'id, 'a, 'b> Iterator for PathIterator<'id, 'a, 'b> {
     type Item = PathFragment<'id>;
     fn next(&mut self) -> Option<Self::Item> {
-        let Some(idx) = self.last.take() else {
-            return None;
-        };
+        let idx = self.last.take()?;
         let frag = self.output[idx]?;
         if let Some(hop) = frag.via {
             self.last = Some(hop.parent_frag)
@@ -114,14 +197,19 @@ impl<'id, 'a, 'b> Iterator for PathIterator<'id, 'a, 'b> {
 /// * `NM` - A generic type that implements the `NodeManager` trait.
 /// * `CM` - A generic type that implements the `ContactManager` trait.
 pub trait Pathfinding<'id, NM: NodeManager, CM: ContactManager, D: Destination<'id>> {
-    /// Determines the next hop in the route for the given bundle, excluding specified nodes.
+    /// Determines the routing tree in the multigraph for the given bundle.
+    /// Populate the routes until the destination is reached.
+    /// The bundle will be launched at routing_time, and old contacts in the graph may be ellided if they are older than prune_time.
+    ///
+    /// Take into account nodes/contacts marked as excluded in the graph, eg with `Multigraph::mark_excluded`
     ///
     /// # Parameters
-    ///
-    /// * `current_time` - The current time for the pathfinding operation.
-    /// * `source` - The `NodeID` of the source node.
-    /// * `bundle` - A reference to the `Bundle` being routed.
-    /// * `excluded_nodes_sorted` - A vector of `NodeID`s that should be excluded from the pathfinding.
+    /// * `multigraph` the graph to search into
+    /// * `routing_time` - The time at wich the bundle leave the current node.
+    /// * `source` - The `RNodeRef` of the source node.
+    /// * `bundle` - Ihe `Bundle` being routed.
+    /// * `destination` - A templated destination telling the pathfinder when to stop populating the output.
+    /// * `prune_time` - Deleting old contacts in the graph
     ///
     /// # Returns
     ///
@@ -130,10 +218,11 @@ pub trait Pathfinding<'id, NM: NodeManager, CM: ContactManager, D: Destination<'
     fn find_path<'a>(
         &'a mut self,
         multigraph: &mut Multigraph<'id, NM, CM>,
-        current_time: Date,
+        routing_time: Date,
         source: RNodeRef<'id>,
         bundle: &Bundle,
         destination: &mut D,
+        prune_time: Option<Date>,
     ) -> Result<Option<PathFindingOutput<'id, 'a>>, ASABRError>;
 }
 /// Attempts to make a hop (i.e., a transmission between nodes) for the given route stage and bundle,
@@ -164,6 +253,7 @@ fn try_make_hop<'id, 'a, NM: NodeManager + 'a, CM: ContactManager, T: AsRef<Cont
     previous_node: Option<RNodeRef<'id>>,
 ) -> Option<PathFragment<'id>> {
     // remove suppressed contacts
+    #[allow(unused_variables)]
     let suppressed = contacts.filter(|(_, _, _, ct)| {
         #[cfg(feature = "contact_suppression")]
         if ct.as_ref().suppressed {

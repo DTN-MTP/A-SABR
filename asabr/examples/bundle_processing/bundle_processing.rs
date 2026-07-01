@@ -21,19 +21,43 @@ struct Compressing {
 }
 
 impl NodeManager for Compressing {
-    fn accept(&self, bundle: &Bundle, time: a_sabr::types::TimeInterval, sender: a_sabr::types::NodeID) -> bool {
+    fn accept(
+        &self,
+        bundle: &Bundle,
+        time: a_sabr::types::TimeInterval,
+        sender: a_sabr::types::NodeID,
+    ) -> bool {
         todo!()
     }
 
-    fn dry_run_retention(&self, bundle: &Bundle, reception: a_sabr::types::TimeInterval, sender: a_sabr::types::NodeID, transmition: a_sabr::types::TimeInterval, next: a_sabr::types::NodeID) -> bool {
+    fn dry_run_retention(
+        &self,
+        bundle: &Bundle,
+        reception: a_sabr::types::TimeInterval,
+        sender: a_sabr::types::NodeID,
+        transmition: a_sabr::types::TimeInterval,
+        next: a_sabr::types::NodeID,
+    ) -> bool {
         todo!()
     }
 
-    fn dry_run_multi(&self, bundle: &Bundle, reception: a_sabr::types::TimeInterval, sender: a_sabr::types::NodeID, transmitions: &[(a_sabr::types::TimeInterval,a_sabr::types::NodeID)]) -> Option<usize> {
+    fn dry_run_multi(
+        &self,
+        bundle: &Bundle,
+        reception: a_sabr::types::TimeInterval,
+        sender: a_sabr::types::NodeID,
+        transmitions: &[(a_sabr::types::TimeInterval, a_sabr::types::NodeID)],
+    ) -> Option<usize> {
         todo!()
     }
 
-    fn commit(&mut self, bundle: &Bundle, reception: a_sabr::types::TimeInterval, sender: a_sabr::types::NodeID, transmitions: &[(a_sabr::types::TimeInterval,a_sabr::types::NodeID)]) -> Result<(),ASABRError> {
+    fn commit(
+        &mut self,
+        bundle: &Bundle,
+        reception: a_sabr::types::TimeInterval,
+        sender: a_sabr::types::NodeID,
+        transmitions: &[(a_sabr::types::TimeInterval, a_sabr::types::NodeID)],
+    ) -> Result<(), ASABRError> {
         todo!()
     }
 }
@@ -98,7 +122,15 @@ fn edge_case_example<NM: NodeManager + LexFrom<str>>(
     // });
     // let mut mpt_graph =
     //     init_pathfinding::<NM, EVLManager, HybridParentingPath<NM, EVLManager, SABR>, _, _>(lines)?;
-    mk_graph!(graph,mpt_graph,NM,EVLManager,HybridParentingPath,cp_path,file);
+    mk_graph!(
+        graph,
+        mpt_graph,
+        NM,
+        EVLManager,
+        HybridParentingPath,
+        cp_path,
+        file
+    );
     println!(
         "\nRunning with contact plan location={cp_path}, destination node=3, and bundle priority={bundle_priority}"
     );

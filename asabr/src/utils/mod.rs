@@ -1,7 +1,7 @@
 extern crate alloc;
 
 ///rexeport for macro use
-pub use generativity::{make_guard,Id,Guard};
+pub use generativity::{Guard, Id, make_guard};
 
 pub struct OptUsize(usize);
 
@@ -9,7 +9,7 @@ impl From<Option<usize>> for OptUsize {
     fn from(value: Option<usize>) -> Self {
         match value {
             None => OptUsize(usize::MAX),
-            Some(v) => OptUsize(v)
+            Some(v) => OptUsize(v),
         }
     }
 }
@@ -18,7 +18,7 @@ impl From<OptUsize> for Option<usize> {
     fn from(value: OptUsize) -> Self {
         match value.0 {
             usize::MAX => None,
-            v => Some(v)
+            v => Some(v),
         }
     }
 }
@@ -53,7 +53,7 @@ macro_rules! mk_graph {
                                     toknum: 0,
                                 }))
                             }
-                        }                
+                        }
             ).lines().map(|l|){
                 l.map_err(|e|){
                         eprintln!("Error while reading file: {e}"),

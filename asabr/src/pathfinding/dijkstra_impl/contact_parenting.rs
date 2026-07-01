@@ -25,15 +25,10 @@ use super::super::PathFindingOutput;
 ///
 /// * `NM` - A type that implements the `NodeManager` trait.
 /// * `CM` - A type that implements the `ContactManager` trait.
-pub type ContactParenting<
-    'id,
-    const tree_output: bool,
-    NM: NodeManager,
-    CM: ContactManager,
-    D: Distance<NM, CM>,
-> = Disktra<ContactParentingWorkArea<'id, NM, CM, D>, D>;
+pub type ContactParenting<'id, NM, CM, D> = Disktra<ContactParentingWorkArea<'id, NM, CM, D>, D>;
 
-struct ContactParentingWorkArea<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> {
+/// Not intended for public use, use `ContactParenting` directly
+pub struct ContactParentingWorkArea<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> {
     /// A vector storing all keeped path to a node without sorting for easy reference.
     possible_paths: Vec<PathFragment<'id>>,
     /// A vector containing (option of index of) pathfragment, to reach a given destination.
@@ -85,21 +80,21 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> DijkstraWork
                 None => {
                     self.possible_paths.push(proposition);
                     *route_for_node = Some(new_idx);
-                    return Some(new_idx);
+                    Some(new_idx)
                 }
                 Some(old) => {
                     if D::cmp(&proposition, &self.possible_paths[*old], graph, bundle)
                         == Ordering::Less
                     {
                         self.possible_paths[*old] = proposition;
-                        return Some(*old);
+                        Some(*old)
                     } else {
                         None
                     }
                 }
             }
         } else {
-            return None;
+            None
         }
     }
 

@@ -106,6 +106,7 @@ impl<'id, P: Pathfinding<'id, NM, CM, NodeRef<'id>>, NM: NodeManager, CM: Contac
         source: RNodeRef<'id>,
         bundle: &Bundle,
         destination: &mut NodeRef<'id>,
+        prune_time: Option<Date>,
     ) -> Result<Option<PathFindingOutput<'id, 'a>>, ASABRError> {
         let idx = multigraph.into_usize(*destination);
         let suppressions = &mut self.suppressed[idx];
@@ -113,9 +114,14 @@ impl<'id, P: Pathfinding<'id, NM, CM, NodeRef<'id>>, NM: NodeManager, CM: Contac
             multigraph[ct].suppressed = true
         }
 
-        let r = self
-            .pathfinder
-            .find_path(multigraph, current_time, source, bundle, destination);
+        let r = self.pathfinder.find_path(
+            multigraph,
+            current_time,
+            source,
+            bundle,
+            destination,
+            prune_time,
+        );
 
         for ct in suppressions.iter() {
             multigraph[ct].suppressed = false

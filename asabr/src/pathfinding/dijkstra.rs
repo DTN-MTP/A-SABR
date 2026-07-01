@@ -31,7 +31,7 @@ pub trait DijkstraWorkspace<'id, NM: NodeManager, CM: ContactManager> {
         bundle: &Bundle,
     ) -> Option<usize>;
     /// Check if it is usefull to consider new paths to this node.
-    fn node_check(&mut self, node: NodeRef<'id>, graph: &Multigraph<'id,NM,CM>) -> bool;
+    fn node_check(&mut self, node: NodeRef<'id>, graph: &Multigraph<'id, NM, CM>) -> bool;
     /// Is this path still relevant, and is it to a new node ?
     /// Also, return the previous node on path if it exist
     fn poped_relevant_new(
@@ -56,6 +56,7 @@ pub fn dijkstra<
     source: RNodeRef<'id>,
     bundle: &Bundle,
     dest: &mut De,
+    prune_time: Option<Date>,
 ) -> Option<PathFindingOutput<'id, 'a>> {
     let mut work_area = W::new(multigraph);
 
@@ -69,10 +70,7 @@ pub fn dijkstra<
     reachables[usize::from(source)] = true;
 
     let init_path = PathFragment::new_start(current_time, source);
-    let Some(viaref) = work_area.try_insert(init_path, NodeRef::R(source), multigraph, bundle)
-    else {
-        return None;
-    };
+    let viaref = work_area.try_insert(init_path, NodeRef::R(source), multigraph, bundle)?;
 
     prioqueue.insert((init_path, (viaref, None)), multigraph, bundle);
 
@@ -94,10 +92,10 @@ pub fn dijkstra<
 
         if isvnode.is_none() && relevant {
             let node = path.rx_node;
-            let (current_node, iter_r, iter_v) = multigraph.iter_iter_contacts(node);
+            let (current_node, iter_r, iter_v) = multigraph.iter_iter_contacts(node, prune_time);
 
             for (neighbor, _, contacts) in iter_r {
-                if !work_area.node_check(NodeRef::R(neighbor),multigraph) {
+                if !work_area.node_check(NodeRef::R(neighbor), multigraph) {
                     continue;
                 }
 
@@ -189,6 +187,7 @@ where
         source: RNodeRef<'id>,
         bundle: &Bundle,
         dest: &mut De,
+        prune_time: Option<Date>,
     ) -> Result<Option<PathFindingOutput<'id, 'a>>, crate::errors::ASABRError> {
         Ok(dijkstra::<NM, CM, W, D, De>(
             multigraph,
@@ -196,6 +195,7 @@ where
             source,
             bundle,
             dest,
+            prune_time,
         ))
     }
 }

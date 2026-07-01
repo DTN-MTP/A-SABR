@@ -1,7 +1,7 @@
+use crate::bundle::Bundle;
 use crate::empty_parse;
 use crate::errors::ASABRError;
 use crate::types::{NodeID, TimeInterval};
-use crate::bundle::Bundle;
 
 use super::NodeManager;
 
@@ -16,16 +16,34 @@ impl NodeManager for NoManagement {
         true
     }
 
-    fn dry_run_retention(&self, _bundle: &Bundle, _reception: TimeInterval, _sender: NodeID, _transmition: TimeInterval, _next: NodeID) -> bool {
+    fn dry_run_retention(
+        &self,
+        _bundle: &Bundle,
+        _reception: TimeInterval,
+        _sender: NodeID,
+        _transmition: TimeInterval,
+        _next: NodeID,
+    ) -> bool {
         true
     }
 
-    fn dry_run_multi(&self, _bundle: &Bundle, _reception: TimeInterval, _sender: NodeID, transmitions: &[(TimeInterval,NodeID)]) -> Option<usize> {
+    fn dry_run_multi(
+        &self,
+        _bundle: &Bundle,
+        _reception: TimeInterval,
+        _sender: NodeID,
+        transmitions: &[(TimeInterval, NodeID)],
+    ) -> Option<usize> {
         Some(transmitions.len())
     }
 
-    fn commit(&mut self, _bundle: &Bundle, _reception: TimeInterval, _sender: NodeID, _transmitions: &[(TimeInterval,NodeID)]) -> Result<(),ASABRError> {
+    fn commit(
+        &mut self,
+        _bundle: &Bundle,
+        _reception: TimeInterval,
+        _sender: NodeID,
+        _transmitions: &[(TimeInterval, NodeID)],
+    ) -> Result<(), ASABRError> {
         Ok(())
     }
-
 }

@@ -167,7 +167,7 @@ fn get_confidence(vec: &[&str]) -> f32 {
 }
 
 impl IONContactPlan {
-    pub fn parse<'a, NM: NodeManager, CM: FromIONContactData<CM> + ContactManager>(
+    pub fn parse<NM: NodeManager, CM: FromIONContactData<CM> + ContactManager>(
         content: impl Iterator<Item: AsRef<str>>,
     ) -> Result<ContactPlan<NoManagement, CM>, ASABRError> {
         let reader = content;
