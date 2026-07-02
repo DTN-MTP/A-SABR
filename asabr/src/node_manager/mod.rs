@@ -1,144 +1,139 @@
 extern crate alloc;
 
-use crate::{bundle::Bundle, types::Date};
+use crate::{
+    bundle::Bundle,
+    errors::ASABRError,
+    types::{Date, NodeID, TimeInterval},
+};
 pub mod none;
 
 /// A trait for managing and scheduling operations on nodes in a network.
 ///
 /// The `NodeManager` trait defines methods for dry-run (simulation) and actual scheduling
-/// of processing, transmission (tx), and reception (rx) of a `Bundle` at specified times.
-/// This trait is useful for implementing custom logic for nodes that need to manage bundle
-/// processing and data transfer in a time-dependent manner.
+/// of passing packets.
+///
+///
+/// # Expected Guarantees
+/// It is a logic error to have incoherent medhods, in particular:
+///    - if dry_run_retention(...,transmition,next) return true, then dry_run_multi(...,[transmition,next]) should do so as well (with identical other parametters)
+///    - if dry_run_multi(...) return true, then commit with the same parametters should suceed
+///    - delay should not return a date before reception start time
+///
+/// Failing to upheld these can result in incorrect behavior of algorithms using this node manager
+/// (including panic, memory leak ...), but should not result in memory unsafet
+///
+///
+/// # Simulation:
+/// - accept(bundle,time) -> return false if no such can be accepted, as an early return
+/// - delay(bundle,time) -> how much delay should we wait for before trying to send the packet
+/// - dry_run_retention(bundle,get_time,send_time) -> is this retention accepted
+/// - dry_run_multi(bundle,get_time,&[send_time]) -> how many of these can you accept to ressend.
+///
+/// # Commit
+/// - commit(bundle,get_time,&[send_time])
 pub trait NodeManager {
-    /// Simulates processing a `Bundle` at a specified time.
-    ///
-    /// This method performs a dry run to estimate the processing time of a bundle without
-    /// actually executing the process. It returns the estimated completion time.
-    ///
-    /// # Parameters
-    /// - `at_time`: The time at which the dry-run process simulation should start.
-    /// - `bundle`: A mutable reference to the `Bundle` to be processed.
-    ///
-    /// # Returns
-    /// - A `Date` indicating the estimated completion time for processing the bundle.
-    #[cfg(feature = "node_proc")]
-    fn dry_run_process(&self, at_time: Date, bundle: &mut Bundle) -> Date;
+    // This is important for optimisation, so no default implementation is provided
+    /// Should return false if no packet of this size can be recieved by the node
+    fn accept(&self, bundle: &Bundle, time: TimeInterval, sender: NodeID) -> bool;
 
-    /// Simulates transmitting a `Bundle` within a specified time window.
-    ///
-    /// This method performs a dry-run simulation to check if the bundle can be transmitted
-    /// within the provided start and end times, without actually transmitting the data.
-    ///
-    /// # Parameters
-    /// - `waiting_since`: The arrival time at the transmitter (allows to calculate a retention time)
-    /// - `start`: The start time of the transmission window.
-    /// - `end`: The end time of the transmission window.
-    /// - `bundle`: A reference to the `Bundle` to be transmitted.
-    ///
-    /// # Returns
-    /// - `true` if the bundle can be transmitted within the time window, `false` otherwise.
-    #[cfg(feature = "node_tx")]
-    fn dry_run_tx(&self, waiting_since: Date, start: Date, end: Date, bundle: &Bundle) -> bool;
+    #[allow(unused_variables)]
+    /// date at wich we can start to resend the bundle. Acount for both delay at reception and delay upon sending
+    fn delay(
+        &self,
+        bundle: &Bundle,
+        reception: TimeInterval,
+        sender: NodeID,
+        next: NodeID,
+    ) -> Date {
+        reception.end
+    }
 
-    /// Simulates receiving a `Bundle` within a specified time window.
-    ///
-    /// This method performs a dry-run simulation to check if the bundle can be received
-    /// within the provided start and end times, without actually receiving the data.
-    ///
-    /// # Parameters
-    /// - `start`: The start time of the reception window.
-    /// - `end`: The end time of the reception window.
-    /// - `bundle`: A reference to the `Bundle` to be received.
-    ///
-    /// # Returns
-    /// - `true` if the bundle can be received within the time window, `false` otherwise.
-    #[cfg(feature = "node_rx")]
-    fn dry_run_rx(&self, start: Date, end: Date, bundle: &Bundle) -> bool;
+    #[allow(unused_variables)]
+    /// Check if this retention on the node is allowed, used to compute possible routes during path-finding
+    fn dry_run_retention(
+        &self,
+        bundle: &Bundle,
+        reception: TimeInterval,
+        sender: NodeID,
+        transmition: TimeInterval,
+        next: NodeID,
+    ) -> bool;
 
-    /// Schedules the processing of a `Bundle` at a specified time.
-    ///
-    /// This method schedules the actual processing of a bundle at a specified time and returns
-    /// the estimated completion time for the processing task.
-    ///
-    /// # Parameters
-    /// - `at_time`: The time at which the processing should start.
-    /// - `bundle`: A mutable reference to the `Bundle` to be processed.
-    ///
-    /// # Returns
-    /// - A `Date` indicating the completion time for the processing task.
-    #[cfg(feature = "node_proc")]
-    fn schedule_process(&self, at_time: Date, bundle: &mut Bundle) -> Date;
+    /// Return None if the node cannot accept the paquet, Some(n) if it can accept the paquet and retransmit it to the firsts n elements of transmitions
+    /// Transmitions can be several elements (multicast) or none (destination node and no multicast)
+    /// To reliably detect if this node is (one of) the destination, inspect the bundle, not transmition only.
+    /// # Expected Guarantees
+    /// Should be LESS restrictive than dry_run_retention but MORE restrictive than commit
+    fn dry_run_multi(
+        &self,
+        bundle: &Bundle,
+        reception: TimeInterval,
+        sender: NodeID,
+        transmitions: &[(TimeInterval, NodeID)],
+    ) -> Option<usize>;
 
-    /// Schedules the transmission of a `Bundle` within a specified time window.
-    ///
-    /// This method schedules the actual transmission of a bundle, checking if it can be
-    /// transmitted within the provided time window. If successful, the bundle is transmitted.
-    ///
-    /// # Parameters
-    /// - `waiting_since`: The arrival time at the transmitter (allows to calculate a retention time)
-    /// - `start`: The start time of the transmission window.
-    /// - `end`: The end time of the transmission window.
-    /// - `bundle`: A reference to the `Bundle` to be transmitted.
-    ///
-    /// # Returns
-    /// - `true` if the transmission is successfully scheduled within the window, `false` otherwise.
-    #[cfg(feature = "node_tx")]
-    fn schedule_tx(&mut self, waiting_since: Date, start: Date, end: Date, bundle: &Bundle)
-    -> bool;
-
-    /// Schedules the reception of a `Bundle` within a specified time window.
-    ///
-    /// This method schedules the actual reception of a bundle, checking if it can be received
-    /// within the provided time window. If successful, the bundle is received.
-    ///
-    /// # Parameters
-    /// - `start`: The start time of the reception window.
-    /// - `end`: The end time of the reception window.
-    /// - `bundle`: A reference to the `Bundle` to be received.
-    ///
-    /// # Returns
-    /// - `true` if the reception is successfully scheduled within the window, `false` otherwise.
-    #[cfg(feature = "node_rx")]
-    fn schedule_rx(&mut self, start: Date, end: Date, bundle: &Bundle) -> bool;
+    /// Updates ressources for this node, based on the given transmition
+    /// Transmitions can be several elements (multicast) or none (destination node and no multicast)
+    /// To reliably detect if this node is (one of) the destinations, inspect the bundle, not only the size of transmitio
+    /// # Expected Guarantee
+    /// Should not error if a previous call to dry_run_multi told us these transmition were OK.
+    fn commit(
+        &mut self,
+        bundle: &Bundle,
+        reception: TimeInterval,
+        sender: NodeID,
+        transmitions: &[(TimeInterval, NodeID)],
+    ) -> Result<(), ASABRError>;
 }
 
-/// Implementation of `NodeManager` for boxed types that implement `NodeManager`.
-impl<T: AsRef<dyn NodeManager>> NodeManager for T {
-    /// Delegates the dry_run method to the boxed object.
-    #[cfg(feature = "node_proc")]
-    fn dry_run_process(&self, at_time: Date, bundle: &mut Bundle) -> Date {
-        self.as_ref().dry_run_process(at_time, bundle)
+// Implementation of `NodeManager` for dyn references.
+impl<T: AsRef<dyn NodeManager> + AsMut<dyn NodeManager>> NodeManager for T {
+    fn accept(&self, bundle: &Bundle, time: TimeInterval, sender: NodeID) -> bool {
+        self.as_ref().accept(bundle, time, sender)
     }
-    /// Delegates the dry_run method to the boxed object.
-    #[cfg(feature = "node_tx")]
-    fn dry_run_tx(&self, waiting_since: Date, start: Date, end: Date, bundle: &Bundle) -> bool {
-        self.as_ref().dry_run_tx(waiting_since, start, end, bundle)
-    }
-    /// Delegates the dry_run method to the boxed object.
-    #[cfg(feature = "node_rx")]
-    fn dry_run_rx(&self, start: Date, end: Date, bundle: &Bundle) -> bool {
-        self.as_ref().dry_run_rx(start, end, bundle)
-    }
-    /// Delegates the schedule method to the boxed object.
-    #[cfg(feature = "node_proc")]
-    fn schedule_process(&self, at_time: Date, bundle: &mut Bundle) -> Date {
-        self.as_ref().schedule_process(at_time, bundle)
-    }
-    /// Delegates the schedule method to the boxed object.
-    #[cfg(feature = "node_tx")]
-    fn schedule_tx(
-        &mut self,
-        waiting_since: Date,
-        start: Date,
-        end: Date,
+
+    fn delay(
+        &self,
         bundle: &Bundle,
-    ) -> bool {
-        self.as_ref().dry_run_tx(waiting_since, start, end, bundle)
+        reception: TimeInterval,
+        sender: NodeID,
+        next: NodeID,
+    ) -> Date {
+        self.as_ref().delay(bundle, reception, sender, next)
     }
-    /// Delegates the schedule method to the boxed object.
-    #[cfg(feature = "node_rx")]
-    fn schedule_rx(&mut self, start: Date, end: Date, bundle: &Bundle) -> bool {
-        self.as_ref().dry_run_rx(start, end, bundle)
+
+    fn dry_run_retention(
+        &self,
+        bundle: &Bundle,
+        reception: TimeInterval,
+        sender: NodeID,
+        transmition: TimeInterval,
+        next: NodeID,
+    ) -> bool {
+        self.as_ref()
+            .dry_run_retention(bundle, reception, sender, transmition, next)
+    }
+
+    fn dry_run_multi(
+        &self,
+        bundle: &Bundle,
+        reception: TimeInterval,
+        sender: NodeID,
+        transmitions: &[(TimeInterval, NodeID)],
+    ) -> Option<usize> {
+        self.as_ref()
+            .dry_run_multi(bundle, reception, sender, transmitions)
+    }
+
+    fn commit(
+        &mut self,
+        bundle: &Bundle,
+        reception: TimeInterval,
+        sender: NodeID,
+        transmitions: &[(TimeInterval, NodeID)],
+    ) -> Result<(), ASABRError> {
+        self.as_mut()
+            .commit(bundle, reception, sender, transmitions)
     }
 }
 /// Auto implement NodeManager for wrapper struct where element 0 is the actual node manager
@@ -146,47 +141,51 @@ impl<T: AsRef<dyn NodeManager>> NodeManager for T {
 macro_rules! transparent_NM {
     ($T:ty) => {
         impl NodeManager for $T {
-            /// Delegates the dry_run method to the boxed object.
-            #[cfg(feature = "node_proc")]
-            fn dry_run_process(&self, at_time: Date, bundle: &mut Bundle) -> Date {
-                self.0.dry_run_process(at_time, bundle)
+            fn accept(&self, bundle: &Bundle, time: TimeInterval, sender: NodeID) -> bool {
+                self.0.accept(bundle, time, sender)
             }
-            /// Delegates the dry_run method to the boxed object.
-            #[cfg(feature = "node_tx")]
-            fn dry_run_tx(
+
+            fn delay(
                 &self,
-                waiting_since: Date,
-                start: Date,
-                end: Date,
                 bundle: &Bundle,
+                reception: TimeInterval,
+                sender: NodeID,
+                next: NodeID,
+            ) -> Date {
+                self.0.delay(bundle, reception, sender, next)
+            }
+
+            fn dry_run_retention(
+                &self,
+                bundle: &Bundle,
+                reception: TimeInterval,
+                sender: NodeID,
+                transmition: TimeInterval,
+                next: NodeID,
             ) -> bool {
-                self.0.dry_run_tx(waiting_since, start, end, bundle)
+                self.0
+                    .dry_run_retention(bundle, reception, sender, transmition, next)
             }
-            /// Delegates the dry_run method to the boxed object.
-            #[cfg(feature = "node_rx")]
-            fn dry_run_rx(&self, start: Date, end: Date, bundle: &Bundle) -> bool {
-                self.0.dry_run_rx(start, end, bundle)
+
+            fn dry_run_multi(
+                &self,
+                bundle: &Bundle,
+                reception: TimeInterval,
+                sender: NodeID,
+                transmitions: &[(TimeInterval, NodeID)],
+            ) -> Option<usize> {
+                self.0
+                    .dry_run_multi(bundle, reception, sender, transmitions)
             }
-            /// Delegates the schedule method to the boxed object.
-            #[cfg(feature = "node_proc")]
-            fn schedule_process(&self, at_time: Date, bundle: &mut Bundle) -> Date {
-                self.0.schedule_process(at_time, bundle)
-            }
-            /// Delegates the schedule method to the boxed object.
-            #[cfg(feature = "node_tx")]
-            fn schedule_tx(
+
+            fn commit(
                 &mut self,
-                waiting_since: Date,
-                start: Date,
-                end: Date,
                 bundle: &Bundle,
-            ) -> bool {
-                self.0.dry_run_tx(waiting_since, start, end, bundle)
-            }
-            /// Delegates the schedule method to the boxed object.
-            #[cfg(feature = "node_rx")]
-            fn schedule_rx(&mut self, start: Date, end: Date, bundle: &Bundle) -> bool {
-                self.0.dry_run_rx(start, end, bundle)
+                reception: TimeInterval,
+                sender: NodeID,
+                transmitions: &[(TimeInterval, NodeID)],
+            ) -> Result<(), ASABRError> {
+                self.0.commit(bundle, reception, sender, transmitions)
             }
         }
     };

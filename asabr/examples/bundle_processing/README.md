@@ -2,9 +2,9 @@
 
 ### Run the example
 
-This example requires the `node_proc` feature:
+
 ```bash
-cargo run --example bundle_processing --features node_proc
+cargo run --example bundle_processing
 ```
 
 ### Context
@@ -19,9 +19,7 @@ Important: mutating a bundle along the path during dijkstra (by changing its siz
 
 ### Implement the node manager for bundle compression
 
-The `NodeManager` trait provides node resource management capabilities for bundle processing when the `node_proc` feature is enabled. Once enabled, this feature requires the implementation of the `dry_run_process` and `schedule_process` methods.
-
-These two methods take a `Date` parameter `at_time` that corresponds to the bundle arrival time at the node. The methods apply the processing by mutating the bundle and returning another `Date` that corresponds to the earliest transmission start time to the next node, after taking the processing delay into account.
+TODO: New interface
 
 In this implementation, we implement a `NodeManager` named `Compressing` that shrinks the bundle size to 3/4 of the original bundle, only if the priority of the bundle does not exceed a certain value called `max_priority`. We therefore implement the parser to retrieve this value from the contact plan.
 

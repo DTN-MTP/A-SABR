@@ -120,7 +120,7 @@ fn try_init<T>(
     let mut time = info.start;
     #[cfg(feature = "first_depleted")]
     {
-        *original_volume = 0.0;
+        *original_volume = 0;
     }
 
     for inter in rate_intervals {

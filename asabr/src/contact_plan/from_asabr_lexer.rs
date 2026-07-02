@@ -1,23 +1,18 @@
 extern crate alloc;
 use core::mem;
 
-use alloc::{collections::BTreeMap as HashMap, vec::Vec};
+use alloc::vec::Vec;
 
 use crate::contact::ContactInfo;
+use crate::contact_plan::RealNode;
 use crate::node::NodeInfo;
 use crate::node_manager::NodeManager;
 use crate::node_manager::none::NoManagement;
 use crate::parse_single_tok;
 use crate::parsing::{CMDynStandard, EOF, INVALID_STATE, LexFrom};
 use crate::{
-    contact::Contact,
-    contact_manager::ContactManager,
-    contact_plan::ContactPlan,
-    node::Node,
-    parsing::Parse,
-    types::{NodeID, NodeIDMap},
-    vertex::Vertex,
-    vnode::{VirtualNodeInfo, VirtualNodeMap},
+    contact::Contact, contact_manager::ContactManager, contact_plan::ContactPlan, node::Node,
+    parsing::Parse, types::NodeID, vnode::VirtualNodeInfo,
 };
 
 enum RealNodeType {
@@ -26,41 +21,38 @@ enum RealNodeType {
 }
 
 impl RealNodeType {
-    fn to_vertex<NM: NodeManager>(&self, node: Node<NM>) -> Vertex<NM> {
+    fn to_rnode<NM: NodeManager>(&self, node: Node<NM>) -> RealNode<NM> {
         match self {
-            RealNodeType::Node => Vertex::INode(node),
-            RealNodeType::Enode => Vertex::ENode(node),
+            RealNodeType::Node => RealNode::Inode(node),
+            RealNodeType::Enode => RealNode::Enode(node),
         }
     }
 }
 
 struct Builder<NM: NodeManager, CM: ContactManager> {
-    // for output
-    vertices: Vec<Vertex<NM>>,
-    vnode_to_rids_map: NodeIDMap,
-    rid_to_vnodes_map: NodeIDMap,
-    contacts: Vec<Contact<NM, CM>>,
+    rnodes: Vec<RealNode<NM>>,
+    vnodes: Vec<VirtualNodeInfo>,
+    contacts: Vec<(Contact<CM>, usize, usize)>,
 }
 
 impl<NM: NodeManager, CM: ContactManager> Builder<NM, CM> {
     fn new() -> Self {
         Self {
-            vertices: Vec::new(),
-            vnode_to_rids_map: HashMap::new(),
-            rid_to_vnodes_map: HashMap::new(),
+            rnodes: Vec::new(),
+            vnodes: Vec::new(),
             contacts: Vec::new(),
         }
     }
 
     #[inline(always)]
     fn real_nodes_count(&self) -> usize {
-        self.vertices.len() - self.vnode_to_rids_map.len()
+        self.rnodes.len()
     }
 
     // Checkers
 
     fn check_real_id(&self, id: NodeID) -> Result<(), &'static str> {
-        if (id as usize) >= self.real_nodes_count() {
+        if (usize::from(id)) >= self.real_nodes_count() {
             return Err(
                 "Contact tx/rx ids or virtual node rids must match an already declared real node id. ID,node_count:",
             );
@@ -69,7 +61,7 @@ impl<NM: NodeManager, CM: ContactManager> Builder<NM, CM> {
     }
 
     fn check_new_real_id(&self, id: NodeID) -> Result<(), &'static str> {
-        if (id as usize) != self.real_nodes_count() {
+        if (usize::from(id)) != self.real_nodes_count() {
             return Err(
                 "Declare real nodes before virtual nodes, in increasing id order. ID,node_count:",
             );
@@ -78,7 +70,7 @@ impl<NM: NodeManager, CM: ContactManager> Builder<NM, CM> {
     }
 
     fn check_new_virtual_id(&self, id: NodeID) -> Result<(), &'static str> {
-        if (id as usize) != self.vertices.len() {
+        if (usize::from(id)) != self.rnodes.len() + self.vnodes.len() {
             return Err(
                 "Declare virtual nodes after the real nodes, in increasing id order. ID,vertice_count:",
             );
@@ -87,9 +79,9 @@ impl<NM: NodeManager, CM: ContactManager> Builder<NM, CM> {
     }
 
     fn check_enodes_have_vnodes(&self) -> Result<(), &'static str> {
-        for vertex in &self.vertices {
-            if let Vertex::ENode(enode) = vertex
-                && !self.rid_to_vnodes_map.contains_key(&enode.info.id)
+        for vertex in &self.rnodes {
+            if let RealNode::Enode(enode) = vertex
+                && !enode.info.excluded
             {
                 return Err("an ENode is not labeled by any vnode. Id:");
             }
@@ -104,13 +96,13 @@ impl<NM: NodeManager, CM: ContactManager> Builder<NM, CM> {
         node_type: RealNodeType,
     ) -> Result<(), &'static str> {
         self.check_new_real_id(node.get_node_id())?;
-        self.vertices.push(node_type.to_vertex(node));
+        self.rnodes.push(node_type.to_rnode(node));
         Ok(())
     }
 
-    fn add_contact(&mut self, contact: Contact<NM, CM>) -> Result<(), &'static str> {
-        self.check_real_id(contact.info.tx_node_id)?;
-        self.check_real_id(contact.info.rx_node_id)?;
+    fn add_contact(&mut self, contact: (Contact<CM>, usize, usize)) -> Result<(), &'static str> {
+        self.check_real_id(contact.1.into())?;
+        self.check_real_id(contact.2.into())?;
         self.contacts.push(contact);
         Ok(())
     }
@@ -119,27 +111,23 @@ impl<NM: NodeManager, CM: ContactManager> Builder<NM, CM> {
         self.check_new_virtual_id(vnode.vid)?;
         for rid in &vnode.rids {
             self.check_real_id(*rid)?;
-            self.rid_to_vnodes_map
-                .entry(*rid)
-                .or_default()
-                .push(vnode.vid);
+            if let RealNode::Enode(node) = &mut self.rnodes[usize::from(*rid)] {
+                node.info.excluded = true
+            }
         }
-        self.vertices.push(Vertex::VNode((vnode.name, vnode.vid)));
-        self.vnode_to_rids_map.insert(vnode.vid, vnode.rids);
+        self.vnodes.push(vnode);
         Ok(())
     }
 
     // Builder
-    fn build(self) -> Result<ContactPlan<NM, CM>, &'static str> {
+    fn build(mut self) -> Result<ContactPlan<NM, CM>, &'static str> {
         self.check_enodes_have_vnodes()?;
-        Ok(ContactPlan::new(
-            self.vertices,
-            self.contacts,
-            Some(VirtualNodeMap::new(
-                self.vnode_to_rids_map,
-                self.rid_to_vnodes_map,
-            )),
-        ))
+        for node in self.rnodes.iter_mut() {
+            if let RealNode::Enode(node) = node {
+                node.info.excluded = false
+            }
+        }
+        Ok(ContactPlan::new(self.rnodes, self.vnodes, self.contacts))
     }
 }
 

@@ -1,6 +1,5 @@
 extern crate alloc;
-use alloc::rc::Rc;
-use core::{cell::RefCell, cmp::Ordering};
+use core::cmp::Ordering;
 
 use crate::{
     node_manager::NodeManager,
@@ -46,8 +45,6 @@ pub struct Node<NM: NodeManager> {
     /// The manager responsible for handling the node's operations.
     pub manager: NM,
 }
-
-pub type SharedNode<NM> = Rc<RefCell<Node<NM>>>;
 
 impl<NM: NodeManager> Node<NM> {
     /// Tries to create a new instance of `Node`.

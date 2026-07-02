@@ -1,27 +1,18 @@
 extern crate alloc;
 
-use crate::bundle::Bundle;
-use crate::contact::Contact;
-use crate::contact::ContactInfo;
-use crate::contact_manager::legacy::evl::EVLManager;
-use crate::contact_plan::ContactPlan;
-use crate::multigraph::Multigraph;
-use crate::node::Node;
-use crate::node::NodeInfo;
-use crate::node_manager::NodeManager;
-use crate::node_manager::none::NoManagement;
-use crate::pathfinding::ASABRError;
-use crate::pathfinding::NodeID;
-use crate::pathfinding::PathFindingOutput;
-use crate::route_stage::{RouteStage, SharedRouteStage};
-use crate::types::Date;
-use crate::vertex::Vertex;
-use crate::vnode::VirtualNodeMap;
-use alloc::collections::BTreeMap as HashMap;
-use alloc::rc::Rc;
-use alloc::vec;
-use alloc::vec::Vec;
-use core::cell::RefCell;
+use crate::{
+    bundle::Bundle,
+    contact::{Contact, ContactInfo},
+    contact_manager::{ContactManager, legacy::evl::EVLManager},
+    contact_plan::{ContactPlan, RealNode, asabr_file_lexer::parse_from_iter},
+    mk_graph,
+    multigraph::{Multigraph, NodeRef},
+    node::{Node, NodeInfo},
+    node_manager::{NodeManager, none::NoManagement},
+    pathfinding::{ASABRError, PathFindingOutput},
+    paths::PathFragment,
+    types::{Date, NodeID},
+};
 
 #[derive(Debug)]
 pub(crate) struct MockNodeManager {
@@ -35,26 +26,23 @@ impl MockNodeManager {
         Self {
             tx_ok: true,
             rx_ok: true,
-            process_output: 0.0,
+            process_output: 0,
         }
     }
-    #[cfg(feature = "node_tx")]
     pub(crate) fn refusing_tx() -> Self {
         Self {
             tx_ok: false,
             rx_ok: true,
-            process_output: 0.0,
+            process_output: 0,
         }
     }
-    #[cfg(feature = "node_rx")]
     pub(crate) fn refusing_rx() -> Self {
         Self {
             tx_ok: true,
             rx_ok: false,
-            process_output: 0.0,
+            process_output: 0,
         }
     }
-    #[cfg(feature = "node_proc")]
     pub(crate) fn processing(process_output: Date) -> Self {
         Self {
             tx_ok: true,
@@ -65,37 +53,66 @@ impl MockNodeManager {
 }
 
 impl NodeManager for MockNodeManager {
-    #[cfg(feature = "node_proc")]
-    fn dry_run_process(&self, _at_time: Date, _bundle: &mut Bundle) -> Date {
-        self.process_output
-    }
-    #[cfg(feature = "node_proc")]
-    fn schedule_process(&self, _at_time: Date, _bundle: &mut Bundle) -> Date {
-        unimplemented!("Not needed in tests")
-    }
-    #[cfg(feature = "node_tx")]
-    fn dry_run_tx(&self, _: Date, _: Date, _: Date, _: &Bundle) -> bool {
-        self.tx_ok
-    }
-    #[cfg(feature = "node_tx")]
-    fn schedule_tx(&mut self, _: Date, _: Date, _: Date, _: &Bundle) -> bool {
-        unimplemented!("Not needed in tests")
-    }
-    #[cfg(feature = "node_rx")]
-    fn dry_run_rx(&self, _: Date, _: Date, _: &Bundle) -> bool {
+    fn accept(&self, _bundle: &Bundle, _time: crate::types::TimeInterval, _sender: NodeID) -> bool {
         self.rx_ok
     }
-    #[cfg(feature = "node_rx")]
-    fn schedule_rx(&mut self, _: Date, _: Date, _: &Bundle) -> bool {
-        unimplemented!("Not needed in tests")
+
+    fn dry_run_retention(
+        &self,
+        _bundle: &Bundle,
+        _reception: crate::types::TimeInterval,
+        _sender: NodeID,
+        _transmition: crate::types::TimeInterval,
+        _next: NodeID,
+    ) -> bool {
+        self.tx_ok
+    }
+
+    fn dry_run_multi(
+        &self,
+        _bundle: &Bundle,
+        _reception: crate::types::TimeInterval,
+        _sender: NodeID,
+        transmitions: &[(crate::types::TimeInterval, NodeID)],
+    ) -> Option<usize> {
+        if self.tx_ok {
+            Some(transmitions.len())
+        } else {
+            if self.rx_ok { Some(0) } else { None }
+        }
+    }
+
+    fn commit(
+        &mut self,
+        _bundle: &Bundle,
+        _reception: crate::types::TimeInterval,
+        _sender: NodeID,
+        transmitions: &[(crate::types::TimeInterval, NodeID)],
+    ) -> Result<(), ASABRError> {
+        if !self.rx_ok {
+            panic!("Cannot receive a paquet!")
+        } else if !self.tx_ok && transmitions.len() != 0 {
+            panic!("Cannot send a paquet")
+        }
+        Ok(())
+    }
+
+    fn delay(
+        &self,
+        _bundle: &Bundle,
+        _reception: crate::types::TimeInterval,
+        _sender: NodeID,
+        _next: NodeID,
+    ) -> Date {
+        self.process_output
     }
 }
 
-pub(crate) fn make_vertex<NM: NodeManager>(id: u16, name: &str, nm: NM) -> Vertex<NM> {
-    Vertex::INode(
+pub(crate) fn make_vertex<NM: NodeManager>(id: usize, name: &str, nm: NM) -> RealNode<NM> {
+    RealNode::Inode(
         Node::try_new(
             NodeInfo {
-                id,
+                id: id.into(),
                 name: name.into(),
                 excluded: false,
             },
@@ -105,179 +122,131 @@ pub(crate) fn make_vertex<NM: NodeManager>(id: u16, name: &str, nm: NM) -> Verte
     )
 }
 
-pub(crate) fn make_node_rc<NM: NodeManager>(id: u16, name: &str, nm: NM) -> Rc<RefCell<Node<NM>>> {
-    let vertex = make_vertex(id, name, nm);
-    match vertex {
-        Vertex::INode(node) => Rc::new(RefCell::new(node)),
-        _ => unreachable!(),
-    }
-}
-
-pub(crate) fn make_contact<NM: NodeManager>(
-    tx: u16,
-    rx: u16,
-    start: f64,
-    end: f64,
-    rate: f64,
-    delay: f64,
-) -> Contact<NM, EVLManager> {
+pub(crate) fn make_contact(
+    tx: usize,
+    rx: usize,
+    start: i64,
+    end: i64,
+    rate: i64,
+    delay: i64,
+) -> (Contact<EVLManager>, usize, usize) {
     Contact::try_new(
-        ContactInfo::new(tx, rx, start, end),
+        ContactInfo::new(tx.into(), rx.into(), start, end),
         EVLManager::new(rate, delay),
     )
     .expect("Contact creation failed")
 }
 
-pub(crate) fn make_contact_rc<NM: NodeManager>(
-    tx: u16,
-    rx: u16,
-    start: f64,
-    end: f64,
-    rate: f64,
-    delay: f64,
-) -> Rc<RefCell<Contact<NM, EVLManager>>> {
-    Rc::new(RefCell::new(make_contact(tx, rx, start, end, rate, delay)))
-}
-
-pub(crate) fn make_source<NM: NodeManager>(
+pub(crate) fn make_source<'id>(
     at_time: Date,
-    node_id: u16,
+    node_id: usize,
     _bundle: &Bundle,
-) -> SharedRouteStage<NM, EVLManager> {
-    Rc::new(RefCell::new(RouteStage::new(
-        at_time,
-        node_id,
+    graph: &Multigraph<'id, impl NodeManager, impl ContactManager>,
+) -> PathFragment<'id> {
+    let Ok(NodeRef::R(node_ref)) = graph.node_id_ref(node_id.into()) else {
+        panic!()
+    };
+    PathFragment::new(
+        crate::types::TimeInterval {
+            start: at_time,
+            end: at_time,
+        },
         None,
-        #[cfg(feature = "node_proc")]
-        _bundle.clone(),
-    )))
+        0,
+        node_ref,
+    )
 }
 
-pub(crate) fn make_bundle(dest: NodeID, priority: i8, size: f64, expiration: f64) -> Bundle {
+pub(crate) fn make_bundle(priority: i8, size: i64, expiration: Date) -> Bundle {
     Bundle {
-        source: 0,
-        destinations: vec![dest],
+        source: 0usize.into(),
         priority,
         size,
         expiration,
     }
 }
 
-pub(crate) fn assert_time_hop(
-    res: &PathFindingOutput<NoManagement, EVLManager>,
+pub(crate) fn assert_time_hop<'id, 'a>(
+    res: &PathFindingOutput<'id, 'a>,
     dest: usize,
-    expected_time: f64,
+    expected_time: i64,
     expected_hop: u16,
     distance: &str,
 ) {
-    let r = res.by_destination[dest]
-        .as_ref()
-        .unwrap_or_else(|| panic!("{distance} : No route found to node {dest}"))
-        .borrow();
-    assert_eq!(
-        r.at_time, expected_time,
+    assert!(
+        res[dest].is_some_and(|path| path.arrival_time.end == expected_time),
         "{distance} : Arrival time should be {expected_time}"
     );
-    assert_eq!(
-        r.hop_count, expected_hop,
+    assert!(
+        res[dest].is_some_and(|path| path.hop_count == expected_hop),
         "{distance} : Should be {expected_hop} hops"
     );
 }
 
-pub(crate) fn unit_graph_test()
--> Result<Rc<RefCell<Multigraph<NoManagement, EVLManager>>>, ASABRError> {
-    Ok(Rc::new(RefCell::new(Multigraph::new(ContactPlan::new(
-        vec![
-            make_vertex(0, "A", NoManagement {}),
-            make_vertex(1, "B", NoManagement {}),
-            make_vertex(2, "C", NoManagement {}),
-        ],
-        vec![
-            make_contact::<NoManagement>(0, 1, 0.0, 2000.0, 100.0, 1.0),
-            make_contact::<NoManagement>(1, 2, 0.0, 2000.0, 100.0, 1.0),
-        ],
-        None,
-    ))?)))
+pub const TEST_GRAPHS: [(&str, &str); 4] = [
+    (
+        "unit_graph",
+        "node 0 A node 1 B node 2 C
+     contact 0 1 0 2000 100 1
+     contact 1 2 0 2000 100 1",
+    ),
+    (
+        "five_contact",
+        "node 0 A node 1 B node 2 C node 3 D
+    contact 0 1 0 2000 100 0.01
+    contact 1 2 0 2000 100 1
+    contact 0 3 0 2000 100 0.1
+    contact 3 2 0 2000 100 0.01
+    contact 0 2 0 2000 100 10",
+    ),
+    (
+        "exemple 1",
+        "node 0 source node 1 from_C0 node 2 from_C2_C1 from_C3
+     contact 0 1 0 10 1 0
+     contact 0 2 25 35 1 0
+     contact 1 2 10 20 1 0
+     contact 2 3 30 40 1 0",
+    ),
+    (
+        "exemple 2",
+        "node 0 source node 1 from_C0 node 2 from_C2_C1 node 3 from_C3 node 4 from_C4
+    contact 0 1 0 10 1 0
+    contact 0 2 25 35 1 0
+    contact 1 2 10 23 1 0
+    contact 2 3 20 40 1 0
+    contact 3 4 50 60 1 0",
+    ),
+];
+
+pub fn for_test_graph<A>(
+    graph_index: usize,
+    f: impl for<'id> FnOnce(&mut Multigraph<'id, NoManagement, EVLManager>) -> Result<A, ASABRError>,
+) -> Result<A, ASABRError> {
+    let cp = TEST_GRAPHS[graph_index].1;
+    mk_graph!(graph, NoManagement, EVLManager, cp, raw);
+    f(&mut graph)
 }
 
-pub(crate) fn five_contact_graph_test()
--> Result<Rc<RefCell<Multigraph<NoManagement, EVLManager>>>, ASABRError> {
-    Ok(Rc::new(RefCell::new(Multigraph::new(ContactPlan::new(
-        vec![
-            make_vertex(0, "A", NoManagement {}),
-            make_vertex(1, "B", NoManagement {}),
-            make_vertex(2, "C", NoManagement {}),
-            make_vertex(3, "D", NoManagement {}),
-        ],
-        vec![
-            make_contact::<NoManagement>(0, 1, 0.0, 2000.0, 100.0, 0.01),
-            make_contact::<NoManagement>(1, 2, 0.0, 2000.0, 100.0, 1.0),
-            make_contact::<NoManagement>(0, 3, 0.0, 2000.0, 100.0, 0.1),
-            make_contact::<NoManagement>(3, 2, 0.0, 2000.0, 100.0, 0.01),
-            make_contact::<NoManagement>(0, 2, 0.0, 2000.0, 100.0, 10.0),
-        ],
-        None,
-    ))?)))
-}
+// pub(crate) struct HopContext<'id, T: Pathfinding<'id, NM, EVLManager>, NM: NodeManager> {
+//     pub bundle: Bundle,
+//     pub source: PathFragment<'id, T, NM, EVLManager>,
+//     pub nodes: Vec<RealNode<NM>>,
+// }
 
-pub(crate) fn exemple_1_graph()
--> Result<Rc<RefCell<Multigraph<NoManagement, EVLManager>>>, ASABRError> {
-    Ok(Rc::new(RefCell::new(Multigraph::new(ContactPlan::new(
-        vec![
-            make_vertex(0, "source", NoManagement {}),
-            make_vertex(1, "from_C0", NoManagement {}),
-            make_vertex(2, "from_C2_C1", NoManagement {}),
-            make_vertex(3, "from_C3", NoManagement {}),
-        ],
-        vec![
-            make_contact::<NoManagement>(0, 1, 0.0, 10.0, 1.0, 0.0),
-            make_contact::<NoManagement>(0, 2, 25.0, 35.0, 1.0, 0.0),
-            make_contact::<NoManagement>(1, 2, 10.0, 20.0, 1.0, 0.0),
-            make_contact::<NoManagement>(2, 3, 30.0, 40.0, 1.0, 0.0),
-        ],
-        None,
-    ))?)))
-}
-
-pub(crate) fn exemple_2_graph()
--> Result<Rc<RefCell<Multigraph<NoManagement, EVLManager>>>, ASABRError> {
-    Ok(Rc::new(RefCell::new(Multigraph::new(ContactPlan::new(
-        vec![
-            make_vertex(0, "source", NoManagement {}),
-            make_vertex(1, "from_C0", NoManagement {}),
-            make_vertex(2, "from_C2_C1", NoManagement {}),
-            make_vertex(3, "from_C3", NoManagement {}),
-            make_vertex(4, "from_C4", NoManagement {}),
-        ],
-        vec![
-            make_contact::<NoManagement>(0, 1, 0.0, 10.0, 1.0, 0.0),
-            make_contact::<NoManagement>(0, 2, 25.0, 35.0, 1.0, 0.0),
-            make_contact::<NoManagement>(1, 2, 10.0, 20.0, 1.0, 0.0),
-            make_contact::<NoManagement>(2, 3, 20.0, 40.0, 1.0, 0.0),
-            make_contact::<NoManagement>(3, 4, 50.0, 60.0, 1.0, 0.0),
-        ],
-        None,
-    ))?)))
-}
-
-pub(crate) struct HopContext<NM: NodeManager> {
-    pub bundle: Bundle,
-    pub source: SharedRouteStage<NM, EVLManager>,
-    pub nodes: Vec<Rc<RefCell<Node<NM>>>>,
-}
-
-pub(crate) fn make_hop_context(size: f64) -> HopContext<NoManagement> {
-    let bundle = make_bundle(1, 1, size, 2000.0);
-    let source = make_source::<NoManagement>(0.0, 0, &bundle);
-    let tx = make_node_rc(0, "A", NoManagement {});
-    let rx = make_node_rc(1, "B", NoManagement {});
-    let nodes = vec![tx, rx];
-    HopContext {
-        bundle,
-        source,
-        nodes,
-    }
-}
+// pub(crate) fn make_hop_context<'id, T: Pathfinding<'id, NoManagement, EVLManager>>(
+//     size: f64,
+// ) -> HopContext<'id, T, NoManagement> {
+//     let bundle = make_bundle(1, 1, size, 2000.0);
+//     let source = make_source(0.0, 0, &bundle);
+//     let tx = make_vertex(0, "A", NoManagement {});
+//     let rx = make_vertex(1, "B", NoManagement {});
+//     let nodes = vec![tx, rx];
+//     HopContext {
+//         bundle,
+//         source,
+//         nodes,
+//     }
+// }
 
 /// Creates a graph with vnodes for testing anycast routing.
 ///
@@ -294,32 +263,12 @@ pub(crate) fn make_hop_context(size: f64) -> HopContext<NoManagement> {
 ///
 /// Routing to V(5) should find the path A->D->E (arrival=1.01) over A->B->C (arrival=2.02)
 /// because E is reached faster and is part of the same vnode group.
-pub(crate) fn vnode_anycast_graph()
--> Result<Rc<RefCell<Multigraph<NoManagement, EVLManager>>>, ASABRError> {
-    let mut vnode_to_rids_map_raw: HashMap<NodeID, Vec<NodeID>> = HashMap::new();
-    let mut rid_to_vnodes_map_raw: HashMap<NodeID, Vec<NodeID>> = HashMap::new();
-    vnode_to_rids_map_raw.insert(5, vec![2, 4]); // V(5) labels C(2) and E(4)
-    rid_to_vnodes_map_raw.insert(2, vec![5]);
-    rid_to_vnodes_map_raw.insert(4, vec![5]);
-
-    Ok(Rc::new(RefCell::new(Multigraph::new(ContactPlan::new(
-        vec![
-            make_vertex(0, "A", NoManagement {}),
-            make_vertex(1, "B", NoManagement {}),
-            make_vertex(2, "C", NoManagement {}),
-            make_vertex(3, "D", NoManagement {}),
-            make_vertex(4, "E", NoManagement {}),
-            Vertex::VNode(("vnode5".into(), 5)), // VNode V
-        ],
-        vec![
-            make_contact::<NoManagement>(0, 1, 0.0, 2000.0, 100.0, 1.0), // c0: A->B, delay=1.0
-            make_contact::<NoManagement>(1, 2, 0.0, 2000.0, 100.0, 1.0), // c1: B->C, delay=1.0
-            make_contact::<NoManagement>(0, 3, 0.0, 2000.0, 100.0, 0.5), // c2: A->D, delay=0.5
-            make_contact::<NoManagement>(3, 4, 0.0, 2000.0, 100.0, 0.5), // c3: D->E, delay=0.5
-        ],
-        Some(VirtualNodeMap::new(
-            vnode_to_rids_map_raw,
-            rid_to_vnodes_map_raw,
-        )),
-    ))?)))
+pub(crate) fn vnode_anycast_graph() -> Result<ContactPlan<NoManagement, EVLManager>, ASABRError> {
+    let cp = "node 0 A node 1 B node 2 C node 3 D node 4 E
+            contact 0 1 0 2000 100 1
+            contact 1 2 0 2000 100 1
+            contact 0 3 0 2000 100 0.5
+            contact 3 4 0 2000 100 0.5"
+        .lines();
+    parse_from_iter(cp)
 }

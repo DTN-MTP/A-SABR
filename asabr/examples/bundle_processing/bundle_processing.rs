@@ -1,7 +1,3 @@
-static_assertions::assert_cfg!(feature = "node_proc");
-static_assertions::assert_cfg!(not(feature = "node_tx"));
-static_assertions::assert_cfg!(not(feature = "node_rx"));
-
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
@@ -17,7 +13,7 @@ use a_sabr::pathfinding::hybrid_parenting::HybridParentingPath;
 use a_sabr::types::Date;
 use a_sabr::types::Priority;
 use a_sabr::utils::init_pathfinding;
-use a_sabr::{choices, parse_transparent, transparent_NM};
+use a_sabr::{choices, mk_graph, parse_transparent, transparent_NM};
 
 #[derive(Debug)]
 struct Compressing {
@@ -25,48 +21,44 @@ struct Compressing {
 }
 
 impl NodeManager for Compressing {
-    fn dry_run_process(&self, at_time: Date, bundle: &mut Bundle) -> Date {
-        let mut earliest_tx_time = at_time;
-        if bundle.priority <= self.max_priority {
-            bundle.size *= 0.75;
-            earliest_tx_time += 2.0;
-        }
-        earliest_tx_time
-    }
-
-    fn schedule_process(&self, at_time: Date, bundle: &mut Bundle) -> Date {
-        let mut earliest_tx_time = at_time;
-        if bundle.priority <= self.max_priority {
-            bundle.size *= 0.75;
-            earliest_tx_time += 2.0;
-        }
-        earliest_tx_time
-    }
-
-    // The following 4 implementations are provided just to make the rust_analyzer happy
-    #[cfg(feature = "node_tx")]
-    fn dry_run_tx(&self, _waiting_since: Date, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        unreachable!()
-    }
-
-    #[cfg(feature = "node_tx")]
-    fn schedule_tx(
-        &mut self,
-        _waiting_since: Date,
-        _start: Date,
-        _end: Date,
-        _bundle: &Bundle,
+    fn accept(
+        &self,
+        bundle: &Bundle,
+        time: a_sabr::types::TimeInterval,
+        sender: a_sabr::types::NodeID,
     ) -> bool {
-        unreachable!();
+        todo!()
     }
 
-    #[cfg(feature = "node_rx")]
-    fn dry_run_rx(&self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        unreachable!();
+    fn dry_run_retention(
+        &self,
+        bundle: &Bundle,
+        reception: a_sabr::types::TimeInterval,
+        sender: a_sabr::types::NodeID,
+        transmition: a_sabr::types::TimeInterval,
+        next: a_sabr::types::NodeID,
+    ) -> bool {
+        todo!()
     }
-    #[cfg(feature = "node_rx")]
-    fn schedule_rx(&mut self, _start: Date, _end: Date, _bundle: &Bundle) -> bool {
-        unreachable!();
+
+    fn dry_run_multi(
+        &self,
+        bundle: &Bundle,
+        reception: a_sabr::types::TimeInterval,
+        sender: a_sabr::types::NodeID,
+        transmitions: &[(a_sabr::types::TimeInterval, a_sabr::types::NodeID)],
+    ) -> Option<usize> {
+        todo!()
+    }
+
+    fn commit(
+        &mut self,
+        bundle: &Bundle,
+        reception: a_sabr::types::TimeInterval,
+        sender: a_sabr::types::NodeID,
+        transmitions: &[(a_sabr::types::TimeInterval, a_sabr::types::NodeID)],
+    ) -> Result<(), ASABRError> {
+        todo!()
     }
 }
 
@@ -123,14 +115,22 @@ fn edge_case_example<NM: NodeManager + LexFrom<str>>(
         size: 100.0,
         expiration: 1000.0,
     };
-    let file = File::open(cp_path).unwrap();
-    let lines = BufReader::new(file).lines().map(|l| {
-        l.map_err(|e| eprintln!("Error while reading file: {e}"))
-            .unwrap()
-    });
-    let mut mpt_graph =
-        init_pathfinding::<NM, EVLManager, HybridParentingPath<NM, EVLManager, SABR>, _, _>(lines)?;
-
+    // let file = File::open(cp_path).unwrap();
+    // let lines = BufReader::new(file).lines().map(|l| {
+    //     l.map_err(|e| eprintln!("Error while reading file: {e}"))
+    //         .unwrap()
+    // });
+    // let mut mpt_graph =
+    //     init_pathfinding::<NM, EVLManager, HybridParentingPath<NM, EVLManager, SABR>, _, _>(lines)?;
+    mk_graph!(
+        graph,
+        mpt_graph,
+        NM,
+        EVLManager,
+        HybridParentingPath,
+        cp_path,
+        file
+    );
     println!(
         "\nRunning with contact plan location={cp_path}, destination node=3, and bundle priority={bundle_priority}"
     );

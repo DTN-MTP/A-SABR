@@ -1,7 +1,7 @@
 extern crate alloc;
-use alloc::{collections::BTreeMap as HashMap, rc::Rc, vec::Vec};
+use core::marker::PhantomData;
 
-use core::cell::RefCell;
+use alloc::collections::BTreeMap;
 
 pub mod cache;
 pub mod table;
@@ -10,21 +10,18 @@ use crate::{
     bundle::Bundle,
     contact_manager::ContactManager,
     errors::ASABRError,
-    multigraph::Multigraph,
+    multigraph::{Multigraph, NodeRef, RNodeRef},
     node_manager::NodeManager,
-    pathfinding::{PathFindingOutput, SharedPathFindingOutput},
-    route_stage::SharedRouteStage,
-    types::{Date, NodeID, Priority, Volume},
+    pathfinding::{PathFindingOutput, Pathfinding, destination::Destination},
+    types::{Date, Volume},
 };
-
-type ReachableNodes = Option<Vec<NodeID>>;
 
 /// A trait for managing tree storage and retrieval.
 ///
 /// This trait defines methods for loading and storing pathfinding output
 /// related to routes in a routing system. Implementers of this trait must
 /// provide their own logic for handling route data.
-pub trait TreeStorage<NM: NodeManager, CM: ContactManager> {
+pub trait PathsStorage<'id, NM: NodeManager, CM: ContactManager> {
     /// Loads the pathfinding output for a specific bundle, considering excluded nodes.
     ///
     /// # Parameters
@@ -37,153 +34,243 @@ pub trait TreeStorage<NM: NodeManager, CM: ContactManager> {
     ///
     /// * `Result<(Option<Rc<RefCell<PathFindingOutput<NM, CM>>>>, Option<Vec<NodeID>>), ASABRError>` - An optional reference-counted and mutable reference
     ///   to the `PathFindingOutput` if it exists; otherwise, returns `None`.
-    fn select(
-        &self,
+    fn select<'a>(
+        &'a mut self,
         bundle: &Bundle,
-        curr_time: Date,
-        excluded_nodes_sorted: &[NodeID],
-    ) -> Result<(Option<SharedPathFindingOutput<NM, CM>>, ReachableNodes), ASABRError>;
+        route_time: Date,
+        curr_time: Option<Date>,
+        multigraph: &Multigraph<'id, NM, CM>,
+    ) -> Result<Option<PathFindingOutput<'id, 'a>>, ASABRError>;
 
-    /// Stores the pathfinding output tree for future use.
+    /// Stores the pathfinding output tree for future use, and return it (as reference probably)
     ///
     /// # Parameters
     /// * `bundle` - A bundle copy for which the tree was created.
     /// * `tree` - A reference-counted mutable reference to the `PathfindingOutput` to store.
-    fn store(&mut self, bundle: &Bundle, tree: Rc<RefCell<PathFindingOutput<NM, CM>>>);
-}
-
-#[derive(Debug)]
-pub struct Route<NM: NodeManager, CM: ContactManager> {
-    pub source_stage: SharedRouteStage<NM, CM>,
-    pub destination_stage: SharedRouteStage<NM, CM>,
-}
-
-impl<NM: NodeManager, CM: ContactManager> Route<NM, CM> {
-    pub fn from_tree(tree: Rc<RefCell<PathFindingOutput<NM, CM>>>, dest: NodeID) -> Option<Self> {
-        let tree_ref = tree.borrow();
-        let source_stage = tree_ref.get_source_route();
-        let destination_stage = tree_ref.by_destination.get(dest as usize).cloned()??;
-
-        Some(Route {
-            source_stage,
-            destination_stage,
-        })
-    }
-}
-
-impl<NM: NodeManager, CM: ContactManager> Clone for Route<NM, CM> {
-    fn clone(&self) -> Self {
-        Route {
-            source_stage: Rc::clone(&self.source_stage),
-            destination_stage: Rc::clone(&self.destination_stage),
-        }
-    }
-}
-
-/// A trait for managing route storage and retrieval.
-///
-/// This trait defines methods for loading and storing pathfinding output
-/// related to routes in a routing system. Implementers of this trait must
-/// provide their own logic for handling route data.
-pub trait RouteStorage<NM: NodeManager, CM: ContactManager> {
-    /// Loads the pathfinding output for a specific bundle, considering excluded nodes.
-    ///
-    /// # Parameters
-    ///
-    /// * `bundle` - A reference to the `Bundle` containing routing information.
-    /// * `curr_time` - The current time.
-    /// * `excluded_nodes_sorted` - A sorted vector of `NodeID`s representing nodes to exclude from pathfinding.
-    ///
-    /// # Returns
-    ///
-    /// * `Result<Option<Route<NM, CM>>, ASABRError>` - An optional reference-counted and mutable reference
-    ///   to the `Route` if it exists; otherwise, returns `None`.
-    fn select(
-        &mut self,
+    fn store<'a>(
+        &'a mut self,
         bundle: &Bundle,
-        curr_time: Date,
-        multigraph: Rc<RefCell<Multigraph<NM, CM>>>,
-        excluded_nodes_sorted: &[NodeID],
-    ) -> Result<Option<Route<NM, CM>>, ASABRError>;
-
-    fn store(&mut self, bundle: &Bundle, route: Route<NM, CM>);
+        tree: PathFindingOutput<'id, '_>,
+    ) -> PathFindingOutput<'id, 'a>;
 }
 
-/// A struct that manages limits and conditions for scheduling based on bundle characteristics.
-///
-/// The `Guard` struct keeps track of known routing limits and determines if a scheduling
-/// should be aborted based on its properties and the properties of the associated `Bundle`.
-pub struct Guard {
-    with_priorities: bool,
-    known_limits: HashMap<(NodeID, Priority), Volume>,
-}
+pub struct NoStorage;
 
-impl Guard {
-    /// Creates a new `Guard` instance with specified priority handling.
-    ///
-    /// # Parameters
-    ///
-    /// * `with_priorities` - A boolean indicating whether to consider priorities in the guard logic.
-    ///
-    /// # Returns
-    ///
-    /// * `Self` - A new instance of `Guard`.
-    pub fn new(with_priorities: bool) -> Self {
-        Self {
-            with_priorities,
-            known_limits: HashMap::new(),
-        }
+impl<'id, NM: NodeManager, CM: ContactManager> PathsStorage<'id, NM, CM> for NoStorage {
+    fn select<'a>(
+        &'a mut self,
+        _bundle: &Bundle,
+        _route_time: Date,
+        _curr_time: Option<Date>,
+        _multigraph: &Multigraph<'id, NM, CM>,
+    ) -> Result<Option<PathFindingOutput<'id, 'a>>, ASABRError> {
+        Ok(None)
     }
+    fn store<'a>(
+        &'a mut self,
+        _bundle: &Bundle,
+        tree: PathFindingOutput<'id, '_>,
+    ) -> PathFindingOutput<'id, 'a> {
+        tree.clone()
+    }
+}
 
-    /// Determines whether the processing must be aborted based on the known limits and bundle.
-    ///
-    /// This method checks if the current `Bundle` cannot reach any destinations due to size limits.
-    ///
-    /// # Parameters
-    ///
-    /// * `bundle` - A reference to the `Bundle` being evaluated.
-    ///
-    /// # Returns
-    ///
-    /// * `bool` - Returns `true` if processing must be aborted; otherwise, returns `false`.
-    pub fn must_abort(&self, bundle: &Bundle) -> bool {
-        let priority = if self.with_priorities {
-            bundle.priority
-        } else {
-            0
-        };
-        let mut unreachable_count: usize = 0;
+pub struct Cached<
+    'id,
+    S: PathsStorage<'id, NM, CM>,
+    P: Pathfinding<'id, NM, CM, D>,
+    NM: NodeManager,
+    CM: ContactManager,
+    D: Destination<'id>,
+> {
+    cache: S,
+    pathfinder: P,
+    _phantom: PhantomData<fn(&'id (), NM, CM, D)>,
+}
 
-        for dest in &bundle.destinations {
-            if let Some(limit) = self.known_limits.get(&(*dest, priority))
-                && bundle.size < *limit
-            {
-                unreachable_count += 1;
+impl<
+    'id,
+    S: PathsStorage<'id, NM, CM>,
+    P: Pathfinding<'id, NM, CM, D>,
+    NM: NodeManager,
+    CM: ContactManager,
+    D: Destination<'id>,
+> Pathfinding<'id, NM, CM, D> for Cached<'id, S, P, NM, CM, D>
+{
+    fn find_path<'a>(
+        &'a mut self,
+        multigraph: &mut Multigraph<'id, NM, CM>,
+        routing_time: Date,
+        source: crate::multigraph::RNodeRef<'id>,
+        bundle: &Bundle,
+        destination: &mut D,
+        prune_time: Option<Date>,
+    ) -> Result<Option<PathFindingOutput<'id, 'a>>, ASABRError> {
+        // Concurent usage validated by polonius
+        let copy = &raw mut self.cache;
+        match unsafe{copy.as_mut_unchecked()}
+            .select(bundle, routing_time, prune_time, multigraph)
+        {
+            res @ (Ok(Some(_)) | Err(_)) => res,
+            Ok(None) => {
+                match self.pathfinder.find_path(
+                    multigraph,
+                    routing_time,
+                    source,
+                    bundle,
+                    destination,
+                    prune_time,
+                ) {
+                    res @ (Ok(None) | Err(_)) => res,
+                    Ok(Some(path)) => Ok(Some(unsafe{copy.as_mut_unchecked()}.store(bundle, path))),
+                }
             }
         }
-        unreachable_count == bundle.destinations.len()
     }
+}
 
-    /// Adds a new size limit for a specific destination based on the given bundle.
-    ///
-    /// If the new size limit is larger than the current limit for the destination and priority,
-    /// it updates the known limits.
-    ///
-    /// # Parameters
-    ///
-    /// * `bundle` - A reference to the `Bundle` containing the size to be added.
-    /// * `dest` - The destination `NodeID` for which the limit is being added.
-    pub fn add_limit(&mut self, bundle: &Bundle, dest: NodeID) {
-        let priority = if self.with_priorities {
-            bundle.priority
-        } else {
-            0
-        };
-        if let Some(val) = self.known_limits.get(&(dest, priority))
-            && val <= &bundle.size
-        {
-            return;
+impl<
+    'id,
+    S: PathsStorage<'id, NM, CM>,
+    P: Pathfinding<'id, NM, CM, D>,
+    NM: NodeManager,
+    CM: ContactManager,
+    D: Destination<'id>,
+> Cached<'id, S, P, NM, CM, D>
+{
+    pub fn new(storage: S, pathfinder: P) -> Self {
+        Self {
+            cache: storage,
+            pathfinder,
+            _phantom: PhantomData,
         }
-        self.known_limits.insert((dest, priority), bundle.size);
+    }
+}
+
+/// Tells us a destination is guardable, necessary to use it with the guarded pathfinder.
+pub trait Guardable<'id>: Destination<'id> {
+    /// id to guard this destination on
+    fn as_id(&self, graph: &Multigraph<'id, impl NodeManager, impl ContactManager>) -> usize;
+}
+
+/// A Guard to avoid searching a path when useless. Bundles prio will be capped at prio_count (set to 1 to ignore bundles priorities)
+#[derive(Debug, Default)]
+pub struct Guard<'id, G: Guardable<'id>, const PRIO_COUNT: usize> {
+    limits: BTreeMap<usize, [Option<Volume>; PRIO_COUNT]>,
+    _phantom: PhantomData<fn(&'id (), G)>,
+}
+
+impl<'id, const PRIO_COUNT: usize, G: Guardable<'id>> Guard<'id, G, PRIO_COUNT> {
+    pub fn new() -> Self {
+        Self {
+            limits: BTreeMap::new(),
+            _phantom: PhantomData,
+        }
+    }
+    pub fn set_limit(
+        &mut self,
+        bundle: &Bundle,
+        dest: &G,
+        graph: &Multigraph<'id, impl NodeManager, impl ContactManager>,
+    ) {
+        let place = self
+            .limits
+            .entry(dest.as_id(graph))
+            .or_insert([None; PRIO_COUNT]);
+        for place in place.iter_mut().take(bundle.priority as usize + 1) {
+            *place = Some(place.map_or(bundle.size, |old| old.min(bundle.size)))
+        }
+    }
+    pub fn abort(
+        &self,
+        bundle: &Bundle,
+        dest: &G,
+        graph: &Multigraph<'id, impl NodeManager, impl ContactManager>,
+    ) -> bool {
+        let place = &self.limits[&dest.as_id(graph)];
+        place[(PRIO_COUNT - 1).min(bundle.priority as usize)]
+            .is_some_and(|limit| limit <= bundle.size)
+    }
+}
+
+/// A guarded PathFinder. Once a node is marked as unreachable, never try to find a path to it again.
+/// The destination must implement Guardable
+pub struct Guarded<
+    'id,
+    const PRIO_COUNT: usize,
+    P: Pathfinding<'id, NM, CM, D>,
+    D: Destination<'id> + Guardable<'id>,
+    NM: NodeManager,
+    CM: ContactManager,
+> {
+    finder: P,
+    guard: Guard<'id, D, PRIO_COUNT>,
+    _phantom: PhantomData<fn(CM, NM)>,
+}
+
+impl<
+    'id,
+    const PRIO_COUNT: usize,
+    P: Pathfinding<'id, NM, CM, D>,
+    D: Destination<'id> + Guardable<'id>,
+    NM: NodeManager,
+    CM: ContactManager,
+> Guarded<'id, PRIO_COUNT, P, D, NM, CM>
+{
+    pub fn new(finder: P) -> Self {
+        Self {
+            finder,
+            guard: Guard::new(),
+            _phantom: PhantomData,
+        }
+    }
+}
+impl<
+    'id,
+    const PRIO_COUNT: usize,
+    P: Pathfinding<'id, NM, CM, D>,
+    D: Destination<'id> + Guardable<'id>,
+    NM: NodeManager,
+    CM: ContactManager,
+> Pathfinding<'id, NM, CM, D> for Guarded<'id, PRIO_COUNT, P, D, NM, CM>
+{
+    fn find_path<'a>(
+        &'a mut self,
+        multigraph: &mut Multigraph<'id, NM, CM>,
+        routing_time: Date,
+        source: crate::multigraph::RNodeRef<'id>,
+        bundle: &Bundle,
+        destination: &mut D,
+        prune_time: Option<Date>,
+    ) -> Result<Option<PathFindingOutput<'id, 'a>>, ASABRError> {
+        if self.guard.abort(bundle, destination, multigraph) {
+            Ok(None)
+        } else {
+            match self.finder.find_path(
+                multigraph,
+                routing_time,
+                source,
+                bundle,
+                destination,
+                prune_time,
+            ) {
+                ret @ (Ok(Some(_)) | Err(_)) => ret,
+                Ok(None) => {
+                    self.guard.set_limit(bundle, destination, multigraph);
+                    Ok(None)
+                }
+            }
+        }
+    }
+}
+
+impl<'id> Guardable<'id> for NodeRef<'id> {
+    fn as_id(&self, graph: &Multigraph<'id, impl NodeManager, impl ContactManager>) -> usize {
+        graph.into_usize(*self)
+    }
+}
+impl<'id> Guardable<'id> for RNodeRef<'id> {
+    fn as_id(&self, _graph: &Multigraph<'id, impl NodeManager, impl ContactManager>) -> usize {
+        (*self).into()
     }
 }

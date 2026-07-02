@@ -8,26 +8,34 @@ use core::{fmt::Display, marker::PhantomData, str::FromStr};
 pub type NodeIDMap = HashMap<NodeID, Vec<NodeID>>;
 
 /// Represents the unique inner identifier for a node.
-pub type NodeID = u16;
-const_assert!(size_of::<NodeID>() <= size_of::<usize>());
+/// Abstract struct actually implementing from/to usize in order
+/// to prevent unsafe indexing (often use graph.flatten_route_id() instead of direct conversion into usize)
+#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Debug)]
+pub struct NodeID(usize);
 
-/// Represents a duration in units (e.g., seconds).
-pub type Duration = f64;
+/// Represents a duration in millisecond. Technically, ASABR never input any duration value itself, so if all manager / contact plan / library user agree, use any unit you want
+pub type Duration = i64;
 
-/// Represents a date (could represent days since a specific epoch).lo
+/// Represents a date. Recommended as a number of millisecond since epoch, same comment as `Duration`.
 pub type Date = Duration;
 
 /// Represents the priority of a task or node.
 pub type Priority = i8;
 
-/// Represents the volume of data (in bytes, for example).
-pub type Volume = f64;
+/// Represents the volume of data (arbitrary unit, recomended in bytes for interop).
+pub type Volume = i64;
 
-/// Represents a data transfer rate (in bits per second).
-pub type DataRate = f64;
+/// Represents a data transfer rate (arbtitrary unit, recomended in bits per second for interop.).
+pub type DataRate = i64;
 
 /// Represents the count of hops in a routing path.
 pub type HopCount = u16;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TimeInterval {
+    pub start: Date,
+    pub end: Date,
+}
 
 /// Represent an value encompassing all of the above, typically for use in parser
 //  Must implement FromStr and TryInto to all the above
@@ -40,6 +48,7 @@ assert_impl_all!(
     Into<Volume>,
     Into<DataRate>,
     Into<HopCount>,
+    Into<NodeID>
 );
 
 /// The name of a node. Use the "debug" feature to populate it with usefull data
@@ -81,8 +90,37 @@ impl From<AnyNumber> for u16 {
         value.0 as Self
     }
 }
+impl From<AnyNumber> for i64 {
+    fn from(value: AnyNumber) -> Self {
+        value.0 as Self
+    }
+}
+impl From<AnyNumber> for usize {
+    fn from(value: AnyNumber) -> Self {
+        value.0 as Self
+    }
+}
+
+impl From<AnyNumber> for NodeID {
+    fn from(value: AnyNumber) -> Self {
+        NodeID(value.into())
+    }
+}
+
+impl From<usize> for NodeID {
+    fn from(value: usize) -> Self {
+        NodeID(value)
+    }
+}
+
+impl From<NodeID> for usize {
+    fn from(value: NodeID) -> Self {
+        value.0
+    }
+}
 
 parse_single_tok!(NodeName);
+parse_single_tok!(NodeID, AnyNumber);
 
 impl Display for NodeName {
     #[allow(unused_variables)]
@@ -101,5 +139,17 @@ impl<T: AsRef<str>> From<T> for NodeName {
             name: value.as_ref().into(),
             _phantom: PhantomData,
         }
+    }
+}
+
+impl Display for TimeInterval {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "[{}, {}]", self.start, self.end)
+    }
+}
+
+impl Display for NodeID {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        self.0.fmt(f)
     }
 }

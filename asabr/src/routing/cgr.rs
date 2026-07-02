@@ -1,128 +1,97 @@
 use crate::{
     bundle::Bundle,
     contact_manager::ContactManager,
-    contact_plan::ContactPlan,
     errors::ASABRError,
     multigraph::Multigraph,
     node_manager::NodeManager,
-    pathfinding::Pathfinding,
-    route_stage::RouteStage,
-    route_storage::{Route, RouteStorage},
-    types::{Date, NodeID},
+    pathfinding::{Pathfinding, destination::Destination},
+    route_storage::PathsStorage,
+    types::Date,
 };
 extern crate alloc;
 
-use alloc::rc::Rc;
-use core::{cell::RefCell, marker::PhantomData};
+use core::marker::PhantomData;
 
-use super::{Router, RoutingOutput, dry_run_unicast_path, schedule_unicast_path};
+/// The legacy, not recomended routing algorithm. See VolCgr or SPSN for better alternative.
+/// The sub Pathfinder must be a Suppressor (or similar to it) in the sense that repeated invocation find different paths
+pub struct Cgr<
+    'id,
+    NM: NodeManager,
+    CM: ContactManager,
+    P: Pathfinding<'id, NM, CM, D>,
+    S: PathsStorage<'id, NM, CM>,
+    D: Destination<'id>,
+> {
+    storage: S,
+    pathfinder: P,
 
-pub struct Cgr<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: RouteStorage<NM, CM>>
-{
-    route_storage: Rc<RefCell<S>>,
-    pathfinding: P,
-
-    // for compilation
-    #[doc(hidden)]
-    _phantom_nm: PhantomData<NM>,
-    #[doc(hidden)]
-    _phantom_cm: PhantomData<CM>,
+    _phantom: PhantomData<fn(&'id (), NM, CM, D)>,
 }
 
-impl<NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>, S: RouteStorage<NM, CM>>
-    Router<NM, CM> for Cgr<NM, CM, P, S>
+impl<
+    'id,
+    NM: NodeManager,
+    CM: ContactManager,
+    P: Pathfinding<'id, NM, CM, D>,
+    S: PathsStorage<'id, NM, CM>,
+    D: Destination<'id>,
+> Pathfinding<'id, NM, CM, D> for Cgr<'id, NM, CM, P, S, D>
 {
-    fn route(
+    fn find_path(
         &mut self,
-        source: NodeID,
+        multigraph: &mut Multigraph<'id, NM, CM>,
+        routing_time: Date,
+        source: crate::multigraph::RNodeRef<'id>,
         bundle: &Bundle,
-        curr_time: Date,
-        excluded_nodes: &[NodeID],
-    ) -> Result<Option<RoutingOutput<NM, CM>>, ASABRError> {
-        if bundle.expiration < curr_time {
-            return Ok(None);
+        destination: &mut D,
+        prune_time: Option<Date>,
+    ) -> Result<Option<crate::pathfinding::PathFindingOutput<'id, '_>>, ASABRError> {
+        // Concurent uses of copy validated by polonius
+        let copy = &raw mut self.storage;
+
+        if let ret @ (Ok(Some(_)) | Err(_)) =
+            unsafe { copy.as_mut_unchecked() }.select(bundle, routing_time, prune_time, multigraph)
+        {
+            return ret;
         }
-
-        if bundle.destinations.len() == 1 {
-            return self.route_unicast(source, bundle, curr_time, excluded_nodes);
-        }
-
-        Err(ASABRError::MulticastUnsupportedError)
-    }
-}
-
-impl<S: RouteStorage<NM, CM>, NM: NodeManager, CM: ContactManager, P: Pathfinding<NM, CM>>
-    Cgr<NM, CM, P, S>
-{
-    pub fn new(
-        contact_plan: ContactPlan<NM, CM>,
-        route_storage: Rc<RefCell<S>>,
-    ) -> Result<Self, ASABRError> {
-        Ok(Self {
-            pathfinding: P::new(Rc::new(RefCell::new(Multigraph::new(contact_plan)?))),
-            route_storage: route_storage.clone(),
-            // for compilation
-            _phantom_nm: PhantomData,
-            _phantom_cm: PhantomData,
-        })
-    }
-
-    fn route_unicast(
-        &mut self,
-        source: NodeID,
-        bundle: &Bundle,
-        curr_time: Date,
-        excluded_nodes: &[NodeID],
-    ) -> Result<Option<RoutingOutput<NM, CM>>, ASABRError> {
-        let dest = bundle.destinations[0];
-
-        let mut bundle_to_consider = bundle.clone();
-        // if we are not volume aware, we drop the constraints
-        bundle_to_consider.priority = 1;
-        bundle_to_consider.size = 0.0;
-
-        let route_option = self.route_storage.try_borrow_mut()?.select(
-            bundle,
-            curr_time,
-            self.pathfinding.get_multigraph().clone(),
-            excluded_nodes,
-        )?;
-
-        if let Some(route) = route_option {
-            return Ok(Some(schedule_unicast_path(
-                bundle,
-                curr_time,
-                route.source_stage.clone(),
-            )?));
-        }
+        let mut bundle_copy = bundle.clone();
+        bundle_copy.size = 0;
+        bundle_copy.priority = 1;
 
         loop {
-            let new_tree = self.pathfinding.get_next(
-                curr_time,
+            match self.pathfinder.find_path(
+                multigraph,
+                routing_time,
                 source,
-                &bundle_to_consider,
-                excluded_nodes,
-            )?;
-            let tree = Rc::new(RefCell::new(new_tree));
-
-            let Some(route) = Route::from_tree(tree, dest) else {
-                break;
-            };
-
-            RouteStage::init_route(route.destination_stage.clone())?;
-            self.route_storage
-                .try_borrow_mut()?
-                .store(bundle, route.clone());
-            let dry_run =
-                dry_run_unicast_path(bundle, curr_time, route.source_stage.clone(), true)?;
-            if dry_run.is_some() {
-                return Ok(Some(schedule_unicast_path(
-                    bundle,
-                    curr_time,
-                    route.source_stage.clone(),
-                )?));
+                &bundle_copy,
+                destination,
+                prune_time,
+            ) {
+                Ok(None) => return Ok(None),
+                Err(e) => return Err(e),
+                Ok(Some(path)) => {
+                    if destination.validate(&path, routing_time, bundle, multigraph) {
+                        return Ok(Some(unsafe { copy.as_mut_unchecked() }.store(bundle, path)));
+                    }
+                }
             }
         }
-        Ok(None)
+    }
+}
+impl<
+    'id,
+    NM: NodeManager,
+    CM: ContactManager,
+    P: Pathfinding<'id, NM, CM, D>,
+    S: PathsStorage<'id, NM, CM>,
+    D: Destination<'id>,
+> Cgr<'id, NM, CM, P, S, D>
+{
+    pub fn new(pathfinder: P, storage: S, _graph: &Multigraph<'id, NM, CM>) -> Self {
+        Self {
+            pathfinder,
+            storage,
+            _phantom: PhantomData,
+        }
     }
 }
