@@ -46,9 +46,14 @@ impl<
         destination: &mut D,
         prune_time: Option<Date>,
     ) -> Result<Option<crate::pathfinding::PathFindingOutput<'id, '_>>, ASABRError> {
-        if let ret @ (Ok(Some(_)) | Err(_)) = self
-            .storage
-            .select(bundle, routing_time, prune_time, multigraph) { return ret }
+        // Concurent uses of copy validated by polonius
+        let copy = &raw mut self.storage;
+
+        if let ret @ (Ok(Some(_)) | Err(_)) =
+            unsafe { copy.as_mut_unchecked() }.select(bundle, routing_time, prune_time, multigraph)
+        {
+            return ret;
+        }
         let mut bundle_copy = bundle.clone();
         bundle_copy.size = 0;
         bundle_copy.priority = 1;
@@ -66,7 +71,7 @@ impl<
                 Err(e) => return Err(e),
                 Ok(Some(path)) => {
                     if destination.validate(&path, routing_time, bundle, multigraph) {
-                        return Ok(Some(self.storage.store(bundle, path)));
+                        return Ok(Some(unsafe { copy.as_mut_unchecked() }.store(bundle, path)));
                     }
                 }
             }

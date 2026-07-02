@@ -73,7 +73,7 @@ macro_rules! generate_common_tests {
                 "TEST FAILED: Expected None when at_time is past contact end."
             );
             assert!(
-                manager.dry_run_tx(ti, C_END - 0, &bp0(600)).is_none(),
+                manager.dry_run_tx(ti, C_END - 1, &bp0(6000)).is_none(),
                 "TEST FAILED: Expected None when bundle does not fit in remaining time."
             );
         }

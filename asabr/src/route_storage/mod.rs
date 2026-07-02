@@ -106,8 +106,9 @@ impl<
         destination: &mut D,
         prune_time: Option<Date>,
     ) -> Result<Option<PathFindingOutput<'id, 'a>>, ASABRError> {
-        match self
-            .cache
+        // Concurent usage validated by polonius
+        let copy = &raw mut self.cache;
+        match unsafe{copy.as_mut_unchecked()}
             .select(bundle, routing_time, prune_time, multigraph)
         {
             res @ (Ok(Some(_)) | Err(_)) => res,
@@ -121,7 +122,7 @@ impl<
                     prune_time,
                 ) {
                     res @ (Ok(None) | Err(_)) => res,
-                    Ok(Some(path)) => Ok(Some(self.cache.store(bundle, path))),
+                    Ok(Some(path)) => Ok(Some(unsafe{copy.as_mut_unchecked()}.store(bundle, path))),
                 }
             }
         }

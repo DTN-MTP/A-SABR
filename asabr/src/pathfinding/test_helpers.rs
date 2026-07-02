@@ -222,8 +222,8 @@ pub fn for_test_graph<A>(
     graph_index: usize,
     f: impl for<'id> FnOnce(&mut Multigraph<'id, NoManagement, EVLManager>) -> Result<A, ASABRError>,
 ) -> Result<A, ASABRError> {
-    let graph = TEST_GRAPHS[graph_index].1;
-    mk_graph!(graph, NoManagement, EVLManager, graph, raw);
+    let cp = TEST_GRAPHS[graph_index].1;
+    mk_graph!(graph, NoManagement, EVLManager, cp, raw);
     f(&mut graph)
 }
 
