@@ -5,40 +5,56 @@ use crate::{
     errors::ASABRError,
     types::{Date, NodeID, TimeInterval},
 };
+/// Node manager implementation that applies no resource-management constraints.
 pub mod none;
 
-/// A trait for managing and scheduling operations on nodes in a network.
+/// Defines node-level resource management and scheduling behavior.
 ///
-/// The `NodeManager` trait defines methods for dry-run (simulation) and actual scheduling
-/// of passing packets.
+/// A `NodeManager` decides whether a bundle can be accepted by a node,
+/// how long it must be retained before retransmission, whether candidate
+/// transmissions are feasible, and how node resources are updated once a
+/// routing decision is committed.
 ///
+/// # Expected guarantees
 ///
-/// # Expected Guarantees
-/// It is a logic error to have incoherent medhods, in particular:
-///    - if dry_run_retention(...,transmition,next) return true, then dry_run_multi(...,[transmition,next]) should do so as well (with identical other parametters)
-///    - if dry_run_multi(...) return true, then commit with the same parametters should suceed
-///    - delay should not return a date before reception start time
+/// Implementations are expected to keep the dry-run and commit methods coherent:
 ///
-/// Failing to upheld these can result in incorrect behavior of algorithms using this node manager
-/// (including panic, memory leak ...), but should not result in memory unsafet
+/// - If `dry_run_retention(..., transmission, next)` returns `true`, then
+///   `dry_run_multi(..., &[(transmission, next)])` should also accept the same
+///   transmission, assuming the other parameters are identical.
+/// - If `dry_run_multi(...)` accepts a set of transmissions, then `commit(...)`
+///   with the same parameters should succeed.
+/// - `delay(...)` should not return a date earlier than the reception end time.
 ///
+/// Violating these guarantees can lead to incorrect routing behavior or panics,
+/// but should not cause memory unsafety.
 ///
-/// # Simulation:
-/// - accept(bundle,time) -> return false if no such can be accepted, as an early return
-/// - delay(bundle,time) -> how much delay should we wait for before trying to send the packet
-/// - dry_run_retention(bundle,get_time,send_time) -> is this retention accepted
-/// - dry_run_multi(bundle,get_time,&[send_time]) -> how many of these can you accept to ressend.
+/// # Simulation methods
 ///
-/// # Commit
-/// - commit(bundle,get_time,&[send_time])
+/// - `accept(bundle, time, sender)` checks whether the node can receive the bundle.
+/// - `delay(bundle, reception, sender, next_vertex)` returns the earliest
+///   retransmission time.
+/// - `dry_run_retention(bundle, reception, sender, transmission, next_vertex)`
+///   checks whether one candidate retention/transmission is feasible.
+/// - `dry_run_multi(bundle, reception, sender, transmissions)` checks how many
+///   candidate transmissions can be accepted.
+///
+/// # Commit method
+///
+/// - `commit(bundle, reception, sender, transmissions)` updates node resources
+///   after a routing decision has been accepted.
 pub trait NodeManager {
     // This is important for optimisation, so no default implementation is provided
-    /// Should return false if no packet of this size can be recieved by the node
+    /// Returns `false` if the node cannot receive the bundle during the given interval.
     fn accept(&self, bundle: &Bundle, time: TimeInterval, sender: NodeID) -> bool;
 
     #[allow(unused_variables)]
-    /// date at wich we can start to resend the bundle. Account for both delay at reception and delay upon sending
-    /// warning: next_vertex ID can be a VNode ID
+    /// Returns the earliest date at which the bundle may be retransmitted.
+    ///
+    /// The returned date should account for both reception-side and
+    /// transmission-side delays.
+    ///
+    /// `next_vertex` may identify a virtual node.
     fn delay(
         &self,
         bundle: &Bundle,
@@ -50,8 +66,12 @@ pub trait NodeManager {
     }
 
     #[allow(unused_variables)]
-    /// Check if this retention on the node is allowed, used to compute possible routes during path-finding
-    /// warning: next_vertex ID can be a VNode ID
+    /// Checks whether retaining the bundle until the candidate transmission is allowed.
+    ///
+    /// This is used during pathfinding to test possible routes without updating
+    /// node resources.
+    ///
+    /// `next_vertex` may identify a virtual node.
     fn dry_run_retention(
         &self,
         bundle: &Bundle,
@@ -61,11 +81,19 @@ pub trait NodeManager {
         next_vertex: NodeID,
     ) -> bool;
 
-    /// Return None if the node cannot accept the paquet, Some(n) if it can accept the paquet and retransmit it to the firsts n elements of transmitions
-    /// Transmitions can be several elements (multicast) or none (destination node and no multicast)
-    /// To reliably detect if this node is (one of) the destination, inspect the bundle, not transmition only.
-    /// # Expected Guarantees
-    /// Should be LESS restrictive than dry_run_retention but MORE restrictive than commit
+    /// Simulates accepting the bundle and retransmitting it through multiple contacts.
+    ///
+    /// Returns `None` if the node cannot accept the bundle. Returns `Some(n)` if
+    /// the node can accept the bundle and retransmit it through the first `n`
+    /// entries of `transmissions`.
+    ///
+    /// `transmissions` may contain several entries for multicast-like forwarding,
+    /// or be empty when no retransmission is required.
+    ///
+    /// # Expected guarantees
+    ///
+    /// This method should be less restrictive than `dry_run_retention(...)`, but
+    /// more restrictive than `commit(...)`.
     fn dry_run_multi(
         &self,
         bundle: &Bundle,
@@ -74,11 +102,15 @@ pub trait NodeManager {
         transmissions: &[(TimeInterval, NodeID)],
     ) -> Option<usize>;
 
-    /// Updates ressources for this node, based on the given transmition
-    /// Transmitions can be several elements (multicast) or none (destination node and no multicast)
-    /// To reliably detect if this node is (one of) the destinations, inspect the bundle, not only the size of transmitio
-    /// # Expected Guarantee
-    /// Should not error if a previous call to dry_run_multi told us these transmition were OK.
+    /// Commits the accepted transmissions and updates this node's resources.
+    ///
+    /// `transmissions` may contain several entries for multicast-like forwarding,
+    /// or be empty when no retransmission is required.
+    ///
+    /// # Expected guarantee
+    ///
+    /// This method should not return an error if a previous call to
+    /// `dry_run_multi(...)` accepted the same transmissions.
     fn commit(
         &mut self,
         bundle: &Bundle,

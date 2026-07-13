@@ -26,6 +26,7 @@ pub struct TreeCache<'id, NM: NodeManager, CM: ContactManager> {
 }
 impl<'id, NM: NodeManager, CM: ContactManager> TreeCache<'id, NM, CM> {
     //TODO: maybe infer it from multigraph ?
+    /// Creates a route cache with the given capacity.
     pub fn new(_multigrap: &crate::multigraph::Multigraph<'id, NM, CM>, capacity: usize) -> Self {
         Self {
             cache: AllocRingBuffer::new(capacity),

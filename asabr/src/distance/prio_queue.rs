@@ -139,6 +139,7 @@ impl<'id, D: Distance<NM, CM>, NM: NodeManager, CM: ContactManager, T: Copy>
             Some(ret)
         }
     }
+    /// Returns whether the priority queue contains no elements.
     pub fn is_empty(&self) -> bool {
         self.elts.is_empty()
     }

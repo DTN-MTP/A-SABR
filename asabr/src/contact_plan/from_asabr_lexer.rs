@@ -131,11 +131,16 @@ impl<NM: NodeManager, CM: ContactManager> Builder<NM, CM> {
     }
 }
 
+/// Top-level ASABR contact-plan declaration kind.
 #[derive(Clone, Copy)]
 pub enum ASABRPlanInfoKind {
+    /// Contact declaration.
     Contact,
+    /// Internal node declaration.
     Node,
+    /// External node declaration.
     ENode,
+    /// Virtual node declaration.
     VNode,
 }
 
@@ -165,6 +170,7 @@ enum InBuild<NM: NodeManager + Parse, CM: ContactManager + Parse> {
     CM(ContactInfo, CM::Parser),
 }
 
+/// Parser state for ASABR contact plans.
 pub struct ASABRParser<NM: NodeManager + Parse, CM: ContactManager + Parse> {
     builder: Builder<NM, CM>,
     in_build: InBuild<NM, CM>,
@@ -179,13 +185,20 @@ impl<NM: NodeManager + Parse, CM: ContactManager + Parse> Default for ASABRParse
     }
 }
 
+/// Tokens consumed by the ASABR contact-plan parser.
 #[derive(Clone)]
 pub enum ASABRTokens<NMTok: Clone, CMTok: Clone> {
+    /// Virtual-node token.
     VNode(<VirtualNodeInfo as Parse>::Token),
+    /// Real-node token.
     RNode(<NodeInfo as Parse>::Token),
+    /// Node-manager token.
     NM(NMTok),
+    /// Contact-manager token.
     CM(CMTok),
+    /// Contact token.
     Contact(<ContactInfo as Parse>::Token),
+    /// Top-level keyword token.
     Keywords(ASABRPlanInfoKind),
 }
 

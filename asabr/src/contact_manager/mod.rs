@@ -12,8 +12,11 @@ use crate::{
     types::{Date, TimeInterval},
 };
 
+/// Legacy contact manager implementations.
 pub mod legacy;
+/// Parsing support for standard contact managers.
 pub mod lex;
+/// Segmented contact manager implementations.
 pub mod segmentation;
 
 /// Data structure representing the transmission (tx) start, end, and related timing information.

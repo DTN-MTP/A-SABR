@@ -7,8 +7,11 @@ use crate::parse_transparent;
 use crate::parsing::Parse;
 use crate::types::{DataRate, Date, Duration, Volume};
 
+/// Parsing support for segmentation managers.
 pub mod lex;
+/// Priority-aware segmentation manager.
 pub mod pseg;
+/// Basic segmentation manager.
 pub mod seg;
 
 /// A segment represents a time interval with an associated value of type `T`.
@@ -22,6 +25,7 @@ pub struct Segment<T> {
     pub val: T,
 }
 
+/// Tuple form used to parse a segment.
 pub type SegmentParse<T> = (Date, (Date, T));
 
 impl<T> From<SegmentParse<T>> for Segment<T> {

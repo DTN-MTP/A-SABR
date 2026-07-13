@@ -10,9 +10,12 @@ use crate::{
     types::{DataRate, Duration},
 };
 
+/// Tokens used to identify segmentation fields.
 #[derive(Clone, Copy, Debug)]
 pub enum Token {
+    /// Data-rate section.
     Rate,
+    /// Delay section.
     Delay,
 }
 
@@ -29,6 +32,7 @@ impl TryFrom<&str> for Token {
     }
 }
 
+/// Parsed segmentation manager data.
 pub type SegmentInfo = (Token, Vec<Segment<Duration>>, Token, Vec<Segment<DataRate>>);
 
 impl TryFrom<SegmentInfo> for SegmentationManager {

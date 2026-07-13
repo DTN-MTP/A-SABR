@@ -22,7 +22,7 @@ use super::PathsStorage;
 /// # Type Parameters
 /// - `NM`: graph `NodeManager`
 /// - `CM`: graph `ContactManager`, handling contacts within the network.
-/// - `D`: A type implementing `Distance<NM, CM>`, providing a distance metric for route comparison.
+/// - `D`: Destination key type used to index stored routes.
 #[derive(Debug, Default)]
 pub struct RoutingTable<'id, D: Destination<'id>> {
     cache: BTreeMap<(usize, Priority), PathFindingOutput<'id, 'id>>,
@@ -31,6 +31,7 @@ pub struct RoutingTable<'id, D: Destination<'id>> {
 }
 
 impl<'id, D: Destination<'id>> RoutingTable<'id, D> {
+    /// Creates an empty routing table.
     pub fn new() -> Self {
         Self {
             cache: BTreeMap::new(),

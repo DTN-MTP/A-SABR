@@ -1,8 +1,11 @@
 extern crate alloc;
 
-///rexeport for macro use
+/// Re-exports generativity utilities used by graph-construction macros.
 pub use generativity::{Guard, Id, make_guard};
 
+/// Compact representation of an optional `usize`.
+///
+/// `None` is encoded as `usize::MAX`; all other values are encoded directly.
 pub struct OptUsize(usize);
 
 impl From<Option<usize>> for OptUsize {
@@ -23,12 +26,24 @@ impl From<OptUsize> for Option<usize> {
     }
 }
 
-/// mk_graph_pathfinding!(graphname,NODE_MANAGER,CONTACT_MANAGER,content,content_type?)
-/// create a new graph with the provided names and manager types, parsing a ASABR CP from content
-/// The optional content_type argument can precise how the content is handed:
-///    iter: An iterator over contact plan lines [default]
-///    raw: An &str over the whole file content
-///    filename: a file to open and parse. This require STD
+/// Builds a `Multigraph` from ASABR contact-plan content.
+///
+/// This macro creates a generativity guard, parses the contact plan, and binds
+/// the resulting graph to the provided variable name.
+///
+/// Usage:
+///
+/// ```ignore
+/// mk_graph!(graph, NoManagement, CMDynStandard, lines);
+/// mk_graph!(graph, NoManagement, CMDynStandard, raw_content, raw);
+/// mk_graph!(graph, NoManagement, CMDynStandard, filename, file);
+/// ```
+///
+/// The optional content mode specifies how the input is supplied:
+///
+/// - `iterator`: an iterator over contact-plan lines. This is the default.
+/// - `raw`: an `&str` containing the whole contact-plan content.
+/// - `file`: a file path to open and parse. This requires `std`.
 #[macro_export]
 macro_rules! mk_graph {
     ($graph:ident,$NM:ty,$CM:ty,$content:expr$(,iterator)?) => {

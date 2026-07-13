@@ -14,9 +14,12 @@ use crate::pathfinding::destination::Destination;
 use crate::paths::{PathFragment, ViaHop};
 use crate::types::{Date, NodeID, TimeInterval};
 
+/// Dijkstra-based pathfinding entry points.
 pub mod dijkstra;
+/// Dijkstra workspace implementations.
 pub mod dijkstra_impl;
 pub use dijkstra_impl::*;
+/// Destination types used by pathfinders.
 pub mod destination;
 pub use destination::{All as DestAll, Dest};
 #[cfg(feature = "contact_suppression")]
@@ -33,8 +36,8 @@ mod test_helpers;
 ///
 /// # Type Parameters
 ///
-/// * `NM` - A generic type that implements the `NodeManager` trait.
-/// * `CM` - A generic type that implements the `ContactManager` trait.
+/// * `'id` - Graph identity lifetime.
+/// * `'a` - Lifetime of the borrowed or owned path tree.
 #[derive(Debug)]
 pub struct PathFindingOutput<'id, 'a> {
     path_tree: Either<&'a mut [Option<PathFragment<'id>>], Vec<Option<PathFragment<'id>>>>,
@@ -103,6 +106,7 @@ impl<'id, 'a> PathFindingOutput<'id, 'a> {
         r.reverse();
         Some(r)
     }
+    /// Returns an iterator over a destination path from destination back to source.
     pub fn full_path_rev<NM: NodeManager, CM: ContactManager>(
         &self,
         destination: RoutableNodeRef<'id>,
@@ -113,6 +117,7 @@ impl<'id, 'a> PathFindingOutput<'id, 'a> {
             last: Some(graph.routable_to_usize(destination)),
         })
     }
+    /// Commits the path to the graph for the given bundle and destination.
     pub fn commit_path_to(
         &self,
         destination: RoutableNodeRef<'id>,
@@ -124,12 +129,14 @@ impl<'id, 'a> PathFindingOutput<'id, 'a> {
             Some(path) => path.commit(bundle, graph),
         }
     }
+    /// Converts the output into an owned pathfinding output.
     pub fn into_owned<'b>(self) -> PathFindingOutput<'id, 'b> {
         let vec = self.as_vec();
         PathFindingOutput {
             path_tree: Either::Right(vec),
         }
     }
+    /// Converts the output into a vector of optional path fragments.
     pub fn as_vec(self) -> Vec<Option<PathFragment<'id>>> {
         match self.path_tree {
             Either::Left(value) => value.to_vec(),
@@ -208,6 +215,7 @@ impl<'id, 'a> PathFindingOutput<'id, 'a> {
     }
 }
 
+/// Iterator over path fragments from destination back to source.
 #[derive(Debug, Clone)]
 pub struct PathIterator<'id, 'a, 'b> {
     output: &'b PathFindingOutput<'id, 'a>,
@@ -312,7 +320,7 @@ impl<'id, 'a, 'b> core::fmt::Display for PathIterator<'id, 'a, 'b> {
 pub trait Pathfinding<'id, NM: NodeManager, CM: ContactManager, D: Destination<'id>> {
     /// Determines the routing tree in the multigraph for the given bundle.
     /// Populate the routes until the destination is reached.
-    /// The bundle will be launched at routing_time, and old contacts in the graph may be ellided if they are older than prune_time.
+    /// The bundle will be launched at `routing_time`, and old contacts in the graph may be ellided if they are older than `prune_time`.
     ///
     /// Take into account nodes/contacts marked as excluded in the graph, eg with `Multigraph::mark_excluded`
     ///
@@ -322,7 +330,7 @@ pub trait Pathfinding<'id, NM: NodeManager, CM: ContactManager, D: Destination<'
     /// * `source` - The `RNodeRef` of the source node.
     /// * `bundle` - Ihe `Bundle` being routed.
     /// * `destination` - A templated destination telling the pathfinder when to stop populating the output.
-    /// * `prune_time` - Deleting old contacts in the graph
+    /// * `prune_time` - Optional cutoff for ignoring old contacts in the graph.
     ///
     /// # Returns
     ///

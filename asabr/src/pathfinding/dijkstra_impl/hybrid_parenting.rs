@@ -36,6 +36,7 @@ where
     ) -> bool;
 }
 
+/// Dijkstra pathfinder using the hybrid-parenting work area.
 pub type HybridParenting<'id, D, NM, CM> = Disktra<HybridParentingWorkArea<'id, NM, CM, D>, D>;
 
 /// Not intended for public use, use `HybridParenting` directly

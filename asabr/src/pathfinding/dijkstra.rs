@@ -42,6 +42,7 @@ pub trait DijkstraWorkspace<'id, NM: NodeManager, CM: ContactManager> {
     ) -> (bool, bool, Option<INodeRef<'id>>);
 }
 
+/// Runs the generic Dijkstra search over a multigraph.
 pub fn dijkstra<
     'id,
     'a,
@@ -151,6 +152,7 @@ pub fn dijkstra<
     Some(work_area.into_pathfinding_output())
 }
 
+/// Dijkstra pathfinder parameterized by a workspace and distance metric.
 #[derive(Default)]
 pub struct Disktra<W, D> {
     _phantom: PhantomData<fn(W, D)>,
@@ -184,6 +186,7 @@ where
 }
 
 impl<W, D> Disktra<W, D> {
+    /// Creates a new Dijkstra pathfinder.
     pub fn new() -> Self {
         Self {
             _phantom: PhantomData,

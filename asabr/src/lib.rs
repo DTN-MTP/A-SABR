@@ -1,5 +1,10 @@
 #![no_std]
 
+//! A-SABR routing library.
+//!
+//! This crate provides contact-plan parsing, graph construction, pathfinding,
+//! and routing helpers for scheduled bundle routing.
+
 /// Module containing the adaptive contact definition.
 pub mod contact;
 /// Module containing the variable component of a contact for resource management.
@@ -38,6 +43,7 @@ pub mod distance;
 /// Module containing the logic to enable parsing abilities for the components.
 pub mod parsing;
 
+/// Utility helpers shared by the crate.
 pub mod utils;
 
 #[macro_use]

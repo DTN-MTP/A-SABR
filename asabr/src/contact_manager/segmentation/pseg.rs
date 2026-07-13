@@ -35,6 +35,7 @@ pub struct PSegmentationManager {
 }
 
 impl PSegmentationManager {
+    /// Creates a priority-aware segmentation manager from rate and delay intervals.
     pub fn new(
         rate_intervals: Vec<Segment<DataRate>>,
         delay_intervals: Vec<Segment<Duration>>,

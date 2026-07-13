@@ -5,12 +5,24 @@ use core::fmt;
 use crate::parsing::Located;
 
 #[derive(Debug)]
+/// Error type used by A-SABR operations.
 pub enum ASABRError {
+    /// Returned when a mutable borrow fails.
     BorrowMutError(&'static str),
+
+    /// Returned when a dry-run operation fails.
     DryRunError(&'static str),
+
+    /// Returned when scheduling a bundle or contact fails.
     ScheduleError(&'static str),
+
+    /// Returned when a contact plan cannot be parsed or built correctly.
     ContactPlanError(&'static str),
+
+    /// Returned when multicast routing is requested but not supported.
     MulticastUnsupportedError,
+
+    /// Returned when parsing fails at a specific input location.
     ParsingError(Located<&'static str>),
 }
 

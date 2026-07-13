@@ -19,7 +19,7 @@ pub type Duration = i64;
 /// Represents a date. Recommended as a number of millisecond since epoch, same comment as `Duration`.
 pub type Date = Duration;
 
-/// Represents the priority of a task or node.
+/// Priority level associated with a bundle or routing decision.
 pub type Priority = i8;
 
 /// Represents the volume of data (arbitrary unit, recomended in bytes for interop).
@@ -31,9 +31,13 @@ pub type DataRate = i64;
 /// Represents the count of hops in a routing path.
 pub type HopCount = u16;
 
+/// Time interval used to represent an active time window.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TimeInterval {
+/// Start time of the interval.
     pub start: Date,
+
+/// End time of the interval.
     pub end: Date,
 }
 
@@ -53,6 +57,8 @@ assert_impl_all!(
 
 /// The name of a node. Use the "debug" feature to populate it with usefull data
 /// Can be created from a &str, and displayed
+/// Without that feature, the type carries no runtime name data.
+
 #[derive(Clone, Debug)]
 pub struct NodeName {
     #[cfg(feature = "debug")]

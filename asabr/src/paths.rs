@@ -12,17 +12,12 @@ pub struct ViaHop<'id> {
     pub contact: ContactRef<'id>,
     /// A reference to the parent route stage for this hop.
     pub parent_frag: usize,
+    /// Transmission interval used by this hop.
     pub tx_time: TimeInterval,
 }
 
-/// Represents the end of a path to a Node.
+/// Represents the end of a path to a node.
 /// The rest of the path is available through via
-///
-///  # Type Parameters
-/// - `CM`: A type implementing the `ContactManager` trait, responsible for managing the
-///   contact's operations.
-/// - `NM`: A type implementing the `NodeManager` trait, responsible for managing the
-///   node's operations.
 #[derive(derivative::Derivative, Copy, Clone, PartialEq, Eq)]
 #[derivative(Debug)]
 pub struct PathFragment<'id> {
@@ -44,17 +39,18 @@ pub struct PathFragment<'id> {
 }
 
 impl<'id> PathFragment<'id> {
-    /// Creates a new `RouteStage` with the specified parameters.
+    /// Creates a new `PathFragment` with the specified parameters.
     ///
     /// # Parameters
     ///
-    /// * `at_time` - The time at which this route stage is scheduled.
-    /// * `to_node` - The destination node ID.
-    /// * `via_hop` - An optional ViaHop information.
+    /// * `arrival_time` - The arrival interval at the receiving node.
+    /// * `via_hop` - Optional previous-hop information.
+    /// * `hop_count` - Number of hops from the source.
+    /// * `rx_node` - Receiving node for this fragment.
     ///
     /// # Returns
     ///
-    /// A new instance of `RouteStage`.
+    /// A new instance of `PathFragment`.
     pub fn new(
         arrival_time: TimeInterval,
         via_hop: Option<ViaHop<'id>>,
@@ -70,6 +66,7 @@ impl<'id> PathFragment<'id> {
             // expiration: Date::MAX,
         }
     }
+    /// Creates the initial path fragment at the source node.
     pub fn new_start(time: Date, node: RealNodeRef<'id>) -> Self {
         Self {
             via: None,

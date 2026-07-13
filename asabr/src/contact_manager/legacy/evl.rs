@@ -1,10 +1,10 @@
 use crate::contact_manager::legacy::LegacyManager;
 
-// With EVL, the delay due to the queue is not taken into account
-// and the updates are automatic (we do not "scan" an actual local queue),
-// we just reduce the volume available
+/// EVL manager without priority or budget handling.
 pub type EVLManager = LegacyManager<false, true, 1, false>;
+/// EVL manager with priority handling.
 pub type PEVLManager = LegacyManager<false, true, 3, false>;
+/// EVL manager with priority and budget handling.
 pub type PBEVLManager = LegacyManager<false, true, 3, true>;
 #[cfg(test)]
 mod tests {

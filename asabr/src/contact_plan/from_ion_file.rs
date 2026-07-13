@@ -26,6 +26,7 @@ use alloc::{
 
 use core::cmp::Ordering;
 
+/// Contact data parsed from an ION contact entry.
 pub struct IONContactData {
     tx_start: Date,
     tx_end: Date,
@@ -70,7 +71,9 @@ fn contact_info_from_tvg_data(data: &IONContactData) -> ContactInfo {
     ContactInfo::new(data.tx_node_id, data.rx_node_id, data.tx_start, data.tx_end)
 }
 
+/// Converts ION contact data into the crate contact representation.
 pub trait FromIONContactData<CM: ContactManager> {
+    /// Converts parsed ION contact data into a contact tuple.
     fn ion_convert(data: &IONContactData) -> Option<(Contact<CM>, usize, usize)>;
 }
 
@@ -112,6 +115,7 @@ impl FromIONContactData<SegmentationManager> for SegmentationManager {
     }
 }
 
+/// Parser entry point for ION contact-plan files.
 pub struct IONContactPlan {}
 
 fn manage_aliases(
@@ -167,6 +171,7 @@ fn get_confidence(vec: &[&str]) -> f32 {
 }
 
 impl IONContactPlan {
+    /// Parses ION contact-plan lines into a contact plan.
     pub fn parse<NM: NodeManager, CM: FromIONContactData<CM> + ContactManager>(
         content: impl Iterator<Item: AsRef<str>>,
     ) -> Result<ContactPlan<NoManagement, CM>, ASABRError> {

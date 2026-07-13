@@ -3,7 +3,9 @@ use core::marker::PhantomData;
 
 use alloc::collections::BTreeMap;
 
+/// Ring-buffer route cache storage.
 pub mod cache;
+/// Destination and priority keyed route table storage.
 pub mod table;
 
 use crate::{
@@ -22,18 +24,19 @@ use crate::{
 /// related to routes in a routing system. Implementers of this trait must
 /// provide their own logic for handling route data.
 pub trait PathsStorage<'id, NM: NodeManager, CM: ContactManager, D: Destination<'id>> {
-    /// Loads the pathfinding output for a specific bundle, considering excluded nodes.
+    /// Loads a stored pathfinding output for a bundle and destination.
     ///
     /// # Parameters
     ///
-    /// * `bundle` - A reference to the `Bundle` containing routing information.
-    /// * `curr_time` - The current time.
-    /// * `excluded_nodes_sorted` - A sorted vector of `NodeID`s representing nodes to exclude from pathfinding.
+    /// * `bundle` - The bundle being routed.
+    /// * `destination` - The destination selector.
+    /// * `route_time` - The time used for route validation.
+    /// * `curr_time` - Optional current time for storage implementations that need it.
+    /// * `multigraph` - The graph containing the stored path references.
     ///
     /// # Returns
     ///
-    /// * `Result<(Option<Rc<RefCell<PathFindingOutput<NM, CM>>>>, Option<Vec<NodeID>>), ASABRError>` - An optional reference-counted and mutable reference
-    ///   to the `PathFindingOutput` if it exists; otherwise, returns `None`.
+    /// A stored `PathFindingOutput` if one is available and still valid.
     fn select<'a>(
         &'a mut self,
         bundle: &Bundle,
@@ -46,8 +49,9 @@ pub trait PathsStorage<'id, NM: NodeManager, CM: ContactManager, D: Destination<
     /// Stores the pathfinding output tree for future use, and return it (as reference probably)
     ///
     /// # Parameters
-    /// * `bundle` - A bundle copy for which the tree was created.
-    /// * `tree` - A reference-counted mutable reference to the `PathfindingOutput` to store.
+    /// * `tree` - The pathfinding output to store.
+    /// * `destination` - The destination selector.
+    /// * `bundle` - The bundle for which the tree was created.
     fn store<'a>(
         &'a mut self,
         tree: PathFindingOutput<'id, 'a>,
@@ -59,6 +63,7 @@ pub trait PathsStorage<'id, NM: NodeManager, CM: ContactManager, D: Destination<
     ) -> PathFindingOutput<'id, 'a>;
 }
 
+/// Path storage implementation that never reuses routes.
 pub struct NoStorage;
 
 impl<'id, NM: NodeManager, CM: ContactManager, D: Destination<'id>> PathsStorage<'id, NM, CM, D>
@@ -87,6 +92,7 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Destination<'id>> PathsStorage
     }
 }
 
+/// Pathfinding wrapper that consults a storage backend before computing paths.
 pub struct Cached<
     'id,
     S: PathsStorage<'id, NM, CM, D>,
@@ -161,6 +167,7 @@ impl<
     D: Destination<'id>,
 > Cached<'id, S, P, NM, CM, D>
 {
+    /// Creates a cached pathfinder from storage and an inner pathfinder.
     pub fn new(storage: S, pathfinder: P) -> Self {
         Self {
             cache: storage,
@@ -178,12 +185,14 @@ pub struct Guard<'id, D: Destination<'id>, const PRIO_COUNT: usize> {
 }
 
 impl<'id, const PRIO_COUNT: usize, D: Destination<'id>> Guard<'id, D, PRIO_COUNT> {
+    /// Creates an empty guard.
     pub fn new() -> Self {
         Self {
             limits: BTreeMap::new(),
             _phantom: PhantomData,
         }
     }
+    /// Records an unsuccessful route size limit for a destination.
     pub fn set_limit(
         &mut self,
         bundle: &Bundle,
@@ -198,6 +207,7 @@ impl<'id, const PRIO_COUNT: usize, D: Destination<'id>> Guard<'id, D, PRIO_COUNT
             *place = Some(place.map_or(bundle.size, |old| old.min(bundle.size)))
         }
     }
+    /// Returns whether route search can be skipped for the bundle and destination.
     pub fn abort(
         &self,
         bundle: &Bundle,
@@ -238,6 +248,7 @@ impl<
     CM: ContactManager,
 > Guarded<'id, PRIO_COUNT, P, D, NM, CM>
 {
+    /// Creates a guarded pathfinder around an inner pathfinder.
     pub fn new(finder: P) -> Self {
         Self {
             finder,

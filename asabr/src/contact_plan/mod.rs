@@ -7,9 +7,13 @@ use crate::node::Node;
 use crate::node_manager::NodeManager;
 use crate::vnode::VirtualNodeInfo;
 
+/// Lexer for the ASABR contact-plan text format.
 pub mod asabr_file_lexer;
+/// Parser for ASABR lexer tokens.
 pub mod from_asabr_lexer;
+/// Parser for ION contact-plan files.
 pub mod from_ion_file;
+/// Parser for TVGUtil contact-plan files.
 pub mod from_tvgutil_file;
 
 /// Represents a contact plan and associated management information.
@@ -29,9 +33,12 @@ pub struct ContactPlan<NM: NodeManager, CM: ContactManager> {
     pub contacts: Vec<(Contact<CM>, usize, usize)>,
 }
 
+/// A real node, either internal or external.
 #[derive(Clone)]
 pub enum RealNode<NM: NodeManager> {
+    /// External node.
     Enode(Node<NM>),
+    /// Internal node.
     Inode(Node<NM>),
 }
 
@@ -40,9 +47,9 @@ impl<NM: NodeManager, CM: ContactManager> ContactPlan<NM, CM> {
     ///
     /// # Parameters
     ///
-    /// * `nodes` - A vector of nodes
+    /// * `realnodes` - Real nodes stored in node ID order.
+    /// * `vnodes` - Virtual-node definitions.
     /// * `contacts` - A vector of contacts that define the connections between nodes.
-    /// * `vnode_map` - A HashMap wich stores virtual node IDs as keys and real node ID lists as values
     ///
     /// # Returns
     ///

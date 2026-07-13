@@ -101,6 +101,7 @@ impl<
     D: Destination<'id>,
 > Cgr<'id, NM, CM, P, S, D>
 {
+    /// Creates a CGR router from an inner pathfinder and storage backend.
     pub fn new(pathfinder: P, storage: S, _graph: &Multigraph<'id, NM, CM>) -> Self {
         Self {
             pathfinder,

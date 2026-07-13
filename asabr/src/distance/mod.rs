@@ -7,8 +7,11 @@ use crate::{
     node_manager::NodeManager, paths::PathFragment,
 };
 
+/// Hop-count distance metric.
 pub mod hop;
+/// Priority queue used by distance-based pathfinding.
 pub mod prio_queue;
+/// SABR distance metric.
 pub mod sabr;
 
 /// A trait that allows RouteStages to define custom distance comparison strategies.
@@ -46,6 +49,7 @@ where
     ) -> Ordering;
 }
 
+/// Compares two values by an extracted ordering key.
 pub fn cmp_by<T, F: Fn(T) -> O, O: Ord>(a: T, b: T, f: F) -> Ordering {
     f(a).cmp(&f(b))
 }

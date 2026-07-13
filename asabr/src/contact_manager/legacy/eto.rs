@@ -1,10 +1,13 @@
 use crate::contact_manager::legacy::LegacyManager;
-
 // With ETO the delay due to the queue is taken into account (from the current time)
 // and the updates are not automatic, the queue is expected to be modified by
 // external means
+
+/// ETO manager without priority or budget handling.
 pub type ETOManager = LegacyManager<true, false, 1, false>;
+/// ETO manager with priority handling.
 pub type PETOManager = LegacyManager<true, false, 3, false>;
+/// ETO manager with priority and budget handling.
 pub type PBETOManager = LegacyManager<true, false, 3, true>;
 
 #[cfg(test)]

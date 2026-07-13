@@ -7,8 +7,11 @@ use crate::{
     types::{DataRate, Date, Duration, TimeInterval, Volume},
 };
 
+/// ETO contact manager variants.
 pub mod eto;
+/// EVL contact manager variants.
 pub mod evl;
+/// Queue-delay contact managers.
 pub mod qd;
 
 #[cfg(test)]
@@ -251,6 +254,7 @@ impl<const ADD_DELAY: bool, const AUTO_UPDATE: bool, const PRIO_COUNT: usize, co
 impl<const ADD_DELAY: bool, const AUTO_UPDATE: bool, const PRIO_COUNT: usize>
     LegacyManager<ADD_DELAY, AUTO_UPDATE, PRIO_COUNT, false>
 {
+    /// Creates a non-budgeted legacy manager.
     pub fn new(rate: DataRate, delay: Duration) -> Self {
         LegacyManager(VolumeManager::<_, false>::new(rate, delay))
     }
@@ -258,6 +262,7 @@ impl<const ADD_DELAY: bool, const AUTO_UPDATE: bool, const PRIO_COUNT: usize>
 impl<const ADD_DELAY: bool, const AUTO_UPDATE: bool, const PRIO_COUNT: usize>
     LegacyManager<ADD_DELAY, AUTO_UPDATE, PRIO_COUNT, true>
 {
+    /// Creates a budgeted legacy manager.
     pub fn new(rate: DataRate, delay: Duration, budgets: [Volume; PRIO_COUNT]) -> Self {
         LegacyManager(VolumeManager::<_, true>::new(rate, delay, budgets))
     }

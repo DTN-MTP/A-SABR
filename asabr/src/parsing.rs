@@ -7,7 +7,7 @@ use replace_with::replace_with_or_default_and_return as replace_with;
 pub use crate::contact_manager::lex::StandardManagersDyn as CMDynStandard;
 use crate::types::AnyNumber;
 
-/// re-export of types for which it is usefull to implement Parse<T> TryInto<T> in order to parse a full contact plan.
+/// re-export of types for which it is usefull to implement `Parse<T>` and `TryInto<T>` in order to parse a full contact plan.
 pub mod parsables {
     pub use super::Delimiter;
     pub use crate::contact_manager::lex::StandardManagersKinds;
@@ -29,8 +29,8 @@ pub mod parsables {
 /// - `parse_single_tok` for data on a single token
 /// - `parse_transparent` to parse something directly from something else (usefull using the types bellow to compose)
 /// # Types wich already auto-implement the trait when the components does:
-/// - Vec<T> when T: Parse  (Lexing require T and Delimiter)
-/// - [T;N] when T: Parse
+/// - `Vec<T>` when T: Parse  (Lexing require T and Delimiter)
+/// - `[T; N]` when T: Parse
 /// - Tupples, up to 20 elements each Parse-able
 pub trait Parse: Sized {
     /// The kind of tokens needeed to build Self. Usually, a fitting enum.
@@ -85,22 +85,31 @@ pub const INVALID_STATE: &str = "This parser is in a improper state or was feed 
 /// Data associated to a location.
 #[derive(Clone, Copy, Debug)]
 pub struct Located<T> {
+    /// The located value.
     pub data: T,
+    /// The source line.
     pub line: usize,
+    /// The token number on the source line.
     pub toknum: usize,
 }
 
+/// Either one of two possible values.
 #[derive(Clone, Copy, Debug)]
 pub enum Either<L, R> {
+    /// Left-hand value.
     Left(L),
+    /// Right-hand value.
     Right(R),
 }
 
 /// The delimiters used to parse lists (Vectors)
 #[derive(Clone, Copy, Debug)]
 pub enum Delimiter {
+    /// Opening list delimiter.
     Open,
+    /// Closing list delimiter.
     Close,
+    /// Separator between list elements.
     Separator,
 }
 
@@ -398,7 +407,7 @@ macro_rules! parse_single_tok {
     };
 }
 
-/// choices!(modname,ResultName,[List]) where List is a comma-separated list of (Name, Type)
+/// `choices!(modname, ResultName, [List])` where `List` is a comma-separated list of `(Name, Type)`.
 /// Create a new Parseable enum, ResultName, which can parse any of the Type, by first recognising wich one
 /// by recognising a which Kind it is.
 ///
@@ -407,6 +416,7 @@ macro_rules! parse_single_tok {
 #[macro_export]
 macro_rules! choices {
     ($modname:ident,$name:ident,$(($names:ident,$types:ty)),*) => {
+     #[doc = stringify!(Parsing choices generated for $name.)]
      pub mod $modname {
             use super::*;
             use $crate::{parse_single_tok, parsing::{LexFrom, INVALID_STATE, Parse}};
@@ -414,7 +424,10 @@ macro_rules! choices {
             #[derive(Debug,Clone)]
             #[doc = stringify!(The diffenrent kinds of $name. Implement TryFrom<T> to parse them)]
             pub enum Kinds {
-                $($names,)*
+                $(
+                    #[doc = stringify!(Choice kind for $names.)]
+                    $names,
+                )*
             }
 
             parse_single_tok!(Kinds,Kinds);
@@ -434,7 +447,10 @@ macro_rules! choices {
             }
             /// A choice of diffenrent things
             pub enum $name {
-                $($names($types),)*
+                $(
+                    #[doc = stringify!(Parsed $names choice.)]
+                    $names($types),
+                )*
             }
             impl Parse for $name {
                 type Token = Token;

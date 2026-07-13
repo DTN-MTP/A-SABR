@@ -8,17 +8,15 @@ use crate::{
 };
 
 /// Represents information about a node in the network.
-///
-/// # Fields
-///
-/// * `id` - The unique identifier for the node.
-/// * `name` - The name associated with the node.
-/// * `excluded` - Indicates whether the node is excluded from routing operations.
-
 #[derive(Clone, Debug)]
 pub struct NodeInfo {
+    /// Unique identifier of the node.
     pub id: NodeID,
+
+    /// Human-readable name of the node.
     pub name: NodeName,
+
+    /// Whether the node is excluded from routing operations.
     pub excluded: bool,
 }
 

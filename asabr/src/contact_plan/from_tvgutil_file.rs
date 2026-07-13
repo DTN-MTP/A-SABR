@@ -21,6 +21,7 @@ use alloc::{collections::BTreeMap as HashMap, vec, vec::Vec};
 
 use serde_json::Value;
 
+/// Contact data parsed from a TVGUtil contact entry.
 #[derive(Debug)]
 pub struct TVGUtilContactData {
     tx_start: Date,
@@ -36,7 +37,9 @@ fn contact_info_from_tvg_data(data: &TVGUtilContactData) -> ContactInfo {
     ContactInfo::new(data.tx_node_id, data.rx_node_id, data.tx_start, data.tx_end)
 }
 
+/// Converts TVGUtil contact data into the crate contact representation.
 pub trait FromTVGUtilContactData<CM: ContactManager> {
+    /// Converts parsed TVGUtil contact data into a contact tuple.
     fn tvg_convert(data: TVGUtilContactData) -> Option<(Contact<CM>, usize, usize)>;
 }
 
@@ -80,9 +83,11 @@ impl FromTVGUtilContactData<SegmentationManager> for SegmentationManager {
     }
 }
 
+/// Parser entry point for TVGUtil contact-plan data.
 pub struct TVGUtilContactPlan {}
 
 impl TVGUtilContactPlan {
+    /// Parses a TVGUtil JSON value into a contact plan.
     pub fn parse<NM: NodeManager, CM: FromTVGUtilContactData<CM> + ContactManager>(
         json_data: serde_json::Value,
     ) -> Result<ContactPlan<NoManagement, CM>, ASABRError> {

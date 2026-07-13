@@ -42,23 +42,29 @@ pub struct Multigraph<'id, NM: NodeManager, CM: ContactManager> {
 /// A reference to a real node in the graph
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RealNodeRef<'id> {
+    /// External node reference.
     E(ENodeRef<'id>),
+    /// Internal node reference.
     I(INodeRef<'id>),
 }
 
 /// A routable node (internal or virtual)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RoutableNodeRef<'id> {
+    /// Internal node reference.
     I(INodeRef<'id>),
+    /// Virtual node reference.
     V(VNodeRef<'id>),
 }
 
+/// A reference to an external real node in a graph.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ENodeRef<'id> {
     index: usize,
     id: Id<'id>,
 }
 
+/// A reference to an internal real node in a graph.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct INodeRef<'id> {
     index: usize,
@@ -74,10 +80,14 @@ pub struct VNodeRef<'id> {
     id: Id<'id>,
 }
 
+/// A reference to any node in the graph.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NodeRef<'id> {
+    /// Internal node reference.
     I(INodeRef<'id>),
+    /// Virtual node reference.
     V(VNodeRef<'id>),
+    /// External node reference.
     E(ENodeRef<'id>),
 }
 
@@ -104,7 +114,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
     /// Note: For Dijkstra, we need fast access for the senders. To this end, the index
     /// in the "senders" Vec matches the  transmitter NodeID. There is a small memory
     /// overhead if some nodes are not transmitters in the contacts. Regarding the
-    /// receivers, only fast iteration is required. The indices of the senders[tx_id].receivers
+    /// receivers, only fast iteration is required. The indices of the `senders[tx_id].receivers`
     /// Vec do not match the receivers NodeID, and no entry exists if a node never receives.
     pub fn new(
         id_guard: Guard<'id>,
@@ -247,6 +257,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
         Self::new(guard, contact_plan)
     }
 
+    /// Returns the graph node reference for a node ID.
     pub fn node_id_ref(&self, id: NodeID) -> Result<NodeRef<'id>, ASABRError> {
         let mut id = usize::from(id);
         if id < self.get_internal_count() {
@@ -337,6 +348,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
         }
     }
 
+    /// Converts a routable node reference into the flattened routing index.
     pub fn routable_to_usize(&self, node: RoutableNodeRef<'id>) -> usize {
         match node {
             RoutableNodeRef::I(inode_ref) => inode_ref.into(),
@@ -344,20 +356,25 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
         }
     }
 
+    /// Returns the graph node ID for a virtual node reference.
     pub fn vnode_id(&self, vnode: VNodeRef) -> NodeID {
         (self.get_vertex_count() - self.get_vnode_count() + vnode.index).into()
     }
+    /// Returns the number of real nodes.
     pub fn get_nonvirtualnode_count(&self) -> usize {
         self.get_internal_count() + self.get_external_count()
     }
 
+    /// Returns the number of external nodes.
     pub fn get_external_count(&self) -> usize {
         self.external_nodes.len()
     }
 
+    /// Returns an iterator over the real nodes represented by a virtual node.
     pub fn iter_virtualnode(&self, node: VNodeRef<'id>) -> impl Iterator<Item = RealNodeRef<'id>> {
         self.virtual_nodes[node.index].iter().copied()
     }
+    /// Returns an iterator over the real nodes represented by any node reference.
     pub fn iter_node(&self, node: NodeRef<'id>) -> impl Iterator<Item = RealNodeRef<'id>> {
         match node {
             NodeRef::E(enode_ref) => Either::Left(iter::once(RealNodeRef::E(enode_ref))),
@@ -368,7 +385,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
 
     /// For a given node, return a three element tuple containing:
     /// - the node manager
-    /// - real nodes neigbors, as an iterator over (ref of a neighbor,manager of the neighbor,iterator<contacts between the two>)
+    /// - real nodes neigbors, as an iterator over `(ref of a neighbor, manager of the neighbor, iterator over contacts between the two)`
     /// - vnode neigbors, as an iterator over (ref of a neighbor,iterator(real_node,it's manager,contact))
     pub fn iter_iter_contacts(
         &self,
@@ -444,6 +461,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
             Err(_) => Either::Right(iter::empty()),
         }
     }
+    /// Iterates mutably over contacts between two internal nodes.
     pub fn iter_contacts_mut(
         &mut self,
         tx: INodeRef<'id>,
@@ -616,6 +634,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> Display for Multigraph<'id, NM, C
 }
 
 impl<'id> NodeRef<'id> {
+    /// Returns this reference as a real node reference, if it is real.
     pub fn real(self) -> Option<RealNodeRef<'id>> {
         match self {
             NodeRef::I(inode_ref) => Some(RealNodeRef::I(inode_ref)),
@@ -623,12 +642,14 @@ impl<'id> NodeRef<'id> {
             NodeRef::V(_vnode_ref) => None,
         }
     }
+    /// Returns this reference as a virtual node reference, if it is virtual.
     pub fn virt(self) -> Option<VNodeRef<'id>> {
         match self {
             NodeRef::V(vnode_ref) => Some(vnode_ref),
             _ => None,
         }
     }
+    /// Returns this reference as a routable node reference, if it is routable.
     pub fn routable(self) -> Result<RoutableNodeRef<'id>, ASABRError> {
         match self {
             NodeRef::I(inode_ref) => Ok(RoutableNodeRef::I(inode_ref)),
@@ -638,12 +659,14 @@ impl<'id> NodeRef<'id> {
             )),
         }
     }
+    /// Returns this reference as an internal node reference, if it is internal.
     pub fn internal(self) -> Option<INodeRef<'id>> {
         match self {
             NodeRef::I(inoderef) => Some(inoderef),
             _ => None,
         }
     }
+    /// Returns this reference as an external node reference, if it is external.
     pub fn external(self) -> Option<ENodeRef<'id>> {
         match self {
             NodeRef::E(enoderef) => Some(enoderef),
@@ -653,12 +676,14 @@ impl<'id> NodeRef<'id> {
 }
 
 impl<'id> RealNodeRef<'id> {
+    /// Returns this reference as an internal node reference, if it is internal.
     pub fn internal(self) -> Option<INodeRef<'id>> {
         match self {
             RealNodeRef::E(_enode_ref) => None,
             RealNodeRef::I(inode_ref) => Some(inode_ref),
         }
     }
+    /// Returns this reference as an external node reference, if it is external.
     pub fn external(self) -> Option<ENodeRef<'id>> {
         match self {
             RealNodeRef::E(enode_ref) => Some(enode_ref),

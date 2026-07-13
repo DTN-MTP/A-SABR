@@ -23,21 +23,27 @@ use crate::{
 };
 use alloc::boxed::Box;
 
+/// SPSN router using SABR distance and hybrid parenting.
 pub type SpsnHybridParenting<'id, const PRIO_COUNT: usize, NM, CM, D> =
     Spsn<'id, PRIO_COUNT, NM, CM, HybridParenting<'id, SABR, NM, CM>, TreeCache<'id, NM, CM>, D>;
 
+/// SPSN router using SABR distance and node parenting.
 pub type SpsnNodeParenting<'id, const PRIO_COUNT: usize, NM, CM, D> =
     Spsn<'id, PRIO_COUNT, NM, CM, NodeParenting<'id, SABR>, TreeCache<'id, NM, CM>, D>;
 
+/// SPSN router using SABR distance and contact parenting.
 pub type SpsnContactParenting<'id, const PRIO_COUNT: usize, NM, CM, D> =
     Spsn<'id, PRIO_COUNT, NM, CM, ContactParenting<'id, NM, CM, SABR>, TreeCache<'id, NM, CM>, D>;
 
+/// VolCGR router using SABR distance and hybrid parenting.
 pub type VolCgrHybridParenting<'id, NM, CM, D> =
     VolCgr<'id, RoutingTable<'id, D>, HybridParenting<'id, SABR, NM, CM>, NM, CM, D>;
 
+/// VolCGR router using SABR distance and node parenting.
 pub type VolCgrNodeParenting<'id, NM, CM, D> =
     VolCgr<'id, RoutingTable<'id, D>, NodeParenting<'id, SABR>, NM, CM, D>;
 
+/// VolCGR router using SABR distance and contact parenting.
 pub type VolCgrContactParenting<'id, NM, CM, D> =
     VolCgr<'id, RoutingTable<'id, D>, ContactParenting<'id, NM, CM, SABR>, NM, CM, D>;
 
@@ -65,21 +71,27 @@ pub type CgrSupressorContactParenting<'id, NM, CM, D> = Cgr<
     D,
 >;
 
+/// SPSN router using hop distance and hybrid parenting.
 pub type SpsnHybridParentingHop<'id, const PRIO_COUNT: usize, NM, CM, D> =
     Spsn<'id, PRIO_COUNT, NM, CM, HybridParenting<'id, Hop, NM, CM>, TreeCache<'id, NM, CM>, D>;
 
+/// SPSN router using hop distance and node parenting.
 pub type SpsnNodeParentingHop<'id, const PRIO_COUNT: usize, NM, CM, D> =
     Spsn<'id, PRIO_COUNT, NM, CM, NodeParenting<'id, Hop>, TreeCache<'id, NM, CM>, D>;
 
+/// SPSN router using hop distance and contact parenting.
 pub type SpsnContactParentingHop<'id, const PRIO_COUNT: usize, NM, CM, D> =
     Spsn<'id, PRIO_COUNT, NM, CM, ContactParenting<'id, NM, CM, Hop>, TreeCache<'id, NM, CM>, D>;
 
+/// VolCGR router using hop distance and hybrid parenting.
 pub type VolCgrHybridParentingHop<'id, NM, CM, D> =
     VolCgr<'id, RoutingTable<'id, D>, HybridParenting<'id, Hop, NM, CM>, NM, CM, D>;
 
+/// VolCGR router using hop distance and node parenting.
 pub type VolCgrNodeParentingHop<'id, NM, CM, D> =
     VolCgr<'id, RoutingTable<'id, D>, NodeParenting<'id, Hop>, NM, CM, D>;
 
+/// VolCGR router using hop distance and contact parenting.
 pub type VolCgrContactParentingHop<'id, NM, CM, D> =
     VolCgr<'id, RoutingTable<'id, D>, ContactParenting<'id, NM, CM, Hop>, NM, CM, D>;
 
@@ -107,10 +119,14 @@ pub type CgrSupressorContactParentingHop<'id, NM, CM, D> = Cgr<
     D,
 >;
 
+/// Options controlling SPSN route selection.
 #[derive(Clone)]
 pub struct SpsnOptions {
+    /// Whether bundle size is checked.
     pub check_size: bool,
+    /// Whether bundle priority is checked.
     pub check_priority: bool,
+    /// Maximum number of entries to keep.
     pub max_entries: usize,
 }
 
