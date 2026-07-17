@@ -14,6 +14,7 @@ pub struct StorageNodeManager {
     memory: Vec<(Date, Volume)>,
     capacity: Volume,
 }
+
 impl StorageNodeManager {
     pub fn new(capacity: Volume) -> Self {
         Self {
@@ -22,35 +23,59 @@ impl StorageNodeManager {
         }
     }
 
+    fn check_start_end(
+        &self,
+        start: Date,
+        end: Date,
+        size: Volume,
+    ) -> bool {
+        if end < start {
+            return false;
+        }
+
+        if end == start {
+            return true;
+        }
+
+        let mut idx = 0;
+        let mut current_volume = 0;
+
+        while idx < self.memory.len() && self.memory[idx].0 < start {
+            current_volume = self.memory[idx].1;
+            idx += 1;
+        }
+
+        if current_volume + size > self.capacity {
+            return false;
+        }
+
+        while idx < self.memory.len() && self.memory[idx].0 < end {
+            if self.memory[idx].1 + size > self.capacity {
+                return false;
+            }
+
+            idx += 1;
+        }
+
+        true
+    }
+}
 
 impl NodeManager for StorageNodeManager {
-
     fn accept(
         &self,
         bundle: &Bundle,
         reception: TimeInterval,
         _sender: NodeID,
     ) -> bool {
+        self.check_start_end(
+            reception.start,
+            reception.end,
+            bundle.size,
+        )
+    }
 
-        let mut result = self.memory[self.memory.len() - 1].1;
-
-        let mut idx = 0;
-        while idx < self.memory.len() && self.memory[idx].0 < reception.start {
-            idx+=1;
-        }
-
-        while idx < self.memory.len() && self.memory[idx].0 <= reception.end {
-            
-            if self.memory[idx].1 + bundle.size > self.capacity {
-                return false;
-            }
-            idx+=1;
-        }
-
-        return true
-     }
-
-    fn delay(
+    fn delay( // Retourne la date à laquelle le bundle peut être retransmis.
         &self,
         _bundle: &Bundle,
         reception: TimeInterval,
@@ -68,23 +93,11 @@ impl NodeManager for StorageNodeManager {
         transmission: TimeInterval,
         _next: NodeID,
     ) -> bool {
-
-        let mut result = self.memory[self.memory.len() - 1].1;
-
-        let mut idx = 0;
-        while idx < self.memory.len() && self.memory[idx].0 < reception.start {
-            idx+=1;
-        }
-
-        while idx < self.memory.len() && self.memory[idx].0 <= transmission.end {
-            
-            if self.memory[idx].1 + bundle.size > self.capacity {
-                return false;
-            }
-            idx+=1;
-        }
-
-        return true
+        self.check_start_end(
+            reception.start,
+            transmission.end,
+            bundle.size,
+        )
     }
 
     fn dry_run_multi(
@@ -94,28 +107,19 @@ impl NodeManager for StorageNodeManager {
         _sender: NodeID,
         transmissions: &[(TimeInterval, NodeID)],
     ) -> Option<usize> {
-
         let release = transmissions
             .iter()
-            .map(|(interval, _)| interval.start)
+            .map(|(interval, _)| interval.end)
             .max()
             .unwrap_or(reception.end);
 
-        let retention = (
+        if self.check_start_end(
             reception.start,
-            release,
-    );
-
-        if self.simulate_retention(
-            retention.start,
             release,
             bundle.size,
         ) {
-
             Some(transmissions.len())
-
         } else {
-
             None
         }
     }
@@ -127,29 +131,76 @@ impl NodeManager for StorageNodeManager {
         _sender: NodeID,
         transmissions: &[(TimeInterval, NodeID)],
     ) -> Result<(), ASABRError> {
+        let release = transmissions
+            .iter()
+            .map(|(interval, _)| interval.end)
+            .max()
+            .unwrap_or(reception.end);
 
-
-        let mut result = self.memory[self.memory.len() - 1].1;
+        if !self.check_start_end(
+            reception.start,
+            release,
+            bundle.size,
+        ) {
+            return Err(ASABRError::ScheduleError(
+                "insufficient capacity",
+            ));
+        }
 
         let mut idx = 0;
-        while idx < self.memory.len() && self.memory[idx].0 < reception.start {
-            idx+=1;
-        }
-        
-        if reception.start < self.memory[idx].0 {
-            self.memory.insert(idx, (reception.start, self.memory[idx - 1].1));
+
+        while idx < self.memory.len()
+            && self.memory[idx].0 < reception.start
+        {
+            idx += 1;
         }
 
-        while idx < self.memory.len() && transmission.end > self.memory[idx].0 {
+        if idx == self.memory.len()
+            || self.memory[idx].0 != reception.start
+        {
+            let volume = if idx == 0 {
+                0
+            } else {
+                self.memory[idx - 1].1
+            };
+
+            self.memory.insert(
+                idx,
+                (reception.start, volume),
+            );
+        }
+
+        let mut idx = 0;
+
+        while idx < self.memory.len()
+            && self.memory[idx].0 < release
+        {
+            idx += 1;
+        }
+
+        if idx == self.memory.len()
+            || self.memory[idx].0 != release
+        {
+            let volume = if idx == 0 {
+                0
+            } else {
+                self.memory[idx - 1].1
+            };
+
+            self.memory.insert(
+                idx,
+                (release, volume),
+            );
+        }
+
+        for idx in 0..self.memory.len() {
+            if self.memory[idx].0 >= reception.start
+                && self.memory[idx].0 < release
+            {
                 self.memory[idx].1 += bundle.size;
-                idx+= 1;
+            }
         }
 
-        if transmission.end < self.memory[idx].0 {
-            self.memory.insert(idx, (transmission.end, self.memory[idx - 1].1 - bundle.size));
-        }
-
+        Ok(())
     }
-    
-}
 }
