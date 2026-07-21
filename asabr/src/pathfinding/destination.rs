@@ -1,4 +1,5 @@
 extern crate alloc;
+
 use crate::{
     bundle::Bundle,
     contact_manager::{ContactManager, ContactManagerTxData},
@@ -10,7 +11,8 @@ use crate::{
     paths::PathFragment,
     types::Date,
 };
-use alloc::{boxed::Box, rc::Rc, vec};
+use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
+use itertools::Itertools;
 
 /// A Destination you can search paths for
 pub trait FindableDest<'id, NM: NodeManager, CM: ContactManager> {
@@ -173,7 +175,7 @@ impl<'id, CM: ContactManager> RoutableDest<'id, NoManagement, CM> for Dest<'id> 
             PathIterator<'id, 'a, PathFindingOutput<'id, 'a>>,
             PathFragment<'id>,
         ),
-        (),
+        (Vec<(usize, Vec<INodeRef<'id>>)>, PathFindingOutput<'id, 'a>),
     >
     where
         'id: 'a;
@@ -224,13 +226,13 @@ impl<'id, CM: ContactManager> RoutableDest<'id, NoManagement, CM> for Dest<'id> 
                     }
                 }
 
-                // let collect2 = Vec::with_capacity(inode_refs.len());
+                let mut collect2 = Vec::with_capacity(inode_refs.len());
                 for node in inode_refs.iter() {
-                    let next = usize::from(*node);
-                    while let Some((date, effective)) = collect[next] {
+                    let mut next = usize::from(*node);
+                    let last = loop {
+                        let (date, effective) = collect[next].unwrap();
                         if date == Date::MIN {
-                            // todo
-                            break;
+                            break effective;
                         }
                         let mut new = pathtree[effective].unwrap();
                         if let Some(via) = &mut new.via {
@@ -240,6 +242,7 @@ impl<'id, CM: ContactManager> RoutableDest<'id, NoManagement, CM> for Dest<'id> 
                                 .internal()
                                 .unwrap()
                                 .into();
+                            next = via.parent_frag;
                             graph[via.contact].schedule_tx(
                                 ContactManagerTxData {
                                     send: via.send,
@@ -247,61 +250,43 @@ impl<'id, CM: ContactManager> RoutableDest<'id, NoManagement, CM> for Dest<'id> 
                                 },
                                 bundle,
                             )?;
+                            if pathtree[via.parent_frag].unwrap().via.is_none() {
+                                break effective;
+                            }
                         }
                         pathtree[next] = Some(new);
+                    };
+                    collect2.push((*node, last));
+
+                    next = usize::from(*node);
+                    while let Some((date, effective)) = &mut collect[next] {
+                        if *date == Date::MIN {
+                            break;
+                        }
+                        *date = Date::MIN;
+                        if let Some(via) = pathtree[*effective].unwrap().via {
+                            next = via.parent_frag;
+                            *effective = last;
+                        } else {
+                            break;
+                        }
                     }
                 }
 
-                for (place, opt) in collect.into_iter().enumerate() {
-                    let new = if let Some((_, effective)) = opt {
-                        let mut new = unsafe { pathtree[effective].unwrap_unchecked() };
-                        if let Some(via) = &mut new.via {
-                            via.parent_frag = unsafe {
-                                pathtree[via.parent_frag]
-                                    .unwrap_unchecked()
-                                    .rx_node
-                                    .internal()
-                                    .unwrap_unchecked()
-                                    .into()
-                            };
-                            graph[via.contact].schedule_tx(
-                                ContactManagerTxData {
-                                    send: via.send,
-                                    recv: new.recv,
-                                },
-                                bundle,
-                            )?;
-                        }
-                        Some(new)
-                    } else {
-                        None
-                    };
-
-                    pathtree[place] = new;
-                }
                 if let PathFindingOutput {
                     path_tree: Either::Right(vec),
                 } = &mut pathtree
                 {
                     vec.truncate(graph.get_routable_count());
-                    vec.shrink_to_fit();
                 }
-                // let collect = Vec::with_capacity(inode_refs.len());
+                collect2.sort_unstable_by_key(|elt| elt.1);
 
-                for node in inode_refs.iter() {
-                    if let Some(p) = pathtree.full_path_rev((*node).into(), graph) {
-                        // extract
-                        let mut last = None;
-                        let mut p = p.peekable();
-                        while let Some(t) = p.next()
-                            && p.peek().is_some()
-                        {
-                            last = Some(t);
-                        }
-                        if let Some(_last) = last {}
-                    }
-                }
-                todo!()
+                let iter = collect2.into_iter().chunk_by(|elt| elt.1);
+                let final_co: Vec<_> = iter
+                    .into_iter()
+                    .map(|(key, group)| (key, group.map(|elt| elt.0).collect()))
+                    .collect();
+                Ok(Some(Either::Right((final_co, pathtree))))
             }
         }
     }

@@ -170,7 +170,10 @@ impl<'id, 'a> PathFindingOutput<'id, 'a> {
     pub fn as_vec(self) -> Vec<Option<PathFragment<'id>>> {
         match self.path_tree {
             Either::Left(value) => value.to_vec(),
-            Either::Right(vec) => vec,
+            Either::Right(mut vec) => {
+                vec.shrink_to_fit();
+                vec
+            }
         }
     }
     /// Intended for implementor of paths storage
