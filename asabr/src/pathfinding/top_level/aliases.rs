@@ -17,7 +17,7 @@ use crate::{
         Pathfinding,
         dijkstra_impl::{ContactParenting, HybridParenting, NodeParenting},
     },
-    route_storage::{Cached, cache::TreeCache, table::RoutingTable},
+    route_storage::{cache::TreeCache, table::RoutingTable},
 };
 #[allow(unused_imports)]
 use {super::cgr::Cgr, super::spsn::Spsn, super::volcgr::VolCgr};
@@ -164,25 +164,23 @@ pub unsafe fn build_generic_router<
     let multigraph = unsafe { Multigraph::new_unguarded(contact_plan) }?;
     let router = match router_type {
         "SpsnNodeParenting" => Box::new(SpsnNodeParenting::<PRIO_COUNT, NM, CM, _>::new(
-            Cached::new(TreeCache::new(&multigraph, 10), NodeParenting::new()),
+            (&multigraph, (10, ())).into(),
         )) as Box<dyn Pathfinding<'id, NM, CM, _> + 'id>,
         "SpsnNodeParentingHop" => Box::new(SpsnNodeParentingHop::<PRIO_COUNT, NM, CM, _>::new(
-            Cached::new(TreeCache::new(&multigraph, 10), NodeParenting::new()),
+            (&multigraph, (10, ())).into(),
         )),
         "SpsnHybridParenting" => Box::new(SpsnHybridParenting::<PRIO_COUNT, NM, CM, _>::new(
-            Cached::new(TreeCache::new(&multigraph, 10), HybridParenting::new()),
+            (&multigraph, (10, ())).into(),
         )),
         "SpsnHybridParentingHop" => Box::new(SpsnHybridParentingHop::<PRIO_COUNT, NM, CM, _>::new(
-            Cached::new(TreeCache::new(&multigraph, 10), HybridParenting::new()),
+            (&multigraph, (10, ())).into(),
         )),
         "SpsnContactParenting" => Box::new(SpsnContactParenting::<PRIO_COUNT, NM, CM, _>::new(
-            Cached::new(TreeCache::new(&multigraph, 10), ContactParenting::new()),
+            (&multigraph, (10, ())).into(),
         )),
-        "SpsnContactParentingHop" => {
-            Box::new(SpsnContactParentingHop::<PRIO_COUNT, NM, CM, _>::new(
-                Cached::new(TreeCache::new(&multigraph, 10), ContactParenting::new()),
-            ))
-        }
+        "SpsnContactParentingHop" => Box::new(
+            SpsnContactParentingHop::<PRIO_COUNT, NM, CM, _>::new((&multigraph, (10, ())).into()),
+        ),
         "VolCgrNodeParenting" => Box::new(VolCgrNodeParenting::new(
             RoutingTable::new(),
             NodeParenting::new(),

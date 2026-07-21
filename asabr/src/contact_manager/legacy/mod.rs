@@ -181,6 +181,7 @@ impl<const ADD_DELAY: bool, const AUTO_UPDATE: bool, const PRIO_COUNT: usize, co
         }
     }
 
+    #[inline(always)]
     fn dry_run_tx(
         &self,
         contact_lifespan: TimeInterval,

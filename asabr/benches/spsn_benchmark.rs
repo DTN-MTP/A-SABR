@@ -1,9 +1,11 @@
 use std::fs::File;
 
 use a_sabr::{
-    bundle::Bundle, contact_manager::segmentation::seg::SegmentationManager,
-    contact_plan::from_tvgutil_file::TVGUtilContactPlan, node_manager::none::NoManagement,
-    pathfinding::top_level::aliases::build_generic_router,
+    bundle::Bundle,
+    contact_manager::segmentation::seg::SegmentationManager,
+    contact_plan::from_tvgutil_file::TVGUtilContactPlan,
+    node_manager::none::NoManagement,
+    pathfinding::{destination::RoutableDest, top_level::aliases::build_generic_router},
 };
 use criterion::{BatchSize, Criterion, black_box, criterion_group, criterion_main};
 
@@ -20,47 +22,42 @@ pub fn benchmark(c: &mut Criterion) {
     let curr_time = 60;
 
     let mut router_types = vec![
-        "SpsnHybridParenting",
         "SpsnNodeParenting",
-        "SpsnHybridParentingHop",
+        "SpsnHybridParenting",
+        "SpsnContactParenting",
         "SpsnNodeParentingHop",
+        "SpsnHybridParentingHop",
+        "SpsnContactParentingHop",
     ];
 
-    router_types.extend(["SpsnContactParenting", "SpsnContactParentingHop"]);
-
     #[cfg(feature = "contact_suppression")]
     router_types.extend([
+        "CgrFirstEndingNodeParenting",
         "CgrFirstEndingHybridParenting",
-        "CgrFirstEndingNodeParentingHop",
-    ]);
-
-    #[cfg(feature = "first_depleted")]
-    router_types.extend([
-        "CgrFirstDepletedHybridParenting",
-        "CgrFirstDepletedNodeParenting",
-        "CgrFirstDepletedHybridParentingHop",
-        "CgrFirstDepletedNodeParentingHop",
-    ]);
-
-    #[cfg(feature = "contact_suppression")]
-    router_types.extend([
         "CgrFirstEndingContactParenting",
+        "CgrFirstEndingNodeParentingHop",
+        "CgrFirstEndingHybridParentingHop",
         "CgrFirstEndingContactParentingHop",
     ]);
+
     #[cfg(feature = "first_depleted")]
     router_types.extend([
+        "CgrFirstDepletedNodeParenting",
+        "CgrFirstDepletedHybridParenting",
         "CgrFirstDepletedContactParenting",
+        "CgrFirstDepletedNodeParentingHop",
+        "CgrFirstDepletedHybridParentingHop",
         "CgrFirstDepletedContactParentingHop",
     ]);
 
     router_types.extend([
-        "VolCgrHybridParenting",
         "VolCgrNodeParenting",
-        "VolCgrHybridParentingHop",
+        "VolCgrHybridParenting",
+        "VolCgrContactParenting",
         "VolCgrNodeParentingHop",
+        "VolCgrHybridParentingHop",
+        "VolCgrContactParentingHop",
     ]);
-
-    router_types.extend(["VolCgrContactParenting", "VolCgrContactParentingHop"]);
     let file = File::open(ptvg_filepath).unwrap();
     let json = serde_json::from_reader(file).unwrap();
     let contact_plan =
@@ -70,26 +67,33 @@ pub fn benchmark(c: &mut Criterion) {
 
     for router_type in router_types {
         group.bench_function(router_type, |b| {
-            b.iter_batched(
+            b.iter_batched_ref(
                 || match unsafe {
                     build_generic_router::<3, _, _>(router_type, contact_plan.clone())
                 } {
                     Ok((graph, router)) => {
                         let source = graph.node_id_ref(source).unwrap().try_into().unwrap();
-                        let dest = graph.node_id_ref(destinatation).unwrap();
+                        let dest = graph
+                            .node_id_ref(destinatation)
+                            .unwrap()
+                            .routable()
+                            .unwrap();
                         (graph, router, source, dest)
                     }
                     Err(err) => panic!("{}", err),
                 },
-                |(mut graph, mut router, source, dest)| {
-                    let _ = black_box(router.find_path(
-                        black_box(&mut graph),
-                        black_box(curr_time),
-                        black_box(source),
-                        black_box(&bundle),
-                        black_box(&mut dest.routable().unwrap()),
-                        black_box(None),
-                    ));
+                |(graph, router, source, dest)| {
+                    for _ in 0..100 {
+                        black_box(dest.route(
+                            black_box(graph),
+                            black_box(&bundle),
+                            black_box(&mut **router),
+                            black_box(curr_time),
+                            black_box(*source),
+                            black_box(None),
+                        ))
+                        .unwrap();
+                    }
                 },
                 BatchSize::SmallInput,
             );

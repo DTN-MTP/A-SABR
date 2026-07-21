@@ -14,7 +14,7 @@ use crate::{
     multigraph::{ContactRef, INodeRef, Multigraph, RealNodeRef, RoutableNodeRef},
     node_manager::NodeManager,
     parsing::Either,
-    pathfinding::destination::Destination,
+    pathfinding::destination::FindableDest,
     paths::{PathFragment, ViaHop},
     types::{Date, NodeID, TimeInterval},
 };
@@ -373,7 +373,7 @@ pub trait Pathfinding<
     'id,
     NM: NodeManager,
     CM: ContactManager,
-    D: Destination<'id, NM, CM> + ?Sized,
+    D: FindableDest<'id, NM, CM> + ?Sized,
 >
 {
     /// Determines the routing tree in the multigraph for the given bundle.

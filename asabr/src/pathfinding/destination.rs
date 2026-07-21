@@ -12,8 +12,8 @@ use crate::{
 };
 use alloc::{boxed::Box, rc::Rc, vec};
 
-/// Describes when a pathfinding search has reached its destination.
-pub trait Destination<'id, NM: NodeManager, CM: ContactManager> {
+/// A Destination you can search paths for
+pub trait FindableDest<'id, NM: NodeManager, CM: ContactManager> {
     /// A new pathfinding begin, reinit to a state of no reachable nodes
     fn reinit(&mut self);
     /// This node have been poped from disktra prio_queue, should we stop ?
@@ -34,6 +34,12 @@ pub trait Destination<'id, NM: NodeManager, CM: ContactManager> {
     /// Some pathfinder can provide performance improvement if this return Some
     /// Returning the same id for two different destination may however prevent the pathfinder from finding the best path (or a path at all)
     fn to_id(&self, graph: &Multigraph<'id, NM, CM>) -> Option<usize>;
+}
+
+/// A destination which can automatically handle complete routing
+pub trait RoutableDest<'id, NM: NodeManager, CM: ContactManager>:
+    FindableDest<'id, NM, CM>
+{
     type RoutingOutput<'a>
     where
         'id: 'a;
@@ -41,7 +47,7 @@ pub trait Destination<'id, NM: NodeManager, CM: ContactManager> {
         &mut self,
         graph: &mut Multigraph<'id, NM, CM>,
         bundle: &Bundle,
-        finder: &'a mut impl Pathfinding<'id, NM, CM, Self>,
+        finder: &'a mut (impl Pathfinding<'id, NM, CM, Self> + ?Sized),
         routing_time: Date,
         source: INodeRef<'id>,
         prune_time: Option<i64>,
@@ -82,7 +88,7 @@ pub fn classical_route<'id, 'a>(
     Ok(path.zip(last))
 }
 
-impl<'id, CM: ContactManager> Destination<'id, NoManagement, CM> for Dest<'id> {
+impl<'id, CM: ContactManager> FindableDest<'id, NoManagement, CM> for Dest<'id> {
     fn reinit(&mut self) {
         if let Self::MultiCast(_, reached, counter) = self {
             for r in reached.iter_mut() {
@@ -158,6 +164,9 @@ impl<'id, CM: ContactManager> Destination<'id, NoManagement, CM> for Dest<'id> {
             Dest::MultiCast(..) => None,
         }
     }
+}
+
+impl<'id, CM: ContactManager> RoutableDest<'id, NoManagement, CM> for Dest<'id> {
     type RoutingOutput<'a>
         = Either<
         (
@@ -172,7 +181,7 @@ impl<'id, CM: ContactManager> Destination<'id, NoManagement, CM> for Dest<'id> {
         &mut self,
         graph: &mut Multigraph<'id, NoManagement, CM>,
         bundle: &Bundle,
-        finder: &'a mut impl Pathfinding<'id, NoManagement, CM, Self>,
+        finder: &'a mut (impl Pathfinding<'id, NoManagement, CM, Self> + ?Sized),
         routing_time: Date,
         source: INodeRef<'id>,
         prune_time: Option<i64>,
@@ -214,6 +223,35 @@ impl<'id, CM: ContactManager> Destination<'id, NoManagement, CM> for Dest<'id> {
                         }
                     }
                 }
+
+                // let collect2 = Vec::with_capacity(inode_refs.len());
+                for node in inode_refs.iter() {
+                    let next = usize::from(*node);
+                    while let Some((date, effective)) = collect[next] {
+                        if date == Date::MIN {
+                            // todo
+                            break;
+                        }
+                        let mut new = pathtree[effective].unwrap();
+                        if let Some(via) = &mut new.via {
+                            via.parent_frag = pathtree[via.parent_frag]
+                                .unwrap()
+                                .rx_node
+                                .internal()
+                                .unwrap()
+                                .into();
+                            graph[via.contact].schedule_tx(
+                                ContactManagerTxData {
+                                    send: via.send,
+                                    recv: new.recv,
+                                },
+                                bundle,
+                            )?;
+                        }
+                        pathtree[next] = Some(new);
+                    }
+                }
+
                 for (place, opt) in collect.into_iter().enumerate() {
                     let new = if let Some((_, effective)) = opt {
                         let mut new = unsafe { pathtree[effective].unwrap_unchecked() };
@@ -248,7 +286,21 @@ impl<'id, CM: ContactManager> Destination<'id, NoManagement, CM> for Dest<'id> {
                     vec.truncate(graph.get_routable_count());
                     vec.shrink_to_fit();
                 }
-                for _node in inode_refs.iter() {}
+                // let collect = Vec::with_capacity(inode_refs.len());
+
+                for node in inode_refs.iter() {
+                    if let Some(p) = pathtree.full_path_rev((*node).into(), graph) {
+                        // extract
+                        let mut last = None;
+                        let mut p = p.peekable();
+                        while let Some(t) = p.next()
+                            && p.peek().is_some()
+                        {
+                            last = Some(t);
+                        }
+                        if let Some(_last) = last {}
+                    }
+                }
                 todo!()
             }
         }
@@ -300,7 +352,7 @@ impl<'id> Dest<'id> {
     }
 }
 
-impl<'id, NM: NodeManager, CM: ContactManager> Destination<'id, NM, CM> for INodeRef<'id> {
+impl<'id, NM: NodeManager, CM: ContactManager> FindableDest<'id, NM, CM> for INodeRef<'id> {
     #[inline(always)]
     fn reinit(&mut self) {}
 
@@ -327,6 +379,9 @@ impl<'id, NM: NodeManager, CM: ContactManager> Destination<'id, NM, CM> for INod
     fn to_id(&self, _graph: &Multigraph<'id, NM, CM>) -> Option<usize> {
         Some((*self).into())
     }
+}
+
+impl<'id, NM: NodeManager, CM: ContactManager> RoutableDest<'id, NM, CM> for INodeRef<'id> {
     type RoutingOutput<'a>
         = (
         PathIterator<'id, 'a, PathFindingOutput<'id, 'a>>,
@@ -338,7 +393,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> Destination<'id, NM, CM> for INod
         &mut self,
         graph: &mut Multigraph<'id, NM, CM>,
         bundle: &Bundle,
-        finder: &'a mut impl Pathfinding<'id, NM, CM, Self>,
+        finder: &'a mut (impl Pathfinding<'id, NM, CM, Self> + ?Sized),
         routing_time: Date,
         source: INodeRef<'id>,
         prune_time: Option<i64>,
@@ -348,7 +403,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> Destination<'id, NM, CM> for INod
     }
 }
 
-impl<'id, NM: NodeManager, CM: ContactManager> Destination<'id, NM, CM> for VNodeRef<'id> {
+impl<'id, NM: NodeManager, CM: ContactManager> FindableDest<'id, NM, CM> for VNodeRef<'id> {
     #[inline(always)]
     fn reinit(&mut self) {}
 
@@ -375,6 +430,9 @@ impl<'id, NM: NodeManager, CM: ContactManager> Destination<'id, NM, CM> for VNod
     fn to_id(&self, _graph: &Multigraph<'id, NM, CM>) -> Option<usize> {
         Some((*self).into())
     }
+}
+
+impl<'id, NM: NodeManager, CM: ContactManager> RoutableDest<'id, NM, CM> for VNodeRef<'id> {
     type RoutingOutput<'a>
         = (
         PathIterator<'id, 'a, PathFindingOutput<'id, 'a>>,
@@ -386,7 +444,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> Destination<'id, NM, CM> for VNod
         &mut self,
         graph: &mut Multigraph<'id, NM, CM>,
         bundle: &Bundle,
-        finder: &'a mut impl Pathfinding<'id, NM, CM, Self>,
+        finder: &'a mut (impl Pathfinding<'id, NM, CM, Self> + ?Sized),
         routing_time: Date,
         source: INodeRef<'id>,
         prune_time: Option<i64>,
@@ -396,7 +454,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> Destination<'id, NM, CM> for VNod
     }
 }
 
-impl<'id, NM: NodeManager, CM: ContactManager> Destination<'id, NM, CM> for RoutableNodeRef<'id> {
+impl<'id, NM: NodeManager, CM: ContactManager> FindableDest<'id, NM, CM> for RoutableNodeRef<'id> {
     #[inline(always)]
     fn reinit(&mut self) {}
 
@@ -409,10 +467,10 @@ impl<'id, NM: NodeManager, CM: ContactManager> Destination<'id, NM, CM> for Rout
     fn is_useful(&self, node: VNodeRef<'id>) -> bool {
         match self {
             RoutableNodeRef::I(inode_ref) => {
-                <INodeRef as Destination<NM, CM>>::is_useful(inode_ref, node)
+                <INodeRef as FindableDest<NM, CM>>::is_useful(inode_ref, node)
             }
             RoutableNodeRef::V(vnode_ref) => {
-                <VNodeRef as Destination<NM, CM>>::is_useful(vnode_ref, node)
+                <VNodeRef as FindableDest<NM, CM>>::is_useful(vnode_ref, node)
             }
         }
     }
@@ -429,6 +487,8 @@ impl<'id, NM: NodeManager, CM: ContactManager> Destination<'id, NM, CM> for Rout
     fn to_id(&self, graph: &Multigraph<'id, NM, CM>) -> Option<usize> {
         Some(graph.routable_to_usize(*self))
     }
+}
+impl<'id, NM: NodeManager, CM: ContactManager> RoutableDest<'id, NM, CM> for RoutableNodeRef<'id> {
     type RoutingOutput<'a>
         = (
         PathIterator<'id, 'a, PathFindingOutput<'id, 'a>>,
@@ -440,7 +500,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> Destination<'id, NM, CM> for Rout
         &mut self,
         graph: &mut Multigraph<'id, NM, CM>,
         bundle: &Bundle,
-        finder: &'a mut impl Pathfinding<'id, NM, CM, Self>,
+        finder: &'a mut (impl Pathfinding<'id, NM, CM, Self> + ?Sized),
         routing_time: Date,
         source: INodeRef<'id>,
         prune_time: Option<i64>,
@@ -453,7 +513,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> Destination<'id, NM, CM> for Rout
 /// Destination that keeps searching all useful routable nodes.
 pub struct All;
 
-impl<'id, CM: ContactManager> Destination<'id, NoManagement, CM> for All {
+impl<'id, NM: NodeManager, CM: ContactManager> FindableDest<'id, NM, CM> for All {
     #[inline(always)]
     fn reinit(&mut self) {}
 
@@ -471,14 +531,16 @@ impl<'id, CM: ContactManager> Destination<'id, NoManagement, CM> for All {
         _paths: &mut PathFindingOutput<'_, '_>,
         _time: Date,
         _bundle: &Bundle,
-        _graph: &Multigraph<'_, NoManagement, CM>,
+        _graph: &Multigraph<'_, NM, CM>,
     ) -> bool {
         true
     }
 
-    fn to_id(&self, _graph: &Multigraph<'_, NoManagement, CM>) -> Option<usize> {
+    fn to_id(&self, _graph: &Multigraph<'_, NM, CM>) -> Option<usize> {
         None
     }
+}
+impl<'id, CM: ContactManager> RoutableDest<'id, NoManagement, CM> for All {
     type RoutingOutput<'a>
         = PathFindingOutput<'id, 'a>
     where
@@ -487,7 +549,7 @@ impl<'id, CM: ContactManager> Destination<'id, NoManagement, CM> for All {
         &mut self,
         graph: &mut Multigraph<'id, NoManagement, CM>,
         bundle: &Bundle,
-        finder: &'a mut impl Pathfinding<'id, NoManagement, CM, Self>,
+        finder: &'a mut (impl Pathfinding<'id, NoManagement, CM, Self> + ?Sized),
         routing_time: Date,
         source: INodeRef<'id>,
         prune_time: Option<i64>,

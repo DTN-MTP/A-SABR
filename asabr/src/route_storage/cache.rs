@@ -10,7 +10,7 @@ use crate::{
     errors::ASABRError,
     multigraph::Multigraph,
     node_manager::NodeManager,
-    pathfinding::{PathFindingOutput, destination::Destination},
+    pathfinding::{PathFindingOutput, destination::FindableDest},
     types::{Date, Priority},
 };
 
@@ -44,7 +44,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> From<(&Multigraph<'id, NM, CM>, u
     }
 }
 
-impl<'id, NM: NodeManager, CM: ContactManager, D: Destination<'id, NM, CM>>
+impl<'id, NM: NodeManager, CM: ContactManager, D: FindableDest<'id, NM, CM>>
     PathsStorage<'id, NM, CM, D> for TreeCache<'id, NM, CM>
 {
     fn select<'a>(

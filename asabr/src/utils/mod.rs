@@ -12,7 +12,10 @@ use crate::{
     errors::ASABRError,
     multigraph::{INodeRef, Multigraph},
     node_manager::NodeManager,
-    pathfinding::{PathFindingOutput, Pathfinding, destination::Destination},
+    pathfinding::{
+        PathFindingOutput, Pathfinding,
+        destination::{FindableDest, RoutableDest},
+    },
     types::Date,
 };
 
@@ -84,7 +87,7 @@ pub struct Router<
     NM: NodeManager,
     CM: ContactManager,
     P: Pathfinding<'id, NM, CM, D>,
-    D: Destination<'id, NM, CM>,
+    D: FindableDest<'id, NM, CM>,
 > {
     pub multigraph: Multigraph<'id, NM, CM>,
     pub pathfinder: P,
@@ -96,7 +99,7 @@ impl<
     NM: NodeManager,
     CM: ContactManager,
     P: Pathfinding<'id, NM, CM, D>,
-    D: Destination<'id, NM, CM>,
+    D: RoutableDest<'id, NM, CM>,
 > Router<'id, NM, CM, P, D>
 {
     pub fn build<T>(
@@ -180,7 +183,7 @@ impl<
     NM: NodeManager,
     CM: ContactManager,
     P: Pathfinding<'id, NM, CM, D>,
-    D: Destination<'id, NM, CM>,
+    D: FindableDest<'id, NM, CM>,
 > Deref for Router<'id, NM, CM, P, D>
 {
     type Target = Multigraph<'id, NM, CM>;
@@ -194,7 +197,7 @@ impl<
     NM: NodeManager,
     CM: ContactManager,
     P: Pathfinding<'id, NM, CM, D>,
-    D: Destination<'id, NM, CM>,
+    D: FindableDest<'id, NM, CM>,
 > DerefMut for Router<'id, NM, CM, P, D>
 {
     fn deref_mut(&mut self) -> &mut <Router<'id, NM, CM, P, D> as Deref>::Target {

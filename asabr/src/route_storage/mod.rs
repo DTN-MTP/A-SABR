@@ -14,7 +14,7 @@ use crate::{
     errors::ASABRError,
     multigraph::{INodeRef, Multigraph},
     node_manager::NodeManager,
-    pathfinding::{PathFindingOutput, Pathfinding, destination::Destination},
+    pathfinding::{PathFindingOutput, Pathfinding, destination::FindableDest},
     types::{Date, Volume},
 };
 
@@ -23,7 +23,7 @@ use crate::{
 /// This trait defines methods for loading and storing pathfinding output
 /// related to routes in a routing system. Implementers of this trait must
 /// provide their own logic for handling route data.
-pub trait PathsStorage<'id, NM: NodeManager, CM: ContactManager, D: Destination<'id, NM, CM>> {
+pub trait PathsStorage<'id, NM: NodeManager, CM: ContactManager, D: FindableDest<'id, NM, CM>> {
     /// Loads a stored pathfinding output for a bundle and destination.
     ///
     /// # Parameters
@@ -66,7 +66,7 @@ pub trait PathsStorage<'id, NM: NodeManager, CM: ContactManager, D: Destination<
 /// Path storage implementation that never reuses routes.
 pub struct NoStorage;
 
-impl<'id, NM: NodeManager, CM: ContactManager, D: Destination<'id, NM, CM>>
+impl<'id, NM: NodeManager, CM: ContactManager, D: FindableDest<'id, NM, CM>>
     PathsStorage<'id, NM, CM, D> for NoStorage
 {
     fn select<'a>(
@@ -99,7 +99,7 @@ pub struct Cached<
     P: Pathfinding<'id, NM, CM, D>,
     NM: NodeManager,
     CM: ContactManager,
-    D: Destination<'id, NM, CM>,
+    D: FindableDest<'id, NM, CM>,
 > {
     cache: S,
     pathfinder: P,
@@ -112,7 +112,7 @@ impl<
     P: Pathfinding<'id, NM, CM, D>,
     NM: NodeManager,
     CM: ContactManager,
-    D: Destination<'id, NM, CM>,
+    D: FindableDest<'id, NM, CM>,
 > Pathfinding<'id, NM, CM, D> for Cached<'id, S, P, NM, CM, D>
 {
     fn find_path<'a>(
@@ -164,7 +164,7 @@ impl<
     P: Pathfinding<'id, NM, CM, D>,
     NM: NodeManager,
     CM: ContactManager,
-    D: Destination<'id, NM, CM>,
+    D: FindableDest<'id, NM, CM>,
 > Cached<'id, S, P, NM, CM, D>
 {
     /// Creates a cached pathfinder from storage and an inner pathfinder.
@@ -183,7 +183,7 @@ impl<
     P: Pathfinding<'id, NM, CM, D>,
     NM: NodeManager,
     CM: ContactManager,
-    D: Destination<'id, NM, CM>,
+    D: FindableDest<'id, NM, CM>,
     A,
     B,
 > From<(&Multigraph<'id, NM, CM>, (A, B))> for Cached<'id, S, P, NM, CM, D>
@@ -200,7 +200,7 @@ where
 #[derive(Debug, Default)]
 pub struct Guard<
     'id,
-    D: Destination<'id, NM, CM>,
+    D: FindableDest<'id, NM, CM>,
     const PRIO_COUNT: usize,
     NM: NodeManager,
     CM: ContactManager,
@@ -209,8 +209,13 @@ pub struct Guard<
     _phantom: PhantomData<fn(&'id (), D, NM, CM)>,
 }
 
-impl<'id, const PRIO_COUNT: usize, D: Destination<'id, NM, CM>, NM: NodeManager, CM: ContactManager>
-    Guard<'id, D, PRIO_COUNT, NM, CM>
+impl<
+    'id,
+    const PRIO_COUNT: usize,
+    D: FindableDest<'id, NM, CM>,
+    NM: NodeManager,
+    CM: ContactManager,
+> Guard<'id, D, PRIO_COUNT, NM, CM>
 {
     /// Creates an empty guard.
     pub fn new() -> Self {
@@ -248,7 +253,7 @@ pub struct Guarded<
     'id,
     const PRIO_COUNT: usize,
     P: Pathfinding<'id, NM, CM, D>,
-    D: Destination<'id, NM, CM>,
+    D: FindableDest<'id, NM, CM>,
     NM: NodeManager,
     CM: ContactManager,
 > {
@@ -261,7 +266,7 @@ impl<
     'id,
     const PRIO_COUNT: usize,
     P: Pathfinding<'id, NM, CM, D>,
-    D: Destination<'id, NM, CM>,
+    D: FindableDest<'id, NM, CM>,
     NM: NodeManager,
     CM: ContactManager,
 > Guarded<'id, PRIO_COUNT, P, D, NM, CM>
@@ -281,7 +286,7 @@ impl<
     P: Pathfinding<'id, NM, CM, D>,
     NM: NodeManager,
     CM: ContactManager,
-    D: Destination<'id, NM, CM>,
+    D: FindableDest<'id, NM, CM>,
     T,
     const PC: usize,
 > From<(&Multigraph<'id, NM, CM>, T)> for Guarded<'id, PC, P, D, NM, CM>
@@ -297,7 +302,7 @@ impl<
     'id,
     const PRIO_COUNT: usize,
     P: Pathfinding<'id, NM, CM, D>,
-    D: Destination<'id, NM, CM>,
+    D: FindableDest<'id, NM, CM>,
     NM: NodeManager,
     CM: ContactManager,
 > Pathfinding<'id, NM, CM, D> for Guarded<'id, PRIO_COUNT, P, D, NM, CM>

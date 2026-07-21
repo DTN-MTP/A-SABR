@@ -92,6 +92,7 @@ impl ContactManager for SegmentationManager {
     /// # Returns
     ///
     /// Optionally returns `ContactManagerTxData` with transmission start and end times, or `None` if the bundle can't be transmitted.
+    #[inline(always)]
     fn dry_run_tx(
         &self,
         _contact_data: TimeInterval,

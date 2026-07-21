@@ -12,6 +12,7 @@ use std::process::exit;
 use a_sabr::contact_plan::{ContactPlan, asabr_file_lexer};
 use a_sabr::multigraph::{Multigraph, NodeRef};
 use a_sabr::parsing::CMDynStandard;
+use a_sabr::pathfinding::top_level::spsn::AlwaysAll;
 use a_sabr::pathfinding::{HybridParenting, Pathfinding};
 use a_sabr::route_storage::Cached;
 use a_sabr::{
@@ -45,8 +46,10 @@ fn main() -> Result<(), ASABRError> {
     // We create a storage for the Paths
     let table = TreeCache::new(&multigraph, 10);
     // We initialize the routing algorithm with the storage and the contacts/nodes created thanks to the parser
-    let mut spsn =
-        SpsnHybridParenting::<3, _, _, _>::new(Cached::new(table, HybridParenting::new()));
+    let mut spsn = SpsnHybridParenting::<3, _, _, _>::new(Cached::new(
+        table,
+        AlwaysAll::new(HybridParenting::new()),
+    ));
 
     // We will route a bundle
     let b = Bundle {

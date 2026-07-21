@@ -4,7 +4,7 @@ use crate::{
     errors::ASABRError,
     multigraph::{INodeRef, Multigraph},
     node_manager::NodeManager,
-    pathfinding::{Pathfinding, destination::Destination},
+    pathfinding::{Pathfinding, destination::FindableDest},
     route_storage::PathsStorage,
     types::Date,
 };
@@ -20,7 +20,7 @@ pub struct Cgr<
     CM: ContactManager,
     P: Pathfinding<'id, NM, CM, D>,
     S: PathsStorage<'id, NM, CM, D>,
-    D: Destination<'id, NM, CM>,
+    D: FindableDest<'id, NM, CM>,
 > {
     storage: S,
     pathfinder: P,
@@ -34,7 +34,7 @@ impl<
     CM: ContactManager,
     P: Pathfinding<'id, NM, CM, D>,
     S: PathsStorage<'id, NM, CM, D>,
-    D: Destination<'id, NM, CM>,
+    D: FindableDest<'id, NM, CM>,
 > Pathfinding<'id, NM, CM, D> for Cgr<'id, NM, CM, P, S, D>
 {
     fn find_path(
@@ -97,7 +97,7 @@ impl<
     CM: ContactManager,
     P: Pathfinding<'id, NM, CM, D>,
     S: PathsStorage<'id, NM, CM, D>,
-    D: Destination<'id, NM, CM>,
+    D: FindableDest<'id, NM, CM>,
 > Cgr<'id, NM, CM, P, S, D>
 {
     /// Creates a CGR router from an inner pathfinder and storage backend.
@@ -115,7 +115,7 @@ impl<
     NM: NodeManager,
     CM: ContactManager,
     P: Pathfinding<'id, NM, CM, D>,
-    D: Destination<'id, NM, CM>,
+    D: FindableDest<'id, NM, CM>,
     S: PathsStorage<'id, NM, CM, D>,
     A,
     B,

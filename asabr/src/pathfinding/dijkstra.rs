@@ -9,7 +9,7 @@ use crate::{
     distance::{Distance, prio_queue::PrioQueue},
     multigraph::{INodeRef, Multigraph, RoutableNodeRef},
     node_manager::NodeManager,
-    pathfinding::{PathFindingOutput, Pathfinding, destination::Destination, try_make_hop},
+    pathfinding::{PathFindingOutput, Pathfinding, destination::FindableDest, try_make_hop},
     paths::PathFragment,
     types::Date,
 };
@@ -50,7 +50,7 @@ pub fn dijkstra<
     CM: ContactManager,
     W: DijkstraWorkspace<'id, NM, CM>,
     D: Distance<NM, CM>,
-    De: Destination<'id, NM, CM>,
+    De: FindableDest<'id, NM, CM>,
 >(
     multigraph: &mut Multigraph<'id, NM, CM>,
     current_time: Date,
@@ -158,7 +158,8 @@ pub struct Disktra<W, D> {
     _phantom: PhantomData<fn(W, D)>,
 }
 
-impl<'id, W, D, NM, CM, De: Destination<'id, NM, CM>> Pathfinding<'id, NM, CM, De> for Disktra<W, D>
+impl<'id, W, D, NM, CM, De: FindableDest<'id, NM, CM>> Pathfinding<'id, NM, CM, De>
+    for Disktra<W, D>
 where
     W: DijkstraWorkspace<'id, NM, CM>,
     D: Distance<NM, CM>,
