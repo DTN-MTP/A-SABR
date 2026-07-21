@@ -196,97 +196,21 @@ impl<'id, CM: ContactManager> RoutableDest<'id, NoManagement, CM> for Dest<'id> 
             Dest::VNode(vnode_ref) => {
                 classical_route(path, *vnode_ref, bundle, graph).map(|o| o.map(Either::Left))
             }
-            Dest::AllNodes() => todo!(),
+            Dest::AllNodes() => {
+                let collect = (0..graph.get_internal_count())
+                    .map(|idx| graph.node_id_ref(idx.into()).unwrap().internal().unwrap())
+                    .collect::<Vec<_>>();
+                let iter = collect.iter().copied();
+                multicast(graph, bundle, path, iter).map(|opt| opt.map(Either::Right))
+            }
             Dest::AnyCast(_inode_refs) => todo!(),
             Dest::MultiCast(inode_refs, _, counter) => {
-                if path.is_none() || *counter == 0 {
-                    return Ok(None);
+                if *counter == 0 {
+                    Ok(None)
+                } else {
+                    multicast(graph, bundle, path, inode_refs.iter().copied())
+                        .map(|opt| opt.map(Either::Right))
                 }
-                let mut pathtree = path.unwrap().into_owned();
-                let mut collect = vec![None; graph.get_internal_count()].into_boxed_slice();
-                for node in inode_refs.iter() {
-                    let mut next: usize = (*node).into();
-                    while let Some(PathFragment {
-                        via,
-                        recv: arrival_time,
-                        rx_node,
-                        ..
-                    }) = pathtree[next]
-                    {
-                        let opt = &mut collect[usize::from(rx_node.internal().unwrap())];
-                        if opt.is_none_or(|(time, _old)| time > arrival_time.end) {
-                            *opt = Some((arrival_time.end, next));
-                            match via {
-                                Some(via) => next = via.parent_frag,
-                                None => break,
-                            }
-                        } else {
-                            break;
-                        }
-                    }
-                }
-
-                let mut collect2 = Vec::with_capacity(inode_refs.len());
-                for node in inode_refs.iter() {
-                    let mut next = usize::from(*node);
-                    let last = loop {
-                        let (date, effective) = collect[next].unwrap();
-                        if date == Date::MIN {
-                            break effective;
-                        }
-                        let mut new = pathtree[effective].unwrap();
-                        if let Some(via) = &mut new.via {
-                            via.parent_frag = pathtree[via.parent_frag]
-                                .unwrap()
-                                .rx_node
-                                .internal()
-                                .unwrap()
-                                .into();
-                            next = via.parent_frag;
-                            graph[via.contact].schedule_tx(
-                                ContactManagerTxData {
-                                    send: via.send,
-                                    recv: new.recv,
-                                },
-                                bundle,
-                            )?;
-                            if pathtree[via.parent_frag].unwrap().via.is_none() {
-                                break effective;
-                            }
-                        }
-                        pathtree[next] = Some(new);
-                    };
-                    collect2.push((*node, last));
-
-                    next = usize::from(*node);
-                    while let Some((date, effective)) = &mut collect[next] {
-                        if *date == Date::MIN {
-                            break;
-                        }
-                        *date = Date::MIN;
-                        if let Some(via) = pathtree[*effective].unwrap().via {
-                            next = via.parent_frag;
-                            *effective = last;
-                        } else {
-                            break;
-                        }
-                    }
-                }
-
-                if let PathFindingOutput {
-                    path_tree: Either::Right(vec),
-                } = &mut pathtree
-                {
-                    vec.truncate(graph.get_routable_count());
-                }
-                collect2.sort_unstable_by_key(|elt| elt.1);
-
-                let iter = collect2.into_iter().chunk_by(|elt| elt.1);
-                let final_co: Vec<_> = iter
-                    .into_iter()
-                    .map(|(key, group)| (key, group.map(|elt| elt.0).collect()))
-                    .collect();
-                Ok(Some(Either::Right((final_co, pathtree))))
             }
         }
     }
@@ -527,7 +451,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> FindableDest<'id, NM, CM> for All
 }
 impl<'id, CM: ContactManager> RoutableDest<'id, NoManagement, CM> for All {
     type RoutingOutput<'a>
-        = PathFindingOutput<'id, 'a>
+        = (Vec<(usize, Vec<INodeRef<'id>>)>, PathFindingOutput<'id, 'a>)
     where
         'id: 'a;
     fn route<'a>(
@@ -539,7 +463,108 @@ impl<'id, CM: ContactManager> RoutableDest<'id, NoManagement, CM> for All {
         source: INodeRef<'id>,
         prune_time: Option<i64>,
     ) -> Result<Option<Self::RoutingOutput<'a>>, ASABRError> {
-        let _ = finder.find_path(graph, routing_time, source, bundle, self, prune_time);
-        Ok(None)
+        let path = finder.find_path(graph, routing_time, source, bundle, self, prune_time)?;
+        let collect = (0..graph.get_internal_count())
+            .map(|idx| graph.node_id_ref(idx.into()).unwrap().internal().unwrap())
+            .collect::<Vec<_>>();
+        let iter = collect.iter().copied();
+        multicast(graph, bundle, path, iter)
     }
+}
+
+#[allow(clippy::type_complexity)]
+fn multicast<'id, 'a>(
+    graph: &mut Multigraph<'id, impl NodeManager, impl ContactManager>,
+    bundle: &Bundle,
+    path: Option<PathFindingOutput<'id, 'a>>,
+    inode_refs: impl Clone + ExactSizeIterator<Item = INodeRef<'id>>,
+) -> Result<Option<(Vec<(usize, Vec<INodeRef<'id>>)>, PathFindingOutput<'id, 'a>)>, ASABRError> {
+    if path.is_none() {
+        return Ok(None);
+    }
+    let mut pathtree = path.unwrap().into_owned();
+    let mut collect = vec![None; graph.get_internal_count()].into_boxed_slice();
+    for node in inode_refs.clone() {
+        let mut next: usize = (node).into();
+        while let Some(PathFragment {
+            via,
+            recv: arrival_time,
+            rx_node,
+            ..
+        }) = pathtree[next]
+        {
+            let opt = &mut collect[usize::from(rx_node.internal().unwrap())];
+            if opt.is_none_or(|(time, _old)| time > arrival_time.end) {
+                *opt = Some((arrival_time.end, next));
+                match via {
+                    Some(via) => next = via.parent_frag,
+                    None => break,
+                }
+            } else {
+                break;
+            }
+        }
+    }
+
+    let mut collect2 = Vec::with_capacity(inode_refs.len());
+    for node in inode_refs {
+        let mut next = usize::from(node);
+        let last = loop {
+            let (date, effective) = collect[next].unwrap();
+            if date == Date::MIN {
+                break effective;
+            }
+            let mut new = pathtree[effective].unwrap();
+            if let Some(via) = &mut new.via {
+                via.parent_frag = pathtree[via.parent_frag]
+                    .unwrap()
+                    .rx_node
+                    .internal()
+                    .unwrap()
+                    .into();
+                next = via.parent_frag;
+                graph[via.contact].schedule_tx(
+                    ContactManagerTxData {
+                        send: via.send,
+                        recv: new.recv,
+                    },
+                    bundle,
+                )?;
+                if pathtree[via.parent_frag].unwrap().via.is_none() {
+                    break effective;
+                }
+            }
+            pathtree[next] = Some(new);
+        };
+        collect2.push((node, last));
+
+        next = usize::from(node);
+        while let Some((date, effective)) = &mut collect[next] {
+            if *date == Date::MIN {
+                break;
+            }
+            *date = Date::MIN;
+            if let Some(via) = pathtree[*effective].unwrap().via {
+                next = via.parent_frag;
+                *effective = last;
+            } else {
+                break;
+            }
+        }
+    }
+
+    if let PathFindingOutput {
+        path_tree: Either::Right(vec),
+    } = &mut pathtree
+    {
+        vec.truncate(graph.get_routable_count());
+    }
+    collect2.sort_unstable_by_key(|elt| elt.1);
+
+    let iter = collect2.into_iter().chunk_by(|elt| elt.1);
+    let final_co: Vec<_> = iter
+        .into_iter()
+        .map(|(key, group)| (key, group.map(|elt| elt.0).collect()))
+        .collect();
+    Ok(Some((final_co, pathtree)))
 }
