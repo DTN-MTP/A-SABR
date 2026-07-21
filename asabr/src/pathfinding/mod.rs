@@ -502,6 +502,15 @@ fn try_make_hop<'id, 'a, NM: NodeManager + 'a, CM: ContactManager, T: AsRef<Cont
         }
     }
 
+    // Former method for exp calcumation (more accurate)
+    //
+    // route_proposition.cumulative_delay =
+    //     sndr_route_borrowed.cumulative_delay + final_data.rx_end - final_data.tx_end;
+    // route_proposition.expiration = Date::min(
+    //     final_data.expiration - sndr_route_borrowed.cumulative_delay,
+    //     sndr_route_borrowed.expiration,
+    // );
+
     best.map(
         |Best {
              contact,
