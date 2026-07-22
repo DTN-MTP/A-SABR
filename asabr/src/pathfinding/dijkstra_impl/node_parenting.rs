@@ -76,6 +76,7 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> DijkstraWork
     fn node_check(&mut self, node: RoutableNodeRef<'id>, graph: &Multigraph<'id, NM, CM>) -> bool {
         !self.visited[graph.routable_to_usize(node)]
     }
+    #[inline(always)]
     fn poped_relevant_new(
         &mut self,
         frag: PathFragment<'id>,

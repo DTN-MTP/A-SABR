@@ -26,7 +26,7 @@ pub struct PSegmentationManager {
     /// A list of segments tracking the priority level booked for each time interval.
     booking: Vec<Segment<Priority>>,
     /// A list of segments representing different data rates during contact intervals.
-    rate_intervals: Vec<Segment<DataRate>>,
+    volume_intervals: Vec<Segment<DataRate>>,
     /// A list of segments representing delay times associated with different intervals.
     delay_intervals: Vec<Segment<Duration>>,
     #[cfg(feature = "first_depleted")]
@@ -37,14 +37,17 @@ pub struct PSegmentationManager {
 impl PSegmentationManager {
     /// Creates a priority-aware segmentation manager from rate and delay intervals.
     pub fn new(
-        rate_intervals: Vec<Segment<DataRate>>,
+        mut rate_intervals: Vec<Segment<DataRate>>,
         delay_intervals: Vec<Segment<Duration>>,
     ) -> Self {
+        for data in &mut rate_intervals {
+            data.val *= data.end - data.start
+        }
         let booking = Vec::new();
 
         Self {
             booking,
-            rate_intervals,
+            volume_intervals: rate_intervals,
             delay_intervals,
             #[cfg(feature = "first_depleted")]
             original_volume: 0,
@@ -120,7 +123,7 @@ impl ContactManager for PSegmentationManager {
                     tx_start = Date::max(seg.start, at_time);
                     // In most cases, there should be a single rate seg
                     if let Some(tx_end) = super::get_tx_end(
-                        &self.rate_intervals,
+                        &self.volume_intervals,
                         tx_start,
                         bundle.size,
                         contact_lifespan.end,
@@ -238,7 +241,7 @@ impl ContactManager for PSegmentationManager {
     /// Returns `true` if initialization is successful, or `false` if there are gaps in the intervals.
     fn try_init(&mut self, contact_data: &ContactInfo) -> bool {
         super::try_init(
-            &self.rate_intervals,
+            &self.volume_intervals,
             &self.delay_intervals,
             &mut self.booking,
             -1,

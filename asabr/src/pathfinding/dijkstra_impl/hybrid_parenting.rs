@@ -59,7 +59,6 @@ pub struct HybridParentingWorkArea<
 impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParentingOrd<NM, CM>>
     DijkstraWorkspace<'id, NM, CM> for HybridParentingWorkArea<'id, NM, CM, D>
 {
-    #[inline(always)]
     fn new(graph: &Multigraph<'id, NM, CM>) -> Self {
         Self {
             possible_paths: Vec::new(),
@@ -159,6 +158,7 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParen
     ) -> bool {
         true
     }
+    #[inline(always)]
     fn poped_relevant_new(
         &mut self,
         frag: PathFragment<'id>,

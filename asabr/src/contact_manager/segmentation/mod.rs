@@ -110,7 +110,7 @@ fn get_delays(
 /// - Intervals do not exactly match the contact window
 /// - `other_intervals` is not empty
 fn try_init<T>(
-    rate_intervals: &Vec<Segment<DataRate>>,
+    volume_intervals: &Vec<Segment<Volume>>,
     delay_intervals: &Vec<Segment<Duration>>,
     other_intervals: &mut Vec<Segment<T>>,
     default: T,
@@ -124,17 +124,17 @@ fn try_init<T>(
         *original_volume = 0;
     }
 
-    for inter in rate_intervals {
+    for inter in volume_intervals {
         if inter.start != time {
             return false;
         }
         time = inter.end;
         #[cfg(feature = "first_depleted")]
         {
-            *original_volume += (inter.end - inter.start) * inter.val;
+            *original_volume += inter.val;
         }
     }
-    let opt_rate_end = rate_intervals.last();
+    let opt_rate_end = volume_intervals.last();
     match opt_rate_end {
         Some(last_rate_seg) => {
             if last_rate_seg.end != info.end {
@@ -191,35 +191,84 @@ fn try_init<T>(
 /// Optionally returns the transmission end time `Date` or `None` if the volume cannot be transmitted by the deadline.
 #[inline(always)]
 fn get_tx_end(
-    rate_intervals: &Vec<Segment<DataRate>>,
-    mut at_time: Date,
+    volume_intervals: &[Segment<Volume>],
+    at_time: Date,
     mut volume: Volume,
     deadline: Date,
 ) -> Option<Date> {
-    for rate_seg in rate_intervals {
-        if rate_seg.end < at_time {
+    let mut iter = volume_intervals.iter();
+    for next in iter.by_ref() {
+        if next.end < at_time {
             continue;
-        }
+        } else {
+            let segment_volume = if next.start == at_time {
+                next.val
+            } else {
+                next.val * (next.end - at_time) / (next.end - next.start)
+            };
+            if segment_volume >= volume {
+                // volume / datarate = volume * (timespan / total volume)
+                let span = volume * (next.end - next.start) / next.val;
+                let fin = at_time + span;
+                if fin <= deadline {
+                    return Some(at_time + span);
+                } else {
+                    return None;
+                }
+            } else {
+                volume -= segment_volume
+            }
 
-        // try to get the volume from this segment
-        let tx_end = at_time + volume / rate_seg.val;
-        // do not exceed deadline (e.g. current available segment)
-        if tx_end > deadline {
+            break;
+        }
+    }
+    for next in iter {
+        if next.start > deadline {
             return None;
         }
-        // We exceeded the capacity of the segment
-        if tx_end > rate_seg.end {
-            // take everything by updating the remaining volume
-            volume -= rate_seg.val * (rate_seg.end - at_time);
-            // update at time for next segment
-            at_time = rate_seg.end;
-            continue;
+        if next.val >= volume {
+            // volume / datarate = volume * (timespan / total volume)
+            let span = volume * (next.end - next.start) / next.val;
+            let fin = next.start + span;
+            if fin <= deadline {
+                return Some(next.start + span);
+            } else {
+                return None;
+            }
+        } else {
+            volume -= next.val
         }
-        // transmission completed on this segment
-        return Some(tx_end);
     }
     // some volume was not transmitted
     None
+}
+
+fn get_volume(start: Date, end: Date, volume_intervals: &[Segment<Volume>]) -> Volume {
+    let mut volume = 0;
+    let mut iter = volume_intervals.iter().peekable();
+    while let Some(next) = iter.peek()
+        && next.end <= start
+    {
+        iter.next();
+    }
+    if let Some(next) = iter.next() {
+        if next.end >= end {
+            return next.val * (end - start) / (next.end - next.start);
+        } else {
+            volume += next.val * (next.end - start) / (next.end - next.start);
+        }
+    }
+    while let Some(next) = iter.peek()
+        && next.end <= end
+    {
+        volume += next.val;
+        iter.next();
+    }
+    if let Some(next) = iter.peek() {
+        volume += next.val * (end - next.start) / (next.end - next.start)
+    }
+
+    volume
 }
 
 /// Common constructor interface for segmentation managers.

@@ -1,4 +1,3 @@
-#[cfg(feature = "first_depleted")]
 use crate::types::Volume;
 use crate::{
     bundle::Bundle,
@@ -22,9 +21,9 @@ use alloc::{vec, vec::Vec};
 #[derive(Debug, Clone)]
 pub struct SegmentationManager {
     /// A list of segments representing free intervals available for transmission.
-    free_intervals: Vec<Segment<()>>,
+    free_intervals: Vec<Segment<Volume>>,
     /// A list of segments representing different data rates during contact intervals.
-    rate_intervals: Vec<Segment<DataRate>>,
+    volume_intervals: Vec<Segment<Volume>>,
     /// A list of segments representing delay times associated with different intervals.
     delay_intervals: Vec<Segment<Duration>>,
     #[cfg(feature = "first_depleted")]
@@ -54,14 +53,17 @@ impl SegmentationManager {
     ///
     /// A fully initialized [`SegmentationManager`].
     pub fn new(
-        rate_intervals: Vec<Segment<DataRate>>,
+        mut rate_intervals: Vec<Segment<DataRate>>,
         delay_intervals: Vec<Segment<Duration>>,
     ) -> Self {
         let free_intervals = Vec::new();
+        for data in &mut rate_intervals {
+            data.val *= data.end - data.start
+        }
 
         Self {
             free_intervals,
-            rate_intervals,
+            volume_intervals: rate_intervals,
             delay_intervals,
             #[cfg(feature = "first_depleted")]
             original_volume: 0,
@@ -100,29 +102,52 @@ impl ContactManager for SegmentationManager {
         bundle: &Bundle,
     ) -> Option<ContactManagerTxData> {
         let mut tx_start: Date;
-
-        for free_seg in &self.free_intervals {
-            if free_seg.end < at_time {
+        let mut iter = self.free_intervals.iter();
+        for next in iter.by_ref() {
+            if next.end < at_time {
                 continue;
+            } else {
+                tx_start = next.start.max(at_time);
+                if next.val >= bundle.size
+                    && let Some(tx_end) =
+                        super::get_tx_end(&self.volume_intervals, tx_start, bundle.size, next.end)
+                {
+                    let (d_start, d_end) =
+                        super::get_delays(tx_start, tx_end, &self.delay_intervals);
+                    return Some(ContactManagerTxData {
+                        send: TimeInterval {
+                            start: tx_start,
+                            end: tx_end,
+                        },
+                        recv: TimeInterval {
+                            start: tx_start + d_start,
+                            end: tx_end + d_end,
+                        },
+                    });
+                } else {
+                    break;
+                }
             }
-            tx_start = Date::max(free_seg.start, at_time);
-            let Some(tx_end) =
-                super::get_tx_end(&self.rate_intervals, tx_start, bundle.size, free_seg.end)
-            else {
-                continue;
-            };
+        }
 
-            let (d_start, d_end) = super::get_delays(tx_start, tx_end, &self.delay_intervals);
-            return Some(ContactManagerTxData {
-                send: TimeInterval {
-                    start: tx_start,
-                    end: tx_end,
-                },
-                recv: TimeInterval {
-                    start: tx_start + d_start,
-                    end: tx_end + d_end,
-                },
-            });
+        for free_seg in iter {
+            tx_start = free_seg.start;
+            if free_seg.val >= bundle.size
+                && let Some(tx_end) =
+                    super::get_tx_end(&self.volume_intervals, tx_start, bundle.size, free_seg.end)
+            {
+                let (d_start, d_end) = super::get_delays(tx_start, tx_end, &self.delay_intervals);
+                return Some(ContactManagerTxData {
+                    send: TimeInterval {
+                        start: tx_start,
+                        end: tx_end,
+                    },
+                    recv: TimeInterval {
+                        start: tx_start + d_start,
+                        end: tx_end + d_end,
+                    },
+                });
+            }
         }
         None
     }
@@ -144,7 +169,7 @@ impl ContactManager for SegmentationManager {
         &mut self,
         _contact_data: TimeInterval,
         tx_data: ContactManagerTxData,
-        _bundle: &Bundle,
+        bundle: &Bundle,
     ) -> Result<(), ASABRError> {
         let tx_start = tx_data.send.start;
         let tx_end = tx_data.send.end;
@@ -162,18 +187,22 @@ impl ContactManager for SegmentationManager {
         if interval.start != tx_start {
             let old_end = interval.end;
             interval.end = tx_start;
+            interval.val = super::get_volume(interval.start, interval.end, &self.volume_intervals);
+
             if interval.end != tx_end {
+                let volume = super::get_volume(tx_end, old_end, &self.volume_intervals);
                 self.free_intervals.insert(
                     index + 1,
                     Segment {
                         start: tx_end,
                         end: old_end,
-                        val: (),
+                        val: volume,
                     },
                 )
             }
         } else {
             interval.start = tx_end;
+            interval.val -= bundle.size
         }
         Ok(())
     }
@@ -189,10 +218,10 @@ impl ContactManager for SegmentationManager {
     /// Returns `true` if initialization is successful, or `false` if there are gaps in the intervals.
     fn try_init(&mut self, contact_data: &ContactInfo) -> bool {
         super::try_init(
-            &self.rate_intervals,
+            &self.volume_intervals,
             &self.delay_intervals,
             &mut self.free_intervals,
-            (),
+            self.volume_intervals.iter().map(|seg| seg.val).sum(),
             #[cfg(feature = "first_depleted")]
             &mut self.original_volume,
             contact_data,

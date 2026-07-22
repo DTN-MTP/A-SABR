@@ -47,7 +47,6 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> DijkstraWork
     for ContactParentingWorkArea<'id, NM, CM, D>
 {
     /// Constructs a new `ContactParenting` instance with the provided nodes and contacts.
-    #[inline(always)]
     fn new(graph: &Multigraph<'id, NM, CM>) -> Self {
         Self {
             possible_paths: Vec::new(),
@@ -122,6 +121,7 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> DijkstraWork
         Some(result)
     }
 
+    #[inline(always)]
     fn node_check(
         &mut self,
         _node: RoutableNodeRef<'id>,
@@ -129,6 +129,7 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> DijkstraWork
     ) -> bool {
         true
     }
+    #[inline(always)]
     fn poped_relevant_new(
         &mut self,
         frag: PathFragment<'id>,

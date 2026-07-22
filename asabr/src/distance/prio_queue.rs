@@ -18,12 +18,15 @@ pub struct PrioQueue<'id, D: Distance<NM, CM>, NM: NodeManager, CM: ContactManag
     _phantom: PhantomData<fn(&'id (), D, NM, CM)>,
 }
 
+// #[inline(always)]
 fn parent(i: usize) -> Option<usize> {
     if i == 0 { None } else { Some((i - 1) / 2) }
 }
+// #[inline(always)]
 fn left_child(i: usize) -> usize {
     2 * i + 1
 }
+// #[inline(always)]
 fn right_child(i: usize) -> usize {
     2 * i + 2
 }
@@ -45,6 +48,7 @@ impl<'id, D: Distance<NM, CM>, NM: NodeManager, CM: ContactManager, T: Copy>
             _phantom: PhantomData,
         }
     }
+    #[inline(always)]
     fn left_child(&self, i: usize) -> Option<usize> {
         let child = left_child(i);
         if child >= self.elts.len() {
@@ -53,6 +57,7 @@ impl<'id, D: Distance<NM, CM>, NM: NodeManager, CM: ContactManager, T: Copy>
             Some(child)
         }
     }
+    #[inline(always)]
     fn right_child(&self, i: usize) -> Option<usize> {
         let child = right_child(i);
         if child >= self.elts.len() {
@@ -63,6 +68,7 @@ impl<'id, D: Distance<NM, CM>, NM: NodeManager, CM: ContactManager, T: Copy>
     }
     /// Insert an element in the priority queue, sorting it by the distance D, requiring a reference to the graph to do the comparison.
     /// It is obviously a logic error to change the multigraph in a way wich change the distance while having a live queue
+    // #[inline(always)]
     pub fn insert(
         &mut self,
         elt: (PathFragment<'id>, T),
@@ -80,11 +86,13 @@ impl<'id, D: Distance<NM, CM>, NM: NodeManager, CM: ContactManager, T: Copy>
         self.elts[id] = elt;
     }
     /// Check the minimum element
+    #[inline(always)]
     pub fn peek_min(&self) -> Option<&(PathFragment<'id>, T)> {
         self.elts.first()
     }
     /// Pop the minimum element, returning it. Reorganize the queue according to the distance D, requiring a reference to the graph to do the comparison.
     /// It is obviously a logic error to change the multigraph in a way wich change the distance while having a live queue
+    #[inline(always)]
     pub fn pop_min(
         &mut self,
         graph: &Multigraph<'id, NM, CM>,
@@ -140,6 +148,7 @@ impl<'id, D: Distance<NM, CM>, NM: NodeManager, CM: ContactManager, T: Copy>
         }
     }
     /// Returns whether the priority queue contains no elements.
+    // #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.elts.is_empty()
     }
