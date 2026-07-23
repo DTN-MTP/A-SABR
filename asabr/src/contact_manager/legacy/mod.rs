@@ -19,41 +19,41 @@ pub(crate) mod test_helpers;
 
 #[derive(Debug, Clone, Copy)]
 /// A generic legacy volume manager. ETO, PB, ... are newtype on specialisation of this one
-struct VolumeManager<const PRIO_COUNT: usize, const BUDGETED: bool> {
+struct VolumeManager<const PRIO_COUNT: usize, const BUDGETED: usize> {
     rate: DataRate,
     delay: Duration,
     queue_size: [Volume; PRIO_COUNT],
-    budgets: [Volume; PRIO_COUNT],
+    budgets: [[Volume; PRIO_COUNT]; BUDGETED],
     original_volume: Volume,
 }
 
-impl<const PRIO_COUNT: usize> VolumeManager<PRIO_COUNT, false> {
+impl<const PRIO_COUNT: usize> VolumeManager<PRIO_COUNT, 0> {
     /// create a VolumeManager.
     pub fn new(rate: DataRate, delay: Duration) -> Self {
         Self {
             rate,
             delay,
             queue_size: [0; PRIO_COUNT],
-            budgets: [0; PRIO_COUNT],
+            budgets: [],
             original_volume: 0,
         }
     }
 }
 
-impl<const PRIO_COUNT: usize> VolumeManager<PRIO_COUNT, true> {
+impl<const PRIO_COUNT: usize> VolumeManager<PRIO_COUNT, 1> {
     /// create a VolumeManager.
     pub fn new(rate: DataRate, delay: Duration, budgets: [Volume; PRIO_COUNT]) -> Self {
         Self {
             rate,
             delay,
             queue_size: [0; PRIO_COUNT],
-            budgets,
+            budgets: [budgets],
             original_volume: 0,
         }
     }
 }
 
-impl<const PRIO_COUNT: usize, const BUDGETED: bool> VolumeManager<PRIO_COUNT, BUDGETED> {
+impl<const PRIO_COUNT: usize, const BUDGETED: usize> VolumeManager<PRIO_COUNT, BUDGETED> {
     #[inline(always)]
     fn get_queue_size(&self, bundle: &Bundle) -> Volume {
         self.queue_size[(bundle.priority as usize).min(PRIO_COUNT - 1)]
@@ -73,27 +73,27 @@ impl<const PRIO_COUNT: usize, const BUDGETED: bool> VolumeManager<PRIO_COUNT, BU
     }
     #[inline(always)]
     fn get_budget(&self, bundle: &Bundle) -> Volume {
-        if BUDGETED {
-            self.budgets[(bundle.priority as usize).min(PRIO_COUNT - 1)]
+        if BUDGETED == 1 {
+            self.budgets[0][(bundle.priority as usize).min(PRIO_COUNT - 1)]
         } else {
             self.original_volume
         }
     }
 }
 
-impl<const PC: usize> From<(DataRate, Duration)> for VolumeManager<PC, false> {
+impl<const PC: usize> From<(DataRate, Duration)> for VolumeManager<PC, 0> {
     fn from(value: (DataRate, Duration)) -> Self {
         Self::new(value.0, value.1)
     }
 }
-impl<const PC: usize> From<(DataRate, Duration, [Volume; PC])> for VolumeManager<PC, true> {
+impl<const PC: usize> From<(DataRate, Duration, [Volume; PC])> for VolumeManager<PC, 1> {
     fn from(value: (DataRate, Duration, [Volume; PC])) -> Self {
         Self::new(value.0, value.1, value.2)
     }
 }
 
 // inlined parse_transparent to template on cp. yup, ugly, i know.
-impl<const AD: bool, const AU: bool, const CP: usize> Parse for LegacyManager<AD, AU, CP, false> {
+impl<const AD: bool, const AU: bool, const CP: usize> Parse for LegacyManager<AD, AU, CP, 0> {
     type Token = <(DataRate, Duration) as Parse>::Token;
     type Parser = <(DataRate, Duration) as Parse>::Parser;
     fn parse(p: Self::Parser) -> Result<Self, &'static str> {
@@ -106,7 +106,7 @@ impl<const AD: bool, const AU: bool, const CP: usize> Parse for LegacyManager<AD
     }
 }
 impl<T: ?Sized, const AD: bool, const AU: bool, const PC: usize> LexFrom<T>
-    for LegacyManager<AD, AU, PC, false>
+    for LegacyManager<AD, AU, PC, 0>
 where
     (DataRate, Duration): LexFrom<T>,
 {
@@ -116,7 +116,7 @@ where
 }
 
 // inlined parse_transparent to template on cp. yup, ugly, i know.
-impl<const AD: bool, const AU: bool, const PC: usize> Parse for LegacyManager<AD, AU, PC, true> {
+impl<const AD: bool, const AU: bool, const PC: usize> Parse for LegacyManager<AD, AU, PC, 1> {
     type Token = <(DataRate, Duration, [Volume; PC]) as Parse>::Token;
     type Parser = <(DataRate, Duration, [Volume; PC]) as Parse>::Parser;
     fn parse(p: Self::Parser) -> Result<Self, &'static str> {
@@ -129,7 +129,7 @@ impl<const AD: bool, const AU: bool, const PC: usize> Parse for LegacyManager<AD
     }
 }
 impl<T: ?Sized, const AD: bool, const AU: bool, const PC: usize> LexFrom<T>
-    for LegacyManager<AD, AU, PC, true>
+    for LegacyManager<AD, AU, PC, 1>
 where
     (DataRate, Duration, [Volume; PC]): LexFrom<T>,
 {
@@ -156,10 +156,10 @@ pub struct LegacyManager<
     const ADD_DELAY: bool,
     const AUTO_UPDATE: bool,
     const PRIO_COUNT: usize,
-    const BUDGETED: bool,
+    const BUDGETED: usize,
 >(VolumeManager<PRIO_COUNT, BUDGETED>);
 
-impl<const ADD_DELAY: bool, const AUTO_UPDATE: bool, const PRIO_COUNT: usize, const BUDGETED: bool>
+impl<const ADD_DELAY: bool, const AUTO_UPDATE: bool, const PRIO_COUNT: usize, const BUDGETED: usize>
     ContactManager for LegacyManager<ADD_DELAY, AUTO_UPDATE, PRIO_COUNT, BUDGETED>
 {
     #[cfg(feature = "manual_queueing")]
@@ -242,7 +242,9 @@ impl<const ADD_DELAY: bool, const AUTO_UPDATE: bool, const PRIO_COUNT: usize, co
     }
 
     fn try_init(&mut self, contact_data: &ContactInfo) -> bool {
-        self.0.original_volume = (contact_data.end - contact_data.start) * self.0.rate;
+        {
+            self.0.original_volume = (contact_data.end - contact_data.start) * self.0.rate;
+        }
         true
     }
 
@@ -253,18 +255,18 @@ impl<const ADD_DELAY: bool, const AUTO_UPDATE: bool, const PRIO_COUNT: usize, co
 }
 
 impl<const ADD_DELAY: bool, const AUTO_UPDATE: bool, const PRIO_COUNT: usize>
-    LegacyManager<ADD_DELAY, AUTO_UPDATE, PRIO_COUNT, false>
+    LegacyManager<ADD_DELAY, AUTO_UPDATE, PRIO_COUNT, 0>
 {
     /// Creates a non-budgeted legacy manager.
     pub fn new(rate: DataRate, delay: Duration) -> Self {
-        LegacyManager(VolumeManager::<_, false>::new(rate, delay))
+        LegacyManager(VolumeManager::<_, 0>::new(rate, delay))
     }
 }
 impl<const ADD_DELAY: bool, const AUTO_UPDATE: bool, const PRIO_COUNT: usize>
-    LegacyManager<ADD_DELAY, AUTO_UPDATE, PRIO_COUNT, true>
+    LegacyManager<ADD_DELAY, AUTO_UPDATE, PRIO_COUNT, 1>
 {
     /// Creates a budgeted legacy manager.
     pub fn new(rate: DataRate, delay: Duration, budgets: [Volume; PRIO_COUNT]) -> Self {
-        LegacyManager(VolumeManager::<_, true>::new(rate, delay, budgets))
+        LegacyManager(VolumeManager::<_, 1>::new(rate, delay, budgets))
     }
 }

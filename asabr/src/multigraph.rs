@@ -21,9 +21,9 @@ use crate::types::*;
 use crate::{contact::Contact, parsing::Either};
 
 #[derive(Debug)]
-struct Neigbhoors<'id> {
-    reals: Vec<(INodeRef<'id>, Range<usize>)>,
-    virtuals: Vec<(VNodeRef<'id>, Vec<(RealNodeRef<'id>, usize)>)>,
+struct Neigbhoors {
+    reals: Range<usize>,
+    virtuals: Range<usize>,
 }
 
 /// Represents a multigraph structure, where each node can have multiple connections.
@@ -31,7 +31,12 @@ struct Neigbhoors<'id> {
 pub struct Multigraph<'id, NM: NodeManager, CM: ContactManager> {
     // TODO: better contact management.
     /// The list of node objects.
-    internal_nodes: Vec<(Node<NM>, Neigbhoors<'id>)>,
+    internal_nodes: Vec<(Node<NM>, Neigbhoors)>,
+
+    flat_rneigh_store: Vec<(INodeRef<'id>, Range<usize>)>,
+    flat_vneigh_store: Vec<(VNodeRef<'id>, Range<usize>)>,
+    flat_flat_vneigh_store: Vec<(RealNodeRef<'id>, usize)>,
+
     virtual_nodes: Vec<Vec<RealNodeRef<'id>>>,
     external_nodes: Vec<Node<NM>>,
     contacts: Vec<Contact<CM>>,
@@ -99,11 +104,11 @@ pub struct ContactRef<'id> {
     id: Id<'id>,
 }
 
-impl<'id> Neigbhoors<'id> {
+impl Neigbhoors {
     fn new() -> Self {
         Self {
-            reals: Vec::new(),
-            virtuals: Vec::new(),
+            reals: 0..0,
+            virtuals: 0..0,
         }
     }
 }
@@ -129,6 +134,9 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
         let mut r = Self {
             internal_nodes: Vec::with_capacity(realnodes.len()),
             external_nodes: Vec::with_capacity(realnodes.len()),
+            flat_rneigh_store: Vec::new(),
+            flat_vneigh_store: Vec::new(),
+            flat_flat_vneigh_store: Vec::new(),
             contacts: Vec::with_capacity(realnodes.len().next_power_of_two()),
             virtual_nodes: Vec::with_capacity(vnodes.len()),
             id,
@@ -172,6 +180,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
                 }
             }
         }
+        r.virtual_nodes.shrink_to_fit();
 
         // sort contacts by (tx,rx,start,end)
         contacts.sort_unstable_by_key(|contact| {
@@ -183,57 +192,73 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
             )
         });
 
-        let contact_groups = contacts.into_iter().chunk_by(|ct| (ct.1, ct.2));
+        let contact_groups = contacts.into_iter().chunk_by(|ct| ct.1);
 
-        for ((rx, tx), ct_g) in contact_groups.into_iter() {
-            if rx >= r.get_internal_count() || tx >= r.get_nonvirtualnode_count() {
+        let mut local_vnodes = vec![Vec::new(); r.get_vnode_count()];
+
+        for (tx, group) in contact_groups.into_iter() {
+            if tx >= r.get_internal_count() {
                 return Err(ASABRError::ContactPlanError("illegal node id for contact"));
             }
+            let rneig_group_start = r.flat_rneigh_store.len();
+            let vneig_group_start = r.flat_vneigh_store.len();
 
-            let start = r.contacts.len();
-            r.contacts.extend(ct_g.map(|ct| ct.0));
-            let end = r.contacts.len();
+            for (rx, contacts) in group.chunk_by(|ct| ct.2).into_iter() {
+                if rx >= r.get_nonvirtualnode_count() {
+                    return Err(ASABRError::ContactPlanError("illegal node id for contact"));
+                }
 
-            let tx_ref;
+                let start = r.contacts.len();
+                r.contacts.extend(contacts.map(|ct| ct.0));
+                let end = r.contacts.len();
 
-            if tx >= r.get_internal_count() {
-                // ENODE
-                tx_ref = RealNodeRef::E(ENodeRef {
-                    index: tx - r.get_internal_count(),
-                    id,
-                });
-            } else {
-                // INODE
-                tx_ref = RealNodeRef::I(INodeRef { index: tx, id });
+                let rx_ref;
 
-                r.internal_nodes[rx]
-                    .1
-                    .reals
-                    .push((INodeRef { index: tx, id }, start..end));
-            }
+                if rx >= r.get_internal_count() {
+                    // ENODE
+                    rx_ref = RealNodeRef::E(ENodeRef {
+                        index: rx - r.get_internal_count(),
+                        id,
+                    });
+                } else {
+                    // INODE
+                    rx_ref = RealNodeRef::I(INodeRef { index: rx, id });
 
-            let virtuals_neigh = &mut r.internal_nodes[rx].1.virtuals;
-            {
-                for vnode in node_vnode_members[tx].iter().copied() {
-                    match virtuals_neigh.iter_mut().find(|neig| neig.0.index == vnode) {
-                        Some(neig) => neig.1.extend((start..end).map(|idx| (tx_ref, idx))),
-                        None => {
-                            let neig = virtuals_neigh
-                                .push_mut((VNodeRef { index: vnode, id }, Vec::new()));
-                            neig.1.extend((start..end).map(|idx| (tx_ref, idx)))
-                        }
-                    }
+                    r.flat_rneigh_store
+                        .push((INodeRef { index: rx, id }, start..end));
+                }
+
+                for vnode in node_vnode_members[rx].iter() {
+                    local_vnodes[*vnode].push((start..end, rx_ref));
                 }
             }
-        }
+            for (index, vnode) in local_vnodes.iter_mut().enumerate() {
+                let start = r.flat_flat_vneigh_store.len();
 
-        for node in &mut r.internal_nodes {
-            for vneig in &mut node.1.virtuals {
-                vneig
-                    .1
-                    .sort_unstable_by_key(|elt| r.contacts[elt.1].lifespan);
+                for rnode in vnode.iter_mut() {
+                    for i in rnode.0.clone() {
+                        r.flat_flat_vneigh_store.push((rnode.1, i));
+                    }
+                }
+
+                let range = start..r.flat_flat_vneigh_store.len();
+
+                r.flat_flat_vneigh_store[range.clone()]
+                    .sort_unstable_by_key(|info| r.contacts[info.1].lifespan.start);
+                r.flat_vneigh_store.push((VNodeRef { index, id }, range));
+
+                vnode.clear();
+            }
+            r.internal_nodes[tx].1 = Neigbhoors {
+                reals: rneig_group_start..r.flat_rneigh_store.len(),
+                virtuals: vneig_group_start..r.flat_vneigh_store.len(),
             }
         }
+
+        r.flat_rneigh_store.shrink_to_fit();
+        r.flat_vneigh_store.shrink_to_fit();
+        r.flat_flat_vneigh_store.shrink_to_fit();
+        r.contacts.shrink_to_fit();
 
         Ok(r)
     }
@@ -408,11 +433,12 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
         >,
     ) {
         let (node, neigbhours) = &self.internal_nodes[noderef.index];
-        let neighboor_reals = neigbhours.reals.iter().map(|(neig, contacts)| {
+        let neighbour_reals = neigbhours.reals.clone().map(|idx| {
+            let neigh = &self.flat_rneigh_store[idx];
             (
-                *neig,
-                &self.internal_nodes[neig.index].0,
-                contacts.clone().map(|idx| {
+                neigh.0,
+                &self.internal_nodes[neigh.0.index].0,
+                neigh.1.clone().map(|idx| {
                     (
                         ContactRef {
                             index: idx,
@@ -423,24 +449,26 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
                 }),
             )
         });
-        let neighboor_virt = neigbhours.virtuals.iter().map(|(vnode, contacts)| {
+        let neighbour_virt = neigbhours.virtuals.clone().map(|idx| {
+            let neigh = &self.flat_vneigh_store[idx];
             (
-                *vnode,
-                contacts.iter().map(|(rnode, ct)| {
+                neigh.0,
+                neigh.1.clone().map(|idx_ff| {
+                    let ct = &self.flat_flat_vneigh_store[idx_ff];
                     (
-                        *rnode,
-                        &self[*rnode],
+                        ct.0,
+                        &self[ct.0],
                         ContactRef {
-                            index: *ct,
+                            index: ct.1,
                             id: self.id,
                         },
-                        &self.contacts[*ct],
+                        &self.contacts[ct.1],
                     )
                 }),
             )
         });
         // TODO: Fill the vnode iterator
-        (node, neighboor_reals, neighboor_virt)
+        (node, neighbour_reals, neighbour_virt)
     }
 
     ///for a given inode pair, iter on contacts between the two
@@ -450,7 +478,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
         rx: INodeRef<'id>,
     ) -> impl Iterator<Item = (ContactRef<'id>, &Contact<CM>)> {
         let id = self.id;
-        let arr = &self.internal_nodes[usize::from(tx)].1.reals;
+        let arr = &self.flat_rneigh_store[self.internal_nodes[usize::from(tx)].1.reals.clone()];
         match arr.binary_search_by_key(&rx, |elt| elt.0) {
             Ok(index) => Either::Left(
                 arr[index]
@@ -467,7 +495,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
         tx: INodeRef<'id>,
         rx: INodeRef<'id>,
     ) -> impl Iterator<Item = (ContactRef<'id>, &mut Contact<CM>)> {
-        let arr = &self.internal_nodes[usize::from(tx)].1.reals;
+        let arr = &self.flat_rneigh_store[self.internal_nodes[usize::from(tx)].1.reals.clone()];
         match arr.binary_search_by_key(&rx, |elt| elt.0) {
             Ok(index) => Either::Left({
                 let id = self.id;
@@ -611,15 +639,18 @@ impl<'id, NM: NodeManager, CM: ContactManager> Display for Multigraph<'id, NM, C
         writeln!(f, "\nIodes:")?;
         for rnode in self.internal_nodes.iter().enumerate() {
             writeln!(f, "id: {}", rnode.0)?;
-            for ctg in &rnode.1.1.reals {
+            for ctg in rnode.1.1.reals.clone() {
+                let ctg = &self.flat_rneigh_store[ctg];
                 writeln!(f, " -> node {} ", ctg.0.index)?;
                 for ct in &self.contacts[ctg.1.clone()] {
                     writeln!(f, "  - Contact during {} ", ct.lifespan)?;
                 }
             }
-            for ctg in &rnode.1.1.virtuals {
+            for ctg in rnode.1.1.virtuals.clone() {
+                let ctg = &self.flat_vneigh_store[ctg];
                 writeln!(f, " -> vnode {} ", ctg.0.index + self.get_routable_count())?;
-                for ct in &ctg.1 {
+                for ct in ctg.1.clone() {
+                    let ct = self.flat_flat_vneigh_store[ct];
                     writeln!(
                         f,
                         "  - Contact by {} during {} ",

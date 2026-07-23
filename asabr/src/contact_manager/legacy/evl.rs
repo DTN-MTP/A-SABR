@@ -1,11 +1,11 @@
 use crate::contact_manager::legacy::LegacyManager;
 
 /// EVL manager without priority or budget handling.
-pub type EVLManager = LegacyManager<false, true, 1, false>;
+pub type EVLManager = LegacyManager<false, true, 1, 0>;
 /// EVL manager with priority handling.
-pub type PEVLManager = LegacyManager<false, true, 3, false>;
+pub type PEVLManager = LegacyManager<false, true, 3, 0>;
 /// EVL manager with priority and budget handling.
-pub type PBEVLManager = LegacyManager<false, true, 3, true>;
+pub type PBEVLManager = LegacyManager<false, true, 3, 1>;
 #[cfg(test)]
 mod tests {
     use super::{EVLManager, PBEVLManager, PEVLManager};

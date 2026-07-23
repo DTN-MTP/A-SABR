@@ -13,7 +13,7 @@ use crate::{
 extern crate alloc;
 // used as macro and not module. poor detection
 #[allow(unused_imports)]
-use alloc::{vec, vec::Vec};
+use alloc::{boxed::Box, vec, vec::Vec};
 /// Manages contact segments, where each segment may have a distinct data rate and delay.
 ///
 /// The `SegmentationManager` uses different segments to manage free intervals, rate intervals, and delay intervals,
@@ -23,9 +23,9 @@ pub struct SegmentationManager {
     /// A list of segments representing free intervals available for transmission.
     free_intervals: Vec<Segment<Volume>>,
     /// A list of segments representing different data rates during contact intervals.
-    volume_intervals: Vec<Segment<Volume>>,
+    volume_intervals: Box<[Segment<Volume>]>,
     /// A list of segments representing delay times associated with different intervals.
-    delay_intervals: Vec<Segment<Duration>>,
+    delay_intervals: Box<[Segment<Duration>]>,
     #[cfg(feature = "first_depleted")]
     /// The total volume at initialization.
     original_volume: Volume,
@@ -63,8 +63,8 @@ impl SegmentationManager {
 
         Self {
             free_intervals,
-            volume_intervals: rate_intervals,
-            delay_intervals,
+            volume_intervals: rate_intervals.into(),
+            delay_intervals: delay_intervals.into(),
             #[cfg(feature = "first_depleted")]
             original_volume: 0,
         }

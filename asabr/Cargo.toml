@@ -27,6 +27,7 @@ manual_queueing = []
 
 [dev-dependencies]
 criterion = "0.3"
+trackalloc = "0.4.0"
 
 [[bench]]
 name = "spsn_benchmark"
@@ -55,3 +56,7 @@ path = "examples/contact_plans/contact_plans.rs"
 [[example]]
 name = "inter-regional_routing"
 path = "examples/inter-regional_routing/inter-regional_routing.rs"
+
+[[example]]
+name = "memtest"
+path = "examples/memtest/memtest.rs"

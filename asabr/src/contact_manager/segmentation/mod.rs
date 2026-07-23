@@ -48,7 +48,7 @@ parse_transparent!(Segment<Tt>,(Date,Date,Tt),Tt: Parse);
 fn get_delays(
     tx_start: Date,
     tx_end: Date,
-    delay_intervals: &Vec<Segment<Duration>>,
+    delay_intervals: &[Segment<Duration>],
 ) -> (Duration, Duration) {
     let mut i = 0;
     let mut start_delay = Duration::MAX;
@@ -110,8 +110,8 @@ fn get_delays(
 /// - Intervals do not exactly match the contact window
 /// - `other_intervals` is not empty
 fn try_init<T>(
-    volume_intervals: &Vec<Segment<Volume>>,
-    delay_intervals: &Vec<Segment<Duration>>,
+    volume_intervals: &[Segment<Volume>],
+    delay_intervals: &[Segment<Duration>],
     other_intervals: &mut Vec<Segment<T>>,
     default: T,
     #[cfg(feature = "first_depleted")] original_volume: &mut Volume,
