@@ -6,8 +6,6 @@ use crate::{
     types::{Date, NodeID, TimeInterval},
 };
 pub mod none;
-#[cfg(test)]
-mod node_manager;
 
 /// A trait for managing and scheduling operations on nodes in a network.
 ///

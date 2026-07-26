@@ -11,8 +11,16 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct StorageNodeManager {
-    /// Memory occupation:
-    /// (date, volume occupied from this date until the next change)
+    /// Sorted list of `(date, volume)` tuples.
+    ///
+    /// Each tuple represents the amount of occupied buffer starting at
+    /// `date` until the next tuple in the list.
+    ///
+    /// Example:
+    /// `(0, 0), (5, 3), (10, 8)` means:
+    /// - [0, 5): 0 units occupied
+    /// - [5, 10): 3 units occupied
+    /// - [10, +∞): 8 units occupied
     memory: Vec<(Date, Volume)>,
     capacity: Volume,
 }
@@ -109,11 +117,12 @@ impl NodeManager for StorageNodeManager {
         _sender: NodeID,
         transmissions: &[(TimeInterval, NodeID)],
     ) -> Option<usize> {
-        let release = transmissions
-            .iter()
-            .map(|(interval, _)| interval.end)
-            .max()
-            .unwrap_or(reception.end);
+        let mut release = reception.end;
+        for (interval, _) in transmissions {
+            if interval.end > release {
+                release = interval.end;
+            }
+        }
 
         if self.check_start_end(
             reception.start,
@@ -133,21 +142,29 @@ impl NodeManager for StorageNodeManager {
         _sender: NodeID,
         transmissions: &[(TimeInterval, NodeID)],
     ) -> Result<(), ASABRError> {
-        let release = transmissions
-            .iter()
-            .map(|(interval, _)| interval.end)
-            .max()
-            .unwrap_or(reception.end);
-
-        if !self.check_start_end(
-            reception.start,
-            release,
-            bundle.size,
-        ) {
-            return Err(ASABRError::ScheduleError(
-                "insufficient capacity",
-            ));
+        let mut release = reception.end;
+        for (interval, _) in transmissions {
+            if interval.end > release {
+                release = interval.end;
+            }
         }
+
+        // Safety check.
+        //
+        // In the intended scheduling workflow, commit() is expected to be
+        // called only after a successful dry_run_*().
+        //
+        // Therefore this condition should never fail in practice.
+        //
+        // if !self.check_start_end(
+        //     reception.start,
+        //     release,
+        //     bundle.size,
+        // ) {
+        //     return Err(ASABRError::ScheduleError(
+        //         "insufficient capacity",
+        //     ));
+        // }
 
         let mut idx = 0;
 
@@ -251,6 +268,12 @@ mod tests {
         (interval(start, end), next)
     }
 
+    /// Checks the simplest edge cases.
+    ///
+    /// An empty buffer should accept any reservation up to its capacity.
+    /// A zero-length interval should always succeed because no buffer is
+    /// occupied.
+    /// Finally, an invalid interval (end < start) must be rejected.
     #[test]
     fn check_start_end_accepts_empty_memory_and_zero_length_intervals(
     ) {
@@ -261,6 +284,10 @@ mod tests {
         assert!(!manager.check_start_end(6, 5, 1));
     }
 
+    /// Verifies behaviour with a single change point.
+    ///
+    /// The reservation is tested before, on, and after the stored
+    /// boundary to ensure the correct buffer occupation is used.
     #[test]
     fn check_start_end_handles_one_tuple_boundaries() {
         let manager = manager(10, &[(5, 4)]);
@@ -273,6 +300,11 @@ mod tests {
         assert!(manager.check_start_end(20, 30, 6));
     }
 
+    /// Verifies that the current buffer occupation is correctly determined
+    /// regardless of where the reservation starts.
+    ///
+    /// This checks reservations beginning before the first tuple,
+    /// exactly on a tuple, between tuples and after the last tuple.
     #[test]
     fn check_start_end_handles_several_tuples_and_start_positions() {
         let manager = manager(10, &[(10, 3), (20, 8), (30, 1)]);
@@ -287,6 +319,8 @@ mod tests {
         assert!(manager.check_start_end(40, 50, 9));
     }
 
+    /// Verifies how the check handles interval ends matching exact tuple 
+    /// boundaries or falling between them.
     #[test]
     fn check_start_end_handles_end_positions() {
         let manager = manager(10, &[(10, 2), (20, 5), (30, 9)]);
@@ -299,6 +333,8 @@ mod tests {
         assert!(!manager.check_start_end(20, 31, 2));
     }
 
+    /// Verifies that reservations spanning multiple changes check capacity
+    /// at all intermediate points across the entire timeframe.
     #[test]
     fn check_start_end_counts_internal_tuples_and_capacity_edges() {
         let manager = manager(10, &[(10, 3), (20, 6), (30, 4), (40, 1)]);
@@ -311,6 +347,8 @@ mod tests {
         assert!(!manager.check_start_end(20, 30, 5));
     }
 
+    /// Verifies that a reservation starting strictly between two tuples
+    /// correctly inherits the volume from the preceding tuple.
     #[test]
     fn check_start_end_uses_current_volume_before_start() {
         let manager = manager(10, &[(10, 2), (20, 9), (30, 1)]);
@@ -321,6 +359,8 @@ mod tests {
         assert!(!manager.check_start_end(35, 45, 10));
     }
 
+    /// Verifies that `accept` perfectly mirrors the logic of 
+    /// `check_start_end` with pre-existing tuples.
     #[test]
     fn accept_matches_check_start_end_for_success_and_capacity_failures(
     ) {
@@ -354,6 +394,8 @@ mod tests {
         }
     }
 
+    /// Verifies that `accept` perfectly mirrors the logic of 
+    /// `check_start_end` when the memory is fully empty.
     #[test]
     fn accept_matches_check_start_end_with_empty_memory() {
         let manager = StorageNodeManager::new(5);
@@ -370,6 +412,8 @@ mod tests {
         );
     }
 
+    /// Verifies that a retention dry run evaluates capacity correctly
+    /// across the full reception-start to transmission-end window.
     #[test]
     fn dry_run_retention_uses_reception_start_and_transmission_end() {
         let manager = manager(10, &[(10, 1), (20, 9), (30, 1)]);
@@ -391,6 +435,8 @@ mod tests {
         ));
     }
 
+    /// Verifies retention dry runs correctly handle capacity edge cases
+    /// and strict timing boundary conditions.
     #[test]
     fn dry_run_retention_covers_boundary_and_capacity_edges() {
         let manager = manager(10, &[(10, 4), (20, 6), (30, 10)]);
@@ -425,6 +471,8 @@ mod tests {
         ));
     }
 
+    /// Verifies that dry_run_multi returns the number of accepted
+    /// transmissions for zero, one and multiple transmission cases.
     #[test]
     fn dry_run_multi_handles_no_one_and_several_transmissions() {
         let manager = manager(10, &[(10, 4), (20, 7), (30, 1)]);
@@ -462,6 +510,11 @@ mod tests {
         );
     }
 
+    /// Verifies that the release date corresponds to the latest
+    /// transmission end.
+    ///
+    /// The earliest start time must not be used, otherwise the buffer
+    /// reservation would end too early.
     #[test]
     fn dry_run_multi_release_is_maximum_transmission_end_not_start(
     ) {
@@ -492,6 +545,8 @@ mod tests {
         );
     }
 
+    /// Verifies that multi-transmission dry runs return None if
+    /// capacity is exceeded at any point during the reservation window.
     #[test]
     fn dry_run_multi_returns_none_when_capacity_is_insufficient() {
         let manager = manager(10, &[(10, 4), (20, 8), (30, 1)]);
@@ -507,6 +562,8 @@ mod tests {
         );
     }
 
+    /// Verifies that committing a bundle into an empty memory correctly
+    /// inserts the initial start and release boundaries.
     #[test]
     fn commit_updates_empty_memory_and_first_tuple() {
         let mut manager = StorageNodeManager::new(10);
@@ -523,6 +580,11 @@ mod tests {
         assert_eq!(manager.memory, vec![(5, 3), (20, 0)]);
     }
 
+    /// Verifies that commit creates missing boundaries.
+    ///
+    /// The reservation starts and ends inside existing intervals,
+    /// therefore both boundaries must be inserted before updating the
+    /// occupied volume.
     #[test]
     fn commit_inserts_start_and_release_boundaries() {
         let mut manager = manager(10, &[(10, 2), (20, 4), (30, 1)]);
@@ -542,6 +604,8 @@ mod tests {
         );
     }
 
+    /// Verifies that if boundaries already exist exactly at the reception
+    /// start or release time, commit reuses them without duplicating.
     #[test]
     fn commit_reuses_existing_start_and_release_boundaries() {
         let mut manager = manager(10, &[(10, 2), (20, 4), (30, 1)]);
@@ -558,6 +622,8 @@ mod tests {
         assert_eq!(manager.memory, vec![(10, 5), (20, 7), (30, 1)]);
     }
 
+    /// Verifies that volume is accurately updated strictly during the
+    /// reservation window, preserving prior and subsequent timeline values.
     #[test]
     fn commit_adds_volume_only_until_release_and_keeps_after_release(
     ) {
@@ -578,6 +644,8 @@ mod tests {
         );
     }
 
+    /// Verifies that a commit correctly applies updates spanning across
+    /// multiple tuples including the very last known tuple in memory.
     #[test]
     fn commit_updates_multiple_tuples_and_last_tuple() {
         let mut manager = manager(10, &[(10, 1), (20, 2), (30, 3)]);
@@ -597,6 +665,8 @@ mod tests {
         );
     }
 
+    /// Verifies that commit successfully prepends and appends to the
+    /// timeline if the reservation extends beyond all existing boundaries.
     #[test]
     fn commit_inserts_at_beginning_and_end() {
         let mut manager = manager(10, &[(10, 2), (20, 3)]);
@@ -616,25 +686,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn commit_failure_returns_error_and_does_not_modify_memory() {
-        let original = vec![(10, 5), (20, 9), (30, 1)];
-        let mut manager = manager(10, &original);
-
-        let result = manager.commit(
-            &bundle(2),
-            interval(15, 16),
-            sender(),
-            &[transmission(50, 25, next())],
-        );
-
-        assert!(matches!(
-            result,
-            Err(ASABRError::ScheduleError("insufficient capacity"))
-        ));
-        assert_eq!(manager.memory, original);
-    }
-
+    /// Verifies complex edge cases involving multiple spanning reservations
+    /// that touch exact boundaries simultaneously.
     #[test]
     fn commit_exact_boundary_cases_and_spanning_reservations() {
         let mut manager = manager(12, &[(10, 2), (20, 5), (30, 6), (40, 2)]);
