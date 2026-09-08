@@ -4,9 +4,10 @@ use alloc::vec::Vec;
 
 use crate::{
     contact_manager::segmentation::{
-        Segment, pseg::PSegmentationManager, seg::SegmentationManager,
+        Segment, pseg::PSegmentationManager, seg::SegmentationManager, poly_seg::PolySegManager
     },
     parse_single_tok, parse_transparent,
+    poly::Polynome,
     types::{DataRate, Duration},
 };
 
@@ -17,6 +18,8 @@ pub enum Token {
     Rate,
     /// Delay section.
     Delay,
+    /// Polynomial section.
+    Poly,
 }
 
 parse_single_tok!(Token, Token);
@@ -27,6 +30,7 @@ impl TryFrom<&str> for Token {
         match value {
             "rate" => Ok(Token::Rate),
             "delay" => Ok(Token::Delay),
+            "poly" => Ok(Token::Poly),
             _ => Err(()),
         }
     }
@@ -34,6 +38,14 @@ impl TryFrom<&str> for Token {
 
 /// Parsed segmentation manager data.
 pub type SegmentInfo = (Token, Vec<Segment<Duration>>, Token, Vec<Segment<DataRate>>);
+
+pub const MAX_N: usize = 26;
+
+pub type PolyMax = Polynome<MAX_N>;
+parse_single_tok!(PolyMax);
+
+/// Parsed polynomial segmentation manager data.
+pub type PolySegmentInfo = (Token, Vec<Segment<Duration>>, Token, PolyMax);
 
 impl TryFrom<SegmentInfo> for SegmentationManager {
     type Error = ();
@@ -59,5 +71,19 @@ impl TryFrom<SegmentInfo> for PSegmentationManager {
         }
     }
 }
+
+impl TryFrom<PolySegmentInfo> for PolySegManager<MAX_N> {
+    type Error = ();
+    fn try_from(value: PolySegmentInfo) -> Result<Self, ()> {
+        match value {
+            // L'ordre (Delay, puis Poly) est strict selon PolySegmentInfo
+            (Token::Delay, delays, Token::Poly, poly) => {
+                Ok(PolySegManager::new(poly, delays))
+            }
+            _ => Err(()),
+        }
+    }
+}
 parse_transparent!(SegmentationManager, SegmentInfo);
 parse_transparent!(PSegmentationManager, SegmentInfo);
+parse_transparent!(PolySegManager<MAX_N>, PolySegmentInfo);
