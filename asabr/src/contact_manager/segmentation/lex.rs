@@ -8,7 +8,7 @@ use crate::{
     },
     parse_single_tok, parse_transparent,
     poly::Polynome,
-    types::{DataRate, Duration},
+    types::{DataRate, Duration, Date},
 };
 
 /// Tokens used to identify segmentation fields.
@@ -45,7 +45,7 @@ pub type PolyMax = Polynome<MAX_N>;
 parse_single_tok!(PolyMax);
 
 /// Parsed polynomial segmentation manager data.
-pub type PolySegmentInfo = (Token, Vec<Segment<Duration>>, Token, PolyMax);
+pub type PolySegmentInfo = (Token, Vec<Segment<Duration>>, Token, Vec<i64>, Date);
 
 impl TryFrom<SegmentInfo> for SegmentationManager {
     type Error = ();
@@ -76,8 +76,15 @@ impl TryFrom<PolySegmentInfo> for PolySegManager<MAX_N> {
     type Error = ();
     fn try_from(value: PolySegmentInfo) -> Result<Self, ()> {
         match value {
-            // L'ordre (Delay, puis Poly) est strict selon PolySegmentInfo
-            (Token::Delay, delays, Token::Poly, poly) => {
+            (Token::Delay, delays, Token::Poly, coeffs_vec, offset) => {
+                let mut coeffs = [0; MAX_N];
+                for (i, c) in coeffs_vec.into_iter().enumerate() {
+                    if i < MAX_N {
+                        coeffs[i] = c;
+                    }
+                }
+                
+                let poly = Polynome::new(coeffs, offset);
                 Ok(PolySegManager::new(poly, delays))
             }
             _ => Err(()),

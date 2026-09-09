@@ -177,7 +177,7 @@ mod tests {
         // Manager initialization
         let mut manager = PolySegManager::new(poly, delay_segments);
         let contact_info = ContactInfo::new(0.into(), 1.into(), 0, 200);
-        assert!(manager.try_init(&contact_info), "L'initialisation a échoué");
+        assert!(manager.try_init(&contact_info), "Initialization failed");
 
         // Creation of a packet of size 1000
         let bundle = Bundle {
@@ -189,18 +189,18 @@ mod tests {
         // dry_run test: the package should take 10 seconds (1000 / 100)
         let dry_run_res = manager.dry_run_tx(
             TimeInterval { start: 0, end: 200 },
-            0, // envoyé à T=0
+            0, // sent at T=0
             &bundle,
         );
 
-        assert!(dry_run_res.is_some(), "Le paquet devrait pouvoir passer");
+        assert!(dry_run_res.is_some(), "The bundle should be able to pass");
         let tx_data = dry_run_res.unwrap();
         
         // Verification of time windows
         assert_eq!(tx_data.send.start, 0);
         assert_eq!(tx_data.send.end, 10);
-        assert_eq!(tx_data.recv.start, 4); // start + délai
-        assert_eq!(tx_data.recv.end, 14); // end + délai
+        assert_eq!(tx_data.recv.start, 4); // start + delay
+        assert_eq!(tx_data.recv.end, 14); // end + delay
 
         // Schedule test: reserving the time
         let schedule_res = manager.schedule_tx(
@@ -208,7 +208,7 @@ mod tests {
             tx_data,
             &bundle,
         );
-        assert!(schedule_res.is_ok(), "Le scheduling a échoué");
+        assert!(schedule_res.is_ok(), "Scheduling failed");
 
         // Check of remaining free intervals: [10, 200] must remain.
         assert_eq!(manager.free_intervals.len(), 1);
@@ -218,40 +218,36 @@ mod tests {
 
     #[test]
     fn test_poly_segmentation_parabola() {
-        // Parsing the polynomial from a string (simulating the .cp file)
-        // P(t) = 10 + 0*t + 3*t^2, offset = 0
-        let poly_str = "[10 0 3] 0";
-        let poly = Polynome::<TEST_N>::try_from(poly_str).expect("Erreur de parsing de la chaîne");
-
-        // Strict parser validation
-        assert_eq!(poly.coefficients[0], 10);
-        assert_eq!(poly.coefficients[1], 0);
-        assert_eq!(poly.coefficients[2], 3);
-        assert_eq!(poly.coefficients[3], 0); // The others must be at 0
-        assert_eq!(poly.offset, 0);
+        // Manual initialization of the polynomial P(t) = 10 + 3*t^2, offset = 0
+        let mut coeffs = [0; TEST_N];
+        coeffs[0] = 10;
+        coeffs[1] = 0;
+        coeffs[2] = 3;
+        let poly = Polynome::new(coeffs, 0);
 
         // Manager initialization (network delay of 2 units)
         let delay_segments = vec![Segment { start: 0, end: 100, val: 2 }];
         let mut manager = PolySegManager::new(poly, delay_segments);
+
         let contact_info = ContactInfo::new(0.into(), 1.into(), 0, 100);
         assert!(manager.try_init(&contact_info));
 
         // Bundle creation (analytically calculated size: 104)
         let bundle = Bundle { priority: 1, size: 104, expiration: 1000 };
 
-        // Running the capacity prediction
+        // Capacity prediction execution
         let dry_run_res = manager.dry_run_tx(
             TimeInterval { start: 0, end: 100 },
-            0, // Début de l'envoi à T=0
+            0, // Start of transmission at T=0
             &bundle,
         );
 
-        // Verification of the integration engine and the dichotomy
-        assert!(dry_run_res.is_some(), "Le paquet devrait passer");
+        // Verification of the integration engine and dichotomy
+        assert!(dry_run_res.is_some(), "The bundle should pass");
         let tx_data = dry_run_res.unwrap();
         
         assert_eq!(tx_data.send.start, 0);
-        assert_eq!(tx_data.send.end, 4, "La dichotomie n'a pas trouvé la racine exacte du polynôme");
+        assert_eq!(tx_data.send.end, 4, "The dichotomy did not find the exact root of the polynomial");
         assert_eq!(tx_data.recv.start, 2); // 0 + delay(2)
         assert_eq!(tx_data.recv.end, 6);   // 4 + delay(2)
     }

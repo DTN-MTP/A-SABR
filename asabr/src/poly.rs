@@ -1,5 +1,4 @@
 use crate::types::{Date, Duration, Volume};
-use core::str::FromStr;
 
 #[derive(Debug, Clone)]
 pub struct Polynome<const N: usize> {
@@ -72,36 +71,3 @@ impl<const N: usize> Polynome<N>{
     }
 }
 
-impl<const N: usize> FromStr for Polynome<N> {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // Search for brackets containing the coefficients.
-        let start = s.find('[').ok_or(())?;
-        let end = s.find(']').ok_or(())?;
-        
-        let coeffs_str = &s[start + 1..end];
-        let mut coefficients = [0; N];
-        
-        // Extraction and conversion of coefficients
-        for (i, coeff) in coeffs_str.split_whitespace().enumerate() {
-            if i < N {
-                coefficients[i] = coeff.parse().map_err(|_| ())?;
-            }
-        }
-        
-        // The offset is located after the closing bracket.
-        let offset_str = s[end + 1..].trim();
-        let offset = offset_str.parse().map_err(|_| ())?;
-        
-        Ok(Polynome::new(coefficients, offset))
-    }
-}
-
-impl<const N: usize> TryFrom<&str> for Polynome<N> {
-    type Error = ();
-    
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
-        s.parse()
-    }
-}

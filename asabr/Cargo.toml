@@ -55,3 +55,7 @@ path = "examples/contact_plans/contact_plans.rs"
 [[example]]
 name = "inter-regional_routing"
 path = "examples/inter-regional_routing/inter-regional_routing.rs"
+
+[[example]]
+name = "polynomial_capacity"
+path = "examples/polynomial_capacity/polynomial_capacity.rs"
