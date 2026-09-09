@@ -13,7 +13,8 @@ pub mod lex;
 pub mod pseg;
 /// Basic segmentation manager.
 pub mod seg;
-
+/// Polynomial-based segmentation manager.
+pub mod poly_seg;
 /// A segment represents a time interval with an associated value of type `T`.
 #[derive(Debug, Clone, Copy)]
 pub struct Segment<T> {
@@ -25,14 +26,17 @@ pub struct Segment<T> {
     pub val: T,
 }
 
-impl<T> From<(Date, Date, T)> for Segment<T> {
-    fn from(value: (Date, Date, T)) -> Self {
-        let (start, end, val) = value;
+/// Tuple form used to parse a segment.
+pub type SegmentParse<T> = (Date, (Date, T));
+
+impl<T> From<SegmentParse<T>> for Segment<T> {
+    fn from(value: SegmentParse<T>) -> Self {
+        let (start, (end, val)) = value;
         Segment { start, end, val }
     }
 }
 
-parse_transparent!(Segment<Tt>,(Date,Date,Tt),Tt: Parse);
+parse_transparent!(Segment<Tt>,SegmentParse<Tt>,Tt: Parse);
 
 /// Determines the delay based on the transmission end time (`tx_end`) and the available delay intervals.
 ///
