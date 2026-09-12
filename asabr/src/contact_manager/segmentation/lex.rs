@@ -4,11 +4,11 @@ use alloc::vec::Vec;
 
 use crate::{
     contact_manager::segmentation::{
-        Segment, pseg::PSegmentationManager, seg::SegmentationManager, poly_seg::PolySegManager
+        Segment, poly_seg::PolySegManager, pseg::PSegmentationManager, seg::SegmentationManager,
     },
     parse_single_tok, parse_transparent,
     poly::Polynome,
-    types::{DataRate, Duration, Date},
+    types::{DataRate, Date, Duration},
 };
 
 /// Tokens used to identify segmentation fields.
@@ -83,7 +83,7 @@ impl TryFrom<PolySegmentInfo> for PolySegManager<MAX_N> {
                         coeffs[i] = c;
                     }
                 }
-                
+
                 let poly = Polynome::new(coeffs, offset);
                 Ok(PolySegManager::new(poly, delays))
             }

@@ -9,12 +9,12 @@ use crate::types::{DataRate, Date, Duration, Volume};
 
 /// Parsing support for segmentation managers.
 pub mod lex;
+/// Polynomial-based segmentation manager.
+pub mod poly_seg;
 /// Priority-aware segmentation manager.
 pub mod pseg;
 /// Basic segmentation manager.
 pub mod seg;
-/// Polynomial-based segmentation manager.
-pub mod poly_seg;
 /// A segment represents a time interval with an associated value of type `T`.
 #[derive(Debug, Clone, Copy)]
 pub struct Segment<T> {

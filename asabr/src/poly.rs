@@ -3,15 +3,18 @@ use crate::types::{Date, Duration, Volume};
 #[derive(Debug, Clone)]
 pub struct Polynome<const N: usize> {
     pub coefficients: [i64; N],
-    pub offset: Date
+    pub offset: Date,
 }
 
-impl<const N: usize> Polynome<N>{
-    pub fn new(coefficients: [i64;N], offset: Date) -> Self{
-        Self {coefficients, offset}
+impl<const N: usize> Polynome<N> {
+    pub fn new(coefficients: [i64; N], offset: Date) -> Self {
+        Self {
+            coefficients,
+            offset,
+        }
     }
 
-    pub fn evaluate_exact_integral(&self, x:Date) -> Volume{
+    pub fn evaluate_exact_integral(&self, x: Date) -> Volume {
         let x_offset: Duration = x - self.offset;
         self.coefficients
             .iter()
@@ -26,7 +29,7 @@ impl<const N: usize> Polynome<N>{
             })
     }
 
-    fn pow_simple(&self, base:Duration, exp:usize) -> i64{
+    fn pow_simple(&self, base: Duration, exp: usize) -> i64 {
         let mut res = 1;
         for _ in 0..exp {
             res *= base;
@@ -34,7 +37,7 @@ impl<const N: usize> Polynome<N>{
         res
     }
 
-    pub fn find_end_bundle(&self, tx:Date, rx:Date, x:Date, i_target:Volume) -> Option<Date> {
+    pub fn find_end_bundle(&self, tx: Date, rx: Date, x: Date, i_target: Volume) -> Option<Date> {
         if x < tx || x >= rx {
             return None;
         }
@@ -42,7 +45,7 @@ impl<const N: usize> Polynome<N>{
         let f_rx = self.evaluate_exact_integral(rx);
         let available_area: Volume = f_rx - f_x;
 
-        if i_target >= 0 && available_area < i_target{
+        if i_target >= 0 && available_area < i_target {
             return None;
         }
         if i_target < 0 && available_area > i_target {
@@ -65,9 +68,8 @@ impl<const N: usize> Polynome<N>{
             } else {
                 upper_bound = y - 1;
             }
-        } 
+        }
 
         Some(lower_bound)
     }
 }
-
