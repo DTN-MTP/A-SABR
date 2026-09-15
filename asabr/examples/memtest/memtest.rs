@@ -1,6 +1,5 @@
 use a_sabr::contact::Contact;
 use a_sabr::contact_manager::legacy::evl::EVLManager;
-use a_sabr::contact_manager::segmentation::seg::SegmentationManager;
 use std::alloc::System;
 use std::hint::black_box;
 

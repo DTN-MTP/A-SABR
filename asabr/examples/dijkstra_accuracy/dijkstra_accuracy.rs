@@ -28,7 +28,7 @@ fn edge_case_example(cp_path: &str, dest: NodeID) -> Result<(), ASABRError> {
         .internal()
         .ok_or(ASABRError::ContactPlanError("Not a internal Node"))?;
     let mut node_finder = NodeParenting::<SABR>::new();
-    let mut contact_finder = ContactParenting::<_, _, SABR>::new();
+    let mut contact_finder = ContactParenting::<_, _, SABR, _>::new();
     let mut mpt_finder = HybridParenting::<SABR, _, _>::new();
 
     println!(

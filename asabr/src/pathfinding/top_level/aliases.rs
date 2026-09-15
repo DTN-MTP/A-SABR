@@ -14,7 +14,7 @@ use crate::{
     multigraph::{Multigraph, RoutableNodeRef},
     node_manager::NodeManager,
     pathfinding::{
-        Pathfinding,
+        DestAll, Pathfinding,
         dijkstra_impl::{ContactParenting, HybridParenting, NodeParenting},
     },
     route_storage::{cache::TreeCache, table::RoutingTable},
@@ -31,8 +31,15 @@ pub type SpsnNodeParenting<'id, const PRIO_COUNT: usize, NM, CM, D> =
     Spsn<'id, PRIO_COUNT, NM, CM, NodeParenting<'id, SABR>, TreeCache<'id, NM, CM>, D>;
 
 /// SPSN router using SABR distance and contact parenting.
-pub type SpsnContactParenting<'id, const PRIO_COUNT: usize, NM, CM, D> =
-    Spsn<'id, PRIO_COUNT, NM, CM, ContactParenting<'id, NM, CM, SABR>, TreeCache<'id, NM, CM>, D>;
+pub type SpsnContactParenting<'id, const PRIO_COUNT: usize, NM, CM, D> = Spsn<
+    'id,
+    PRIO_COUNT,
+    NM,
+    CM,
+    ContactParenting<'id, NM, CM, SABR, DestAll>,
+    TreeCache<'id, NM, CM>,
+    D,
+>;
 
 /// VolCGR router using SABR distance and hybrid parenting.
 pub type VolCgrHybridParenting<'id, NM, CM, D> =
@@ -44,7 +51,7 @@ pub type VolCgrNodeParenting<'id, NM, CM, D> =
 
 /// VolCGR router using SABR distance and contact parenting.
 pub type VolCgrContactParenting<'id, NM, CM, D> =
-    VolCgr<'id, RoutingTable<'id, D, NM, CM>, ContactParenting<'id, NM, CM, SABR>, NM, CM, D>;
+    VolCgr<'id, RoutingTable<'id, D, NM, CM>, ContactParenting<'id, NM, CM, SABR, D>, NM, CM, D>;
 
 #[cfg(feature = "contact_suppression")]
 pub type CgrSupressorHybridParenting<'id, NM, CM, D> = Cgr<
@@ -71,7 +78,7 @@ pub type CgrSupressorContactParenting<'id, NM, CM, D> = Cgr<
     'id,
     NM,
     CM,
-    Suppressor<'id, ContactParenting<'id, NM, CM, SABR>, NM, CM>,
+    Suppressor<'id, ContactParenting<'id, NM, CM, SABR, D>, NM, CM>,
     RoutingTable<'id, D, NM, CM>,
     D,
 >;
@@ -85,8 +92,15 @@ pub type SpsnNodeParentingHop<'id, const PRIO_COUNT: usize, NM, CM, D> =
     Spsn<'id, PRIO_COUNT, NM, CM, NodeParenting<'id, Hop>, TreeCache<'id, NM, CM>, D>;
 
 /// SPSN router using hop distance and contact parenting.
-pub type SpsnContactParentingHop<'id, const PRIO_COUNT: usize, NM, CM, D> =
-    Spsn<'id, PRIO_COUNT, NM, CM, ContactParenting<'id, NM, CM, Hop>, TreeCache<'id, NM, CM>, D>;
+pub type SpsnContactParentingHop<'id, const PRIO_COUNT: usize, NM, CM, D> = Spsn<
+    'id,
+    PRIO_COUNT,
+    NM,
+    CM,
+    ContactParenting<'id, NM, CM, Hop, DestAll>,
+    TreeCache<'id, NM, CM>,
+    D,
+>;
 
 /// VolCGR router using hop distance and hybrid parenting.
 pub type VolCgrHybridParentingHop<'id, NM, CM, D> =
@@ -98,7 +112,7 @@ pub type VolCgrNodeParentingHop<'id, NM, CM, D> =
 
 /// VolCGR router using hop distance and contact parenting.
 pub type VolCgrContactParentingHop<'id, NM, CM, D> =
-    VolCgr<'id, RoutingTable<'id, D, NM, CM>, ContactParenting<'id, NM, CM, Hop>, NM, CM, D>;
+    VolCgr<'id, RoutingTable<'id, D, NM, CM>, ContactParenting<'id, NM, CM, Hop, D>, NM, CM, D>;
 
 #[cfg(feature = "contact_suppression")]
 pub type CgrSupressorHybridParentingHop<'id, NM, CM, D> = Cgr<
@@ -121,11 +135,11 @@ pub type CgrSupressorNodeParentingHop<'id, NM, CM, D> = Cgr<
 >;
 
 #[cfg(feature = "contact_suppression")]
-pub type CgrSupressorContactParentingHop<'id, NM, CM, D> = Cgr<
+pub type CgrSupressorContactParentingHop<'id, NM, CM, D, De> = Cgr<
     'id,
     NM,
     CM,
-    Suppressor<'id, ContactParenting<'id, NM, CM, Hop>, NM, CM>,
+    Suppressor<'id, ContactParenting<'id, NM, CM, Hop, De>, NM, CM>,
     RoutingTable<'id, D, NM, CM>,
     D,
 >;
@@ -163,9 +177,12 @@ pub unsafe fn build_generic_router<
 > {
     let multigraph = unsafe { Multigraph::new_unguarded(contact_plan) }?;
     let router = match router_type {
-        "SpsnNodeParenting" => Box::new(SpsnNodeParenting::<PRIO_COUNT, NM, CM, _>::new(
-            (&multigraph, (10, ())).into(),
-        )) as Box<dyn Pathfinding<'id, NM, CM, _> + 'id>,
+        "SpsnNodeParenting" => Box::new(
+            SpsnNodeParenting::<PRIO_COUNT, NM, CM, RoutableNodeRef<'id>>::new(
+                (&multigraph, (10, ())).into(),
+            ),
+        )
+            as Box<dyn Pathfinding<'id, NM, CM, RoutableNodeRef<'id>> + 'id>,
         "SpsnNodeParentingHop" => Box::new(SpsnNodeParentingHop::<PRIO_COUNT, NM, CM, _>::new(
             (&multigraph, (10, ())).into(),
         )),
@@ -175,9 +192,12 @@ pub unsafe fn build_generic_router<
         "SpsnHybridParentingHop" => Box::new(SpsnHybridParentingHop::<PRIO_COUNT, NM, CM, _>::new(
             (&multigraph, (10, ())).into(),
         )),
-        "SpsnContactParenting" => Box::new(SpsnContactParenting::<PRIO_COUNT, NM, CM, _>::new(
-            (&multigraph, (10, ())).into(),
-        )),
+        "SpsnContactParenting" => Box::new(SpsnContactParenting::<
+            PRIO_COUNT,
+            NM,
+            CM,
+            RoutableNodeRef<'id>,
+        >::new((&multigraph, (10, ())).into())),
         "SpsnContactParentingHop" => Box::new(
             SpsnContactParentingHop::<PRIO_COUNT, NM, CM, _>::new((&multigraph, (10, ())).into()),
         ),

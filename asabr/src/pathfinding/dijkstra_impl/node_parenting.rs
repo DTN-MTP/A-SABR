@@ -11,6 +11,7 @@ use crate::{
     node_manager::NodeManager,
     pathfinding::{
         PathFragment,
+        destination::FindableDest,
         dijkstra::{DijkstraWorkspace, Disktra},
     },
     paths::ViaHop,
@@ -36,8 +37,13 @@ pub struct NodeParentingWorkArea<'id, D> {
     _phantom: PhantomData<D>,
 }
 
-impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> DijkstraWorkspace<'id, NM, CM>
-    for NodeParentingWorkArea<'id, D>
+impl<
+    'id,
+    NM: NodeManager,
+    CM: ContactManager,
+    D: Distance<'id, NM, CM, De>,
+    De: FindableDest<'id, NM, CM>,
+> DijkstraWorkspace<'id, NM, CM, De> for NodeParentingWorkArea<'id, D>
 {
     fn new(graph: &Multigraph<'id, NM, CM>) -> Self {
         Self {
@@ -60,12 +66,12 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> DijkstraWork
         node: RoutableNodeRef<'id>,
         graph: &Multigraph<'id, NM, CM>,
         bundle: &Bundle,
+        destination: &De,
     ) -> Option<usize> {
         let dest = &mut self.paths[graph.routable_to_usize(node)];
-        if dest
-            .as_ref()
-            .is_none_or(|old| D::cmp(&proposition, old, graph, bundle) == Ordering::Less)
-        {
+        if dest.as_ref().is_none_or(|old| {
+            D::cmp(&proposition, old, graph, bundle, destination) == Ordering::Less
+        }) {
             *dest = Some(proposition);
             Some(graph.routable_to_usize(node))
         } else {
