@@ -13,6 +13,7 @@ use crate::{
     multigraph::{ContactRef, INodeRef, Multigraph, RoutableNodeRef},
     node_manager::NodeManager,
     pathfinding::{
+        destination::FindableDest,
         dijkstra::{DijkstraWorkspace, Disktra},
         flatten,
     },
@@ -29,10 +30,17 @@ use super::super::PathFindingOutput;
 ///
 /// * `NM` - A type that implements the `NodeManager` trait.
 /// * `CM` - A type that implements the `ContactManager` trait.
-pub type ContactParenting<'id, NM, CM, D> = Disktra<ContactParentingWorkArea<'id, NM, CM, D>, D>;
+pub type ContactParenting<'id, NM, CM, D, De> =
+    Disktra<ContactParentingWorkArea<'id, NM, CM, D, De>, D>;
 
 /// Not intended for public use, use `ContactParenting` directly
-pub struct ContactParentingWorkArea<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> {
+pub struct ContactParentingWorkArea<
+    'id,
+    NM: NodeManager,
+    CM: ContactManager,
+    D: Distance<'id, NM, CM, De>,
+    De: FindableDest<'id, NM, CM>,
+> {
     /// A vector storing all keeped path to a node without sorting for easy reference.
     possible_paths: Vec<PathFragment<'id>>,
     /// A vector containing (option of index of) pathfragment, to reach a given destination.
@@ -40,11 +48,16 @@ pub struct ContactParentingWorkArea<'id, NM: NodeManager, CM: ContactManager, D:
     by_dest_vnode: Vec<Option<usize>>,
     /// Visited contacts, grouped by node.
     visited: Vec<BTreeMap<ContactRef<'id>, usize>>,
-    _phantom: PhantomData<fn(NM, CM, D)>,
+    _phantom: PhantomData<fn(NM, CM, D, De)>,
 }
 
-impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> DijkstraWorkspace<'id, NM, CM>
-    for ContactParentingWorkArea<'id, NM, CM, D>
+impl<
+    'id,
+    NM: NodeManager,
+    CM: ContactManager,
+    D: Distance<'id, NM, CM, De>,
+    De: FindableDest<'id, NM, CM>,
+> DijkstraWorkspace<'id, NM, CM, De> for ContactParentingWorkArea<'id, NM, CM, D, De>
 {
     /// Constructs a new `ContactParenting` instance with the provided nodes and contacts.
     fn new(graph: &Multigraph<'id, NM, CM>) -> Self {
@@ -69,6 +82,7 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> DijkstraWork
         node: RoutableNodeRef<'id>,
         graph: &Multigraph<'id, NM, CM>,
         bundle: &Bundle,
+        dest: &De,
     ) -> Option<usize> {
         // println!("prop for {node}: {proposition}");
         let new_idx = self.possible_paths.len();
@@ -90,7 +104,7 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> DijkstraWork
                     }
                     Entry::Occupied(occupied_entry) => {
                         let old = *occupied_entry.get();
-                        if D::cmp(&proposition, &self.possible_paths[old], graph, bundle)
+                        if D::cmp(&proposition, &self.possible_paths[old], graph, bundle, dest)
                             == Ordering::Less
                         {
                             result = old;
@@ -108,8 +122,13 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> DijkstraWork
         };
         match for_node {
             Some(for_node) => {
-                if D::cmp(&proposition, &self.possible_paths[*for_node], graph, bundle)
-                    == Ordering::Less
+                if D::cmp(
+                    &proposition,
+                    &self.possible_paths[*for_node],
+                    graph,
+                    bundle,
+                    dest,
+                ) == Ordering::Less
                 {
                     *for_node = result;
                 }
@@ -172,7 +191,7 @@ mod tests {
     use crate::node_manager::none::NoManagement;
     use crate::pathfinding::ASABRError;
     use crate::pathfinding::test_helpers::*;
-    use crate::pathfinding::{Dest, DestAll, Pathfinding};
+    use crate::pathfinding::{Dest, DestAll, Pathfinding, destination::All};
     use generativity::make_guard;
 
     #[test]
@@ -197,7 +216,7 @@ mod tests {
 
         let bundle = make_bundle(2, 100, 2000);
 
-        let mut algo_hop = ContactParenting::<NoManagement, EVLManager, Hop>::new();
+        let mut algo_hop = ContactParenting::<NoManagement, EVLManager, Hop, All>::new();
         let mut dest = DestAll;
         let res_hop = algo_hop
             .find_path(&mut graph, 0, ref_0, &bundle, &mut dest, None)?
@@ -208,7 +227,7 @@ mod tests {
         assert_eq!(path_hop.recv.end, 4, "Hop: Expected arrival 4");
         assert_eq!(path_hop.hop_count, 2, "Hop: Expected 2 hops");
 
-        let mut algo_sabr = ContactParenting::<NoManagement, EVLManager, SABR>::new();
+        let mut algo_sabr = ContactParenting::<NoManagement, EVLManager, SABR, All>::new();
         let mut dest_sabr = DestAll;
         let res_sabr = algo_sabr
             .find_path(&mut graph, 0, ref_0, &bundle, &mut dest_sabr, None)?
@@ -246,7 +265,7 @@ mod tests {
 
         let bundle = make_bundle(2, 100, 2000);
 
-        let mut algo_hop = ContactParenting::<NoManagement, EVLManager, Hop>::new();
+        let mut algo_hop = ContactParenting::<NoManagement, EVLManager, Hop, All>::new();
         let mut dest = DestAll;
         let res_hop = algo_hop
             .find_path(&mut graph, 0, ref_0, &bundle, &mut dest, None)?
@@ -258,7 +277,7 @@ mod tests {
             "Hop: Node C should not be accessible without B"
         );
 
-        let mut algo_sabr = ContactParenting::<NoManagement, EVLManager, SABR>::new();
+        let mut algo_sabr = ContactParenting::<NoManagement, EVLManager, SABR, All>::new();
         let mut dest_sabr = DestAll;
         let res_sabr = algo_sabr
             .find_path(&mut graph, 0, ref_0, &bundle, &mut dest_sabr, None)?
@@ -302,7 +321,7 @@ mod tests {
 
         let bundle = make_bundle(2, 100, 2000);
 
-        let mut algo_hop = ContactParenting::<NoManagement, EVLManager, Hop>::new();
+        let mut algo_hop = ContactParenting::<NoManagement, EVLManager, Hop, Dest>::new();
         let mut dest = Dest::INode(ref_2);
         let res_hop = algo_hop
             .find_path(&mut graph, 0, ref_0, &bundle, &mut dest, None)?
@@ -312,7 +331,7 @@ mod tests {
             "Hop: Node C should not be accessible without B"
         );
 
-        let mut algo_sabr = ContactParenting::<NoManagement, EVLManager, SABR>::new();
+        let mut algo_sabr = ContactParenting::<NoManagement, EVLManager, SABR, Dest>::new();
         let mut dest_sabr = Dest::INode(ref_2);
         let res_sabr = algo_sabr
             .find_path(&mut graph, 0, ref_0, &bundle, &mut dest_sabr, None)?
@@ -346,7 +365,7 @@ mod tests {
 
         let bundle = make_bundle(2, 100, 2000);
 
-        let mut algo_hop = ContactParenting::<NoManagement, EVLManager, Hop>::new();
+        let mut algo_hop = ContactParenting::<NoManagement, EVLManager, Hop, All>::new();
         let mut dest_hop = DestAll;
         let res_hop = algo_hop
             .find_path(&mut graph, 0, ref_0, &bundle, &mut dest_hop, None)?
@@ -359,7 +378,7 @@ mod tests {
         );
         assert_eq!(path_hop.hop_count, 1, "Hop: Expected 1 hop");
 
-        let mut algo_sabr = ContactParenting::<NoManagement, EVLManager, SABR>::new();
+        let mut algo_sabr = ContactParenting::<NoManagement, EVLManager, SABR, All>::new();
         let mut dest_sabr = DestAll;
         let res_sabr = algo_sabr
             .find_path(&mut graph, 0, ref_0, &bundle, &mut dest_sabr, None)?
@@ -396,7 +415,7 @@ mod tests {
 
         let bundle = make_bundle(3, 0, 1000);
 
-        let mut algo_hop = ContactParenting::<NoManagement, EVLManager, Hop>::new();
+        let mut algo_hop = ContactParenting::<NoManagement, EVLManager, Hop, Dest>::new();
         let mut dest_hop = Dest::INode(ref_3);
         let res_hop = algo_hop
             .find_path(&mut graph, 0, ref_0, &bundle, &mut dest_hop, None)?
@@ -407,7 +426,7 @@ mod tests {
         assert_eq!(path_hop.recv.end, 30, "Hop: Expected arrival 30");
         assert_eq!(path_hop.hop_count, 2, "Hop: Expected 2 hops");
 
-        let mut algo_sabr = ContactParenting::<NoManagement, EVLManager, SABR>::new();
+        let mut algo_sabr = ContactParenting::<NoManagement, EVLManager, SABR, Dest>::new();
         let mut dest_sabr = Dest::INode(ref_3);
         let res_sabr = algo_sabr
             .find_path(&mut graph, 0, ref_0, &bundle, &mut dest_sabr, None)?
@@ -449,7 +468,7 @@ mod tests {
 
         let bundle = make_bundle(4, 0, 1000);
 
-        let mut algo_hop = ContactParenting::<NoManagement, EVLManager, Hop>::new();
+        let mut algo_hop = ContactParenting::<NoManagement, EVLManager, Hop, Dest>::new();
         let mut dest_hop = Dest::INode(ref_4);
         let res_hop = algo_hop
             .find_path(&mut graph, 0, ref_0, &bundle, &mut dest_hop, None)?
@@ -460,7 +479,7 @@ mod tests {
         assert_eq!(path_hop.recv.end, 50, "Hop: Expected arrival 50");
         assert_eq!(path_hop.hop_count, 3, "Hop: Expected 3 hops");
 
-        let mut algo_sabr = ContactParenting::<NoManagement, EVLManager, SABR>::new();
+        let mut algo_sabr = ContactParenting::<NoManagement, EVLManager, SABR, Dest>::new();
         let mut dest_sabr = Dest::INode(ref_4);
         let res_sabr = algo_sabr
             .find_path(&mut graph, 0, ref_0, &bundle, &mut dest_sabr, None)?

@@ -16,7 +16,8 @@ use crate::{
 
 /// Trait defining a custom DisktraWorkspace.
 /// implementing Pathfinding for T can then be done simply using the disktra function.
-pub trait DijkstraWorkspace<'id, NM: NodeManager, CM: ContactManager> {
+pub trait DijkstraWorkspace<'id, NM: NodeManager, CM: ContactManager, De: FindableDest<'id, NM, CM>>
+{
     /// Initialise this Workspace
     fn new(graph: &Multigraph<'id, NM, CM>) -> Self;
     /// Convert self into a (static, aka vector form) pathfinding output
@@ -29,6 +30,7 @@ pub trait DijkstraWorkspace<'id, NM: NodeManager, CM: ContactManager> {
         node: RoutableNodeRef<'id>,
         graph: &Multigraph<'id, NM, CM>,
         bundle: &Bundle,
+        dest: &De,
     ) -> Option<usize>;
     /// Check if it is usefull to consider new paths to this node.
     fn node_check(&mut self, node: RoutableNodeRef<'id>, graph: &Multigraph<'id, NM, CM>) -> bool;
@@ -48,8 +50,8 @@ pub fn dijkstra<
     'a,
     NM: NodeManager,
     CM: ContactManager,
-    W: DijkstraWorkspace<'id, NM, CM>,
-    D: Distance<NM, CM>,
+    W: DijkstraWorkspace<'id, NM, CM, De>,
+    D: Distance<'id, NM, CM, De>,
     De: FindableDest<'id, NM, CM>,
 >(
     multigraph: &mut Multigraph<'id, NM, CM>,
@@ -61,7 +63,8 @@ pub fn dijkstra<
 ) -> Option<PathFindingOutput<'id, 'a>> {
     let mut work_area = W::new(multigraph);
 
-    let mut prioqueue = PrioQueue::<'_, D, NM, CM, _>::with_capacity(multigraph.get_vertex_count());
+    let mut prioqueue =
+        PrioQueue::<'_, D, NM, CM, _, _>::with_capacity(multigraph.get_vertex_count());
 
     let mut reachable: usize = 1;
     let mut reached: usize = 0;
@@ -71,12 +74,18 @@ pub fn dijkstra<
     reachables[usize::from(source)] = true;
 
     let init_path = PathFragment::new_start(current_time, source.into());
-    let viaref = work_area.try_insert(init_path, RoutableNodeRef::I(source), multigraph, bundle)?;
+    let viaref = work_area.try_insert(
+        init_path,
+        RoutableNodeRef::I(source),
+        multigraph,
+        bundle,
+        dest,
+    )?;
 
-    prioqueue.insert((init_path, (viaref, None)), multigraph, bundle);
+    prioqueue.insert((init_path, (viaref, None)), multigraph, bundle, dest);
 
     while reachable > reached
-        && let Some((path, (viaref, isvnode))) = prioqueue.pop_min(multigraph, bundle)
+        && let Some((path, (viaref, isvnode))) = prioqueue.pop_min(multigraph, bundle, dest)
     {
         let node = match isvnode {
             Some(vnoderef) => RoutableNodeRef::V(vnoderef),
@@ -114,10 +123,14 @@ pub fn dijkstra<
                         reachable += 1;
                         reachables[usize::from(neighbor)] = true
                     }
-                    if let Some(viaref) =
-                        work_area.try_insert(path, RoutableNodeRef::I(neighbor), multigraph, bundle)
-                    {
-                        prioqueue.insert((path, (viaref, None)), multigraph, bundle);
+                    if let Some(viaref) = work_area.try_insert(
+                        path,
+                        RoutableNodeRef::I(neighbor),
+                        multigraph,
+                        bundle,
+                        dest,
+                    ) {
+                        prioqueue.insert((path, (viaref, None)), multigraph, bundle, dest);
                     }
                 }
             }
@@ -140,10 +153,19 @@ pub fn dijkstra<
                         reachable += 1;
                         reachables_v[usize::from(vnoderef)] = true
                     }
-                    if let Some(viaref) =
-                        work_area.try_insert(path, RoutableNodeRef::V(vnoderef), multigraph, bundle)
-                    {
-                        prioqueue.insert((path, (viaref, Some(vnoderef))), multigraph, bundle);
+                    if let Some(viaref) = work_area.try_insert(
+                        path,
+                        RoutableNodeRef::V(vnoderef),
+                        multigraph,
+                        bundle,
+                        dest,
+                    ) {
+                        prioqueue.insert(
+                            (path, (viaref, Some(vnoderef))),
+                            multigraph,
+                            bundle,
+                            dest,
+                        );
                     }
                 }
             }
@@ -161,8 +183,8 @@ pub struct Disktra<W, D> {
 impl<'id, W, D, NM, CM, De: FindableDest<'id, NM, CM>> Pathfinding<'id, NM, CM, De>
     for Disktra<W, D>
 where
-    W: DijkstraWorkspace<'id, NM, CM>,
-    D: Distance<NM, CM>,
+    W: DijkstraWorkspace<'id, NM, CM, De>,
+    D: Distance<'id, NM, CM, De>,
     CM: ContactManager,
     NM: NodeManager,
 {

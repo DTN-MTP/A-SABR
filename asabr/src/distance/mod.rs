@@ -4,7 +4,7 @@ use core::cmp::Ordering;
 
 use crate::{
     bundle::Bundle, contact_manager::ContactManager, multigraph::Multigraph,
-    node_manager::NodeManager, paths::PathFragment,
+    node_manager::NodeManager, pathfinding::destination::FindableDest, paths::PathFragment,
 };
 
 /// Hop-count distance metric.
@@ -20,11 +20,12 @@ pub mod sabr;
 /// - `NM`: A type that implements the `NodeManager` trait.
 /// - `CM`: A type that implements the `ContactManager` trait, representing the contact management
 ///   system used to manage and compare routes.
-pub trait Distance<NM, CM>
+pub trait Distance<'id, NM, CM, D>
 where
     Self: Sized,
     NM: NodeManager,
     CM: ContactManager,
+    D: FindableDest<'id, NM, CM>,
 {
     /// Compares the distances between two `RouteStage` instances.
     ///
@@ -41,11 +42,12 @@ where
     /// - `Ordering::Less` if `first` is shorter than `second`.
     /// - `Ordering::Equal` if `first` and `second` are the same.
     /// - `Ordering::Greater` if `first` is longer than `second`.
-    fn cmp<'id>(
+    fn cmp(
         first: &PathFragment<'id>,
         second: &PathFragment<'id>,
         graph: &Multigraph<'id, NM, CM>,
         bundle: &Bundle,
+        destination: &D,
     ) -> Ordering;
 }
 
