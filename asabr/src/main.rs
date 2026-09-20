@@ -48,16 +48,14 @@ fn main() -> Result<(), ASABRError> {
 
     make_guard!(id);
     let graph_spsn = Multigraph::new(id, contact_plan_spsn).unwrap();
-
-    mk_router!(
+    let mut spsn_router = mk_router!(
         id,
-        spsn_router,
         NoManagement,
         CMDynStandard,
         3,
         "SpsnHybridParenting",
         graph_spsn
-    );
+    )?;
 
     let Ok(NodeRef::I(spsn_source)) = spsn_router.node_id_ref(0.into()) else {
         panic!()
@@ -85,15 +83,14 @@ fn main() -> Result<(), ASABRError> {
     let contact_plan_volcgr = parse_cp(&args[1])?;
     make_guard!(id);
     let graph_cgr = Multigraph::new(id, contact_plan_volcgr).unwrap();
-    mk_router!(
+    let mut volcgr_router = mk_router!(
         id,
-        volcgr_router,
         NoManagement,
         CMDynStandard,
         3,
         "VolCgrHybridParenting",
         graph_cgr
-    );
+    )?;
 
     let Ok(NodeRef::I(volcgr_source)) = volcgr_router.node_id_ref(0.into()) else {
         panic!()
@@ -120,15 +117,14 @@ fn main() -> Result<(), ASABRError> {
     let contact_plan_firstending = parse_cp(&args[1])?;
     make_guard!(id);
     let graph_firstending = Multigraph::new(id, contact_plan_firstending).unwrap();
-    mk_router!(
+    let mut firstending_router = mk_router!(
         id,
-        firstending_router,
         NoManagement,
         CMDynStandard,
         3,
         "CgrFirstEndingHybridParenting",
         graph_firstending
-    );
+    )?;
 
     let Ok(NodeRef::I(fe_source)) = firstending_router.node_id_ref(0.into()) else {
         panic!()
