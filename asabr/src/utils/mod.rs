@@ -204,3 +204,28 @@ impl<
         &mut self.multigraph
     }
 }
+
+/// Builds a `Router` from an already-parsed `ContactPlan`.
+///
+/// This macro creates a generativity guard and builds the `Router`
+/// (multigraph + pathfinder) bound to the provided variable name.
+///
+/// Usage:
+///
+/// ```ignore
+/// mk_router!(router, NoManagement, CMDynStandard, SpsnHybridParenting<1, _, _, _>, RoutableNodeRef, contact_plan, (10, ()));
+/// ```
+///
+/// Type parameters, in order: `NM`, `CM`, `P` (pathfinder type), `D` (destination type).
+#[macro_export]
+macro_rules! mk_router {
+    ($router:ident, $NM:ty, $CM:ty, $P:ty, $D:ty, $contact_plan:expr, $pathfinder_args:expr) => {
+        $crate::utils::make_guard!($router);
+        #[allow(unused_mut)]
+        let mut $router = $crate::utils::Router::<$NM, $CM, $P, $D>::build(
+            $router,
+            $contact_plan,
+            $pathfinder_args,
+        )?;
+    };
+}
