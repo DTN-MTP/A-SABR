@@ -1,4 +1,3 @@
-//setup the allocator for the no-std lib
 use std::alloc::System;
 
 #[global_allocator]
@@ -10,72 +9,142 @@ use std::io::{BufRead, BufReader};
 use std::process::exit;
 
 use a_sabr::contact_plan::{ContactPlan, asabr_file_lexer};
+use a_sabr::mk_router;
 use a_sabr::multigraph::{Multigraph, NodeRef};
 use a_sabr::parsing::CMDynStandard;
-use a_sabr::pathfinding::top_level::spsn::AlwaysAll;
-use a_sabr::pathfinding::{HybridParenting, Pathfinding};
-use a_sabr::route_storage::Cached;
-use a_sabr::{
-    bundle::Bundle, errors::ASABRError, node_manager::none::NoManagement,
-    pathfinding::top_level::aliases::SpsnHybridParenting, route_storage::cache::TreeCache,
-};
+use a_sabr::{bundle::Bundle, errors::ASABRError, node_manager::none::NoManagement};
 use generativity::make_guard;
+
+fn parse_cp(path: &str) -> Result<ContactPlan<NoManagement, CMDynStandard>, ASABRError> {
+    let file = File::open(path).unwrap();
+
+    asabr_file_lexer::parse_from_iter(BufReader::new(file).lines().map(|r| {
+        r.map_err(|e| {
+            eprintln!("Error while reading file: {e}");
+            exit(-1)
+        })
+        .unwrap()
+    }))
+}
 
 fn main() -> Result<(), ASABRError> {
     let args: Vec<String> = env::args().collect();
+
     if args.len() < 2 {
         eprintln!("Usage: {} <cp_file>", args[0]);
         std::process::exit(1);
     }
+
     println!("Working with cp {}.", args[1]);
 
-    let file = File::open(&args[1]).unwrap();
-
-    // We parse the contact plan (A-SABR format)
-    let contact_plan: ContactPlan<NoManagement, CMDynStandard> =
-        asabr_file_lexer::parse_from_iter(BufReader::new(file).lines().map(|r| {
-            r.map_err(|e| {
-                eprintln!("Error while reading file: {e}");
-                exit(-1)
-            })
-            .unwrap()
-        }))?;
-    make_guard!(id_guard);
-    let mut multigraph = Multigraph::new(id_guard, contact_plan)?;
-
-    // We create a storage for the Paths
-    let table = TreeCache::new(&multigraph, 10);
-    // We initialize the routing algorithm with the storage and the contacts/nodes created thanks to the parser
-    let mut spsn = SpsnHybridParenting::<3, _, _, _>::new(Cached::new(
-        table,
-        AlwaysAll::new(HybridParenting::new()),
-    ));
-
-    // We will route a bundle
     let b = Bundle {
         priority: 0,
         size: 1,
         expiration: 10000,
     };
 
-    let Ok(NodeRef::I(source)) = multigraph.node_id_ref(0.into()) else {
+    // ---- SPSN ----
+    let contact_plan_spsn = parse_cp(&args[1])?;
+
+    make_guard!(id);
+    let graph_spsn = Multigraph::new(id, contact_plan_spsn).unwrap();
+    let mut spsn_router = mk_router!(
+        id,
+        NoManagement,
+        CMDynStandard,
+        3,
+        "SpsnHybridParenting",
+        graph_spsn
+    )?;
+
+    let Ok(NodeRef::I(spsn_source)) = spsn_router.node_id_ref(0.into()) else {
         panic!()
     };
-    let Ok(destination) = multigraph.node_id_ref(4.into()) else {
+
+    let Ok(spsn_dest) = spsn_router.node_id_ref(4.into()) else {
         return Err(ASABRError::ContactPlanError("No node number 4"));
     };
-    let mut destination = destination.routable()?;
 
-    // We schedule the bundle (resource updates were conducted)
-    let out = spsn.find_path(&mut multigraph, 0, source, &b, &mut destination, None)?;
+    let spsn_dest = spsn_dest.routable()?;
 
-    if let Some(out) = out {
-        println!("{:?}", out)
-        // for (_contact, dest_routes) in out.first_hops.values() {
-        //     for route_rc in dest_routes {
-        //         println!("{}", route_rc.borrow());
-        //     }
-        // }
+    // High-level route call returning (path_output, first_hop)
+    let out = spsn_router.route(spsn_dest, 0, spsn_source, &b, None)?;
+
+    println!("--- Spsn ---");
+    match out {
+        Some((path_output, first_hop)) => {
+            println!("Path Output: {:?}", path_output);
+            println!("First Hop: {:?}", first_hop);
+        }
+        None => println!("No route found."),
+    }
+
+    // ---- VolCgr ----
+    let contact_plan_volcgr = parse_cp(&args[1])?;
+    make_guard!(id);
+    let graph_cgr = Multigraph::new(id, contact_plan_volcgr).unwrap();
+    let mut volcgr_router = mk_router!(
+        id,
+        NoManagement,
+        CMDynStandard,
+        3,
+        "VolCgrHybridParenting",
+        graph_cgr
+    )?;
+
+    let Ok(NodeRef::I(volcgr_source)) = volcgr_router.node_id_ref(0.into()) else {
+        panic!()
+    };
+
+    let Ok(volcgr_dest) = volcgr_router.node_id_ref(4.into()) else {
+        return Err(ASABRError::ContactPlanError("No node number 4"));
+    };
+
+    let volcgr_dest = volcgr_dest.routable()?;
+
+    let out = volcgr_router.route(volcgr_dest, 0, volcgr_source, &b, None)?;
+
+    println!("--- VolCgr ---");
+    match out {
+        Some((path_output, first_hop)) => {
+            println!("Path Output: {:?}", path_output);
+            println!("First Hop: {:?}", first_hop);
+        }
+        None => println!("No route found."),
+    }
+
+    // ---- CGR FirstEnding ----
+    let contact_plan_firstending = parse_cp(&args[1])?;
+    make_guard!(id);
+    let graph_firstending = Multigraph::new(id, contact_plan_firstending).unwrap();
+    let mut firstending_router = mk_router!(
+        id,
+        NoManagement,
+        CMDynStandard,
+        3,
+        "CgrFirstEndingHybridParenting",
+        graph_firstending
+    )?;
+
+    let Ok(NodeRef::I(fe_source)) = firstending_router.node_id_ref(0.into()) else {
+        panic!()
+    };
+
+    let Ok(fe_dest) = firstending_router.node_id_ref(4.into()) else {
+        return Err(ASABRError::ContactPlanError("No node number 4"));
+    };
+
+    let fe_dest = fe_dest.routable()?;
+
+    let out = firstending_router.route(fe_dest, 0, fe_source, &b, None)?;
+
+    println!("--- CGR FirstEnding ---");
+    match out {
+        Some((path_output, first_hop)) => {
+            println!("Path Output: {:?}", path_output);
+            println!("First Hop: {:?}", first_hop);
+        }
+        None => println!("No route found."),
     }
 
     Ok(())
