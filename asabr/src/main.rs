@@ -1,4 +1,3 @@
-//setup the allocator for the no-std lib
 use std::alloc::System;
 
 #[global_allocator]
@@ -10,16 +9,22 @@ use std::io::{BufRead, BufReader};
 use std::process::exit;
 
 use a_sabr::contact_plan::{ContactPlan, asabr_file_lexer};
-use a_sabr::multigraph::{Multigraph, NodeRef};
+use a_sabr::mk_router;
+use a_sabr::multigraph::{NodeRef, RoutableNodeRef};
 use a_sabr::parsing::CMDynStandard;
-use a_sabr::pathfinding::top_level::spsn::AlwaysAll;
-use a_sabr::pathfinding::{HybridParenting, Pathfinding};
-use a_sabr::route_storage::Cached;
-use a_sabr::{
-    bundle::Bundle, errors::ASABRError, node_manager::none::NoManagement,
-    pathfinding::top_level::aliases::SpsnHybridParenting, route_storage::cache::TreeCache,
-};
-use generativity::make_guard;
+use a_sabr::pathfinding::top_level::aliases::{SpsnHybridParenting, VolCgrHybridParenting};
+use a_sabr::{bundle::Bundle, errors::ASABRError, node_manager::none::NoManagement};
+
+fn parse_cp(path: &str) -> Result<ContactPlan<NoManagement, CMDynStandard>, ASABRError> {
+    let file = File::open(path).unwrap();
+    asabr_file_lexer::parse_from_iter(BufReader::new(file).lines().map(|r| {
+        r.map_err(|e| {
+            eprintln!("Error while reading file: {e}");
+            exit(-1)
+        })
+        .unwrap()
+    }))
+}
 
 fn main() -> Result<(), ASABRError> {
     let args: Vec<String> = env::args().collect();
@@ -29,53 +34,64 @@ fn main() -> Result<(), ASABRError> {
     }
     println!("Working with cp {}.", args[1]);
 
-    let file = File::open(&args[1]).unwrap();
-
-    // We parse the contact plan (A-SABR format)
-    let contact_plan: ContactPlan<NoManagement, CMDynStandard> =
-        asabr_file_lexer::parse_from_iter(BufReader::new(file).lines().map(|r| {
-            r.map_err(|e| {
-                eprintln!("Error while reading file: {e}");
-                exit(-1)
-            })
-            .unwrap()
-        }))?;
-    make_guard!(id_guard);
-    let mut multigraph = Multigraph::new(id_guard, contact_plan)?;
-
-    // We create a storage for the Paths
-    let table = TreeCache::new(&multigraph, 10);
-    // We initialize the routing algorithm with the storage and the contacts/nodes created thanks to the parser
-    let mut spsn = SpsnHybridParenting::<3, _, _, _>::new(Cached::new(
-        table,
-        AlwaysAll::new(HybridParenting::new()),
-    ));
-
-    // We will route a bundle
     let b = Bundle {
         priority: 0,
         size: 1,
         expiration: 10000,
     };
 
-    let Ok(NodeRef::I(source)) = multigraph.node_id_ref(0.into()) else {
+    // ---- Spsn ----
+    let contact_plan_spsn = parse_cp(&args[1])?;
+    mk_router!(
+        spsn_router,
+        NoManagement,
+        CMDynStandard,
+        SpsnHybridParenting<3, _, _, _>,
+        RoutableNodeRef,
+        contact_plan_spsn,
+        (10, ())
+    );
+
+    let Ok(NodeRef::I(spsn_source)) = spsn_router.node_id_ref(0.into()) else {
         panic!()
     };
-    let Ok(destination) = multigraph.node_id_ref(4.into()) else {
+    let Ok(spsn_dest) = spsn_router.node_id_ref(4.into()) else {
         return Err(ASABRError::ContactPlanError("No node number 4"));
     };
-    let mut destination = destination.routable()?;
+    let spsn_dest = spsn_dest.routable()?;
 
-    // We schedule the bundle (resource updates were conducted)
-    let out = spsn.find_path(&mut multigraph, 0, source, &b, &mut destination, None)?;
+    let out = spsn_router.find_path(spsn_dest, 0, spsn_source, &b, None)?;
+    println!("--- Spsn ---");
+    match out {
+        Some(out) => println!("{:?}", out),
+        None => println!("No route found."),
+    }
 
-    if let Some(out) = out {
-        println!("{:?}", out)
-        // for (_contact, dest_routes) in out.first_hops.values() {
-        //     for route_rc in dest_routes {
-        //         println!("{}", route_rc.borrow());
-        //     }
-        // }
+    // ---- VolCgr ----
+    let contact_plan_volcgr = parse_cp(&args[1])?;
+    mk_router!(
+        volcgr_router,
+        NoManagement,
+        CMDynStandard,
+        VolCgrHybridParenting<_, _, _>,
+        RoutableNodeRef,
+        contact_plan_volcgr,
+        ((),())
+    );
+
+    let Ok(NodeRef::I(volcgr_source)) = volcgr_router.node_id_ref(0.into()) else {
+        panic!()
+    };
+    let Ok(volcgr_dest) = volcgr_router.node_id_ref(4.into()) else {
+        return Err(ASABRError::ContactPlanError("No node number 4"));
+    };
+    let volcgr_dest = volcgr_dest.routable()?;
+
+    let out = volcgr_router.find_path(volcgr_dest, 0, volcgr_source, &b, None)?;
+    println!("--- VolCgr ---");
+    match out {
+        Some(out) => println!("{:?}", out),
+        None => println!("No route found."),
     }
 
     Ok(())
