@@ -69,12 +69,15 @@ fn main() -> Result<(), ASABRError> {
 
     let spsn_dest = spsn_dest.routable()?;
 
-    let out = spsn_router.find_path(spsn_dest, 0, spsn_source, &b, None)?;
+    // High-level route call returning (path_output, first_hop)
+    let out = spsn_router.route(spsn_dest, 0, spsn_source, &b, None)?;
 
     println!("--- Spsn ---");
-
     match out {
-        Some(out) => println!("{:?}", out),
+        Some((path_output, first_hop)) => {
+            println!("Path Output: {:?}", path_output);
+            println!("First Hop: {:?}", first_hop);
+        }
         None => println!("No route found."),
     }
 
@@ -102,12 +105,14 @@ fn main() -> Result<(), ASABRError> {
 
     let volcgr_dest = volcgr_dest.routable()?;
 
-    let out = volcgr_router.find_path(volcgr_dest, 0, volcgr_source, &b, None)?;
+    let out = volcgr_router.route(volcgr_dest, 0, volcgr_source, &b, None)?;
 
     println!("--- VolCgr ---");
-
     match out {
-        Some(out) => println!("{:?}", out),
+        Some((path_output, first_hop)) => {
+            println!("Path Output: {:?}", path_output);
+            println!("First Hop: {:?}", first_hop);
+        }
         None => println!("No route found."),
     }
 
@@ -135,12 +140,14 @@ fn main() -> Result<(), ASABRError> {
 
     let fe_dest = fe_dest.routable()?;
 
-    let out = firstending_router.find_path(fe_dest, 0, fe_source, &b, None)?;
+    let out = firstending_router.route(fe_dest, 0, fe_source, &b, None)?;
 
     println!("--- CGR FirstEnding ---");
-
     match out {
-        Some(out) => println!("{:?}", out),
+        Some((path_output, first_hop)) => {
+            println!("Path Output: {:?}", path_output);
+            println!("First Hop: {:?}", first_hop);
+        }
         None => println!("No route found."),
     }
 
