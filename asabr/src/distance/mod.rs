@@ -7,6 +7,8 @@ use crate::{
     node_manager::NodeManager, pathfinding::destination::FindableDest, paths::PathFragment,
 };
 
+/// A* heuristic wrapper around another `Distance` metric.
+pub mod astar;
 /// Hop-count distance metric.
 pub mod hop;
 /// Priority queue used by distance-based pathfinding.

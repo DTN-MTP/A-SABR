@@ -12,12 +12,12 @@ use crate::{
     contact_plan::{ContactPlan, RealNode},
     errors::ASABRError,
     node::{Node, NodeInfo},
-    node_manager::{NodeManager, none::NoManagement},
+    node_manager::{NodeManager, heuristic::HeuristicManagement, none::NoManagement},
     types::{DataRate, Date, Duration, NodeID},
 };
 
 extern crate alloc;
-use alloc::{collections::BTreeMap as HashMap, vec, vec::Vec};
+use alloc::{boxed::Box, collections::BTreeMap as HashMap, vec, vec::Vec};
 
 use serde_json::Value;
 
@@ -41,6 +41,24 @@ fn contact_info_from_tvg_data(data: &TVGUtilContactData) -> ContactInfo {
 pub trait FromTVGUtilContactData<CM: ContactManager> {
     /// Converts parsed TVGUtil contact data into a contact tuple.
     fn tvg_convert(data: TVGUtilContactData) -> Option<(Contact<CM>, usize, usize)>;
+}
+
+/// Lets a `NodeManager` consume its row of a precomputed all-pairs delay
+/// matrix while a TVGUtil-format plan is parsed.
+pub trait FromDelayRow: NodeManager + Sized {
+    fn from_delay_row(row: Option<&[Date]>) -> Self;
+}
+
+impl FromDelayRow for NoManagement {
+    fn from_delay_row(_row: Option<&[Date]>) -> Self {
+        NoManagement {}
+    }
+}
+
+impl FromDelayRow for HeuristicManagement {
+    fn from_delay_row(row: Option<&[Date]>) -> Self {
+        HeuristicManagement::new(row.map(Box::from).unwrap_or_default())
+    }
 }
 
 macro_rules! generate_for_evl_variants {
@@ -88,21 +106,59 @@ pub struct TVGUtilContactPlan {}
 
 impl TVGUtilContactPlan {
     /// Parses a TVGUtil JSON value into a contact plan.
-    pub fn parse<NM: NodeManager, CM: FromTVGUtilContactData<CM> + ContactManager>(
+    ///
+    /// If the JSON has a top-level `"distances"` all-pairs delay matrix, each node's row is handed
+    /// to `NM::from_delay_row` 
+    ///
+    /// A missing `"distances"` key yields no heuristic data at all (`None`, every node's row is
+    /// empty).
+    pub fn parse<NM: FromDelayRow, CM: FromTVGUtilContactData<CM> + ContactManager>(
         json_data: serde_json::Value,
-    ) -> Result<ContactPlan<NoManagement, CM>, ASABRError> {
-        let mut vertices: Vec<RealNode<NoManagement>> = Vec::new();
+    ) -> Result<ContactPlan<NM, CM>, ASABRError> {
         let mut contacts: Vec<(Contact<CM>, usize, usize)> = Vec::new();
-
-        let mut map_id_map: HashMap<&str, NodeID> = HashMap::new();
 
         let parsed: Value = json_data;
         let json_nodes = parsed["vertices"]
             .as_object()
             .ok_or(ASABRError::ContactPlanError("no \"vertice\" in json"))?;
 
-        for (node_id, (node_name, _node_data)) in json_nodes.iter().enumerate() {
+        // assign internal ids to be able to build the distances row later
+        let mut map_id_map: HashMap<&str, NodeID> = HashMap::new();
+        for (node_id, node_name) in json_nodes.keys().enumerate() {
             map_id_map.insert(node_name, node_id.into());
+        }
+
+        // create distances matrix indexed by nodes id
+        let n = json_nodes.len();
+        let distances_matrix: Option<Vec<Vec<Date>>> = match parsed.get("distances") {
+            None | Some(Value::Null) => None,
+            Some(value) => {
+                let obj = value.as_object().ok_or(ASABRError::ContactPlanError(
+                    "\"distances\" must be an object of {from_label: {to_label: number}}",
+                ))?;
+                let mut matrix = vec![vec![0 as Date; n]; n];
+                for (from_label, row) in obj {
+                    let Some(&from_id) = map_id_map.get(from_label.as_str()) else {
+                        continue;
+                    };
+                    let Some(row) = row.as_object() else { continue };
+                    for (to_label, raw) in row {
+                        let (Some(&to_id), Some(raw)) =
+                            (map_id_map.get(to_label.as_str()), raw.as_f64())
+                        else {
+                            continue;
+                        };
+                        matrix[usize::from(from_id)][usize::from(to_id)] = raw as Date;
+                    }
+                }
+                Some(matrix)
+            }
+        };
+
+        // build every node, using the distances parsed
+        let mut vertices: Vec<RealNode<NM>> = Vec::with_capacity(n);
+        for (node_id, node_name) in json_nodes.keys().enumerate() {
+            let row = distances_matrix.as_ref().map(|m| m[node_id].as_slice());
             vertices.push(RealNode::Inode(
                 Node::try_new(
                     NodeInfo {
@@ -110,7 +166,7 @@ impl TVGUtilContactPlan {
                         name: node_name.into(),
                         excluded: false,
                     },
-                    NoManagement {},
+                    NM::from_delay_row(row),
                 )
                 .unwrap(),
             ));
