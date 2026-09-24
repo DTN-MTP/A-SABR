@@ -33,6 +33,10 @@ trackalloc = "0.4.0"
 name = "spsn_benchmark"
 harness = false
 
+[[bench]]
+name = "astar_benchmark"
+harness = false
+
 [[example]]
 name = "dijkstra_accuracy"
 path = "examples/dijkstra_accuracy/dijkstra_accuracy.rs"
