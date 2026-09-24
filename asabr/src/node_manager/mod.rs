@@ -5,6 +5,7 @@ use crate::{
     errors::ASABRError,
     types::{Date, NodeID, TimeInterval},
 };
+pub mod heuristic;
 /// Node manager implementation that applies no resource-management constraints.
 pub mod none;
 
@@ -118,6 +119,14 @@ pub trait NodeManager {
         sender: NodeID,
         transmissions: &[(TimeInterval, NodeID)],
     ) -> Result<(), ASABRError>;
+
+    #[allow(unused_variables)]
+    /// Heuristic estimate of the remaining delay from this
+    /// node to the routable node at flattened index `target`.
+    /// The default 0 produces Dijkstra behaviour.
+    fn heuristic_delay_to(&self, target: usize) -> Date {
+        0
+    }
 }
 
 // Implementation of `NodeManager` for dyn references.
@@ -168,6 +177,10 @@ impl<T: AsRef<dyn NodeManager> + AsMut<dyn NodeManager>> NodeManager for T {
     ) -> Result<(), ASABRError> {
         self.as_mut()
             .commit(bundle, reception, sender, transmitions)
+    }
+
+    fn heuristic_delay_to(&self, target: usize) -> Date {
+        self.as_ref().heuristic_delay_to(target)
     }
 }
 /// Auto implement NodeManager for wrapper struct where element 0 is the actual node manager
@@ -220,6 +233,10 @@ macro_rules! transparent_NM {
                 transmitions: &[(TimeInterval, NodeID)],
             ) -> Result<(), ASABRError> {
                 self.0.commit(bundle, reception, sender, transmitions)
+            }
+
+            fn heuristic_delay_to(&self, target: usize) -> Date {
+                self.0.heuristic_delay_to(target)
             }
         }
     };

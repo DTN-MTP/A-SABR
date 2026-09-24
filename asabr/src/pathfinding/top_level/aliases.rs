@@ -9,7 +9,7 @@ use crate::pathfinding::limiting_contact::{Suppressor, ends_earlier_than};
 use crate::{
     contact_manager::ContactManager,
     contact_plan::ContactPlan,
-    distance::{hop::Hop, sabr::SABR},
+    distance::{astar::AStar, hop::Hop, sabr::SABR},
     errors::ASABRError,
     multigraph::{Multigraph, RoutableNodeRef},
     node_manager::NodeManager,
@@ -80,6 +80,50 @@ pub type CgrSupressorContactParenting<'id, NM, CM, D> = Cgr<
     CM,
     Suppressor<'id, ContactParenting<'id, NM, CM, SABR, D>, NM, CM>,
     RoutingTable<'id, D, NM, CM>,
+    D,
+>;
+
+/// SPSN router using A*-accelerated SABR distance and hybrid parenting.
+pub type SpsnHybridParentingAStar<'id, const PRIO_COUNT: usize, NM, CM, D> = Spsn<
+    'id,
+    PRIO_COUNT,
+    NM,
+    CM,
+    HybridParenting<'id, AStar<SABR>, NM, CM>,
+    TreeCache<'id, NM, CM>,
+    D,
+>;
+
+/// SPSN router using A*-accelerated SABR distance and node parenting.
+pub type SpsnNodeParentingAStar<'id, const PRIO_COUNT: usize, NM, CM, D> =
+    Spsn<'id, PRIO_COUNT, NM, CM, NodeParenting<'id, AStar<SABR>>, TreeCache<'id, NM, CM>, D>;
+
+/// SPSN router using A*-accelerated SABR distance and contact parenting.
+pub type SpsnContactParentingAStar<'id, const PRIO_COUNT: usize, NM, CM, D> = Spsn<
+    'id,
+    PRIO_COUNT,
+    NM,
+    CM,
+    ContactParenting<'id, NM, CM, AStar<SABR>, DestAll>,
+    TreeCache<'id, NM, CM>,
+    D,
+>;
+
+/// VolCGR router using A*-accelerated SABR distance and hybrid parenting.
+pub type VolCgrHybridParentingAStar<'id, NM, CM, D> =
+    VolCgr<'id, RoutingTable<'id, D, NM, CM>, HybridParenting<'id, AStar<SABR>, NM, CM>, NM, CM, D>;
+
+/// VolCGR router using A*-accelerated SABR distance and node parenting.
+pub type VolCgrNodeParentingAStar<'id, NM, CM, D> =
+    VolCgr<'id, RoutingTable<'id, D, NM, CM>, NodeParenting<'id, AStar<SABR>>, NM, CM, D>;
+
+/// VolCGR router using A*-accelerated SABR distance and contact parenting.
+pub type VolCgrContactParentingAStar<'id, NM, CM, D> = VolCgr<
+    'id,
+    RoutingTable<'id, D, NM, CM>,
+    ContactParenting<'id, NM, CM, AStar<SABR>, D>,
+    NM,
+    CM,
     D,
 >;
 
@@ -201,6 +245,21 @@ pub unsafe fn build_generic_router<
         "SpsnContactParentingHop" => Box::new(
             SpsnContactParentingHop::<PRIO_COUNT, NM, CM, _>::new((&multigraph, (10, ())).into()),
         ),
+        "SpsnNodeParentingAStar" => Box::new(SpsnNodeParentingAStar::<
+            PRIO_COUNT,
+            NM,
+            CM,
+            RoutableNodeRef<'id>,
+        >::new((&multigraph, (10, ())).into())),
+        "SpsnHybridParentingAStar" => Box::new(
+            SpsnHybridParentingAStar::<PRIO_COUNT, NM, CM, _>::new((&multigraph, (10, ())).into()),
+        ),
+        "SpsnContactParentingAStar" => Box::new(SpsnContactParentingAStar::<
+            PRIO_COUNT,
+            NM,
+            CM,
+            RoutableNodeRef<'id>,
+        >::new((&multigraph, (10, ())).into())),
         "VolCgrNodeParenting" => Box::new(VolCgrNodeParenting::new(
             RoutingTable::new(),
             NodeParenting::new(),
@@ -222,6 +281,18 @@ pub unsafe fn build_generic_router<
             ContactParenting::new(),
         )),
         "VolCgrContactParentingHop" => Box::new(VolCgrContactParentingHop::new(
+            RoutingTable::new(),
+            ContactParenting::new(),
+        )),
+        "VolCgrNodeParentingAStar" => Box::new(VolCgrNodeParentingAStar::new(
+            RoutingTable::new(),
+            NodeParenting::new(),
+        )),
+        "VolCgrHybridParentingAStar" => Box::new(VolCgrHybridParentingAStar::new(
+            RoutingTable::new(),
+            HybridParenting::new(),
+        )),
+        "VolCgrContactParentingAStar" => Box::new(VolCgrContactParentingAStar::new(
             RoutingTable::new(),
             ContactParenting::new(),
         )),
