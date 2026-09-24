@@ -203,7 +203,9 @@ impl TVGUtilContactPlan {
                     _confidence: confidence,
                 };
 
-                let contact = CM::tvg_convert(tvgcontact).unwrap();
+                let Some(contact) = CM::tvg_convert(tvgcontact) else {
+                    continue;
+                };
 
                 contacts.push(contact);
             }
