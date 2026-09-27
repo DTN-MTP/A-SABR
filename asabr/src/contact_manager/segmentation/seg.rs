@@ -263,7 +263,7 @@ mod tests {
         contact_end: Date,
         input: Vec<InputSeg>,
         output: Vec<OutputSeg>,
-        requests: Vec<(Bundle, i64, bool)>,
+        requests: Vec<(Bundle, Volume, bool)>,
     ) {
         // Create the contact
         let contact_info =

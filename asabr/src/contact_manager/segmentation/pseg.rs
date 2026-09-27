@@ -1,5 +1,4 @@
 #[cfg(feature = "first_depleted")]
-use crate::types::Volume;
 use crate::{
     bundle::Bundle,
     contact::ContactInfo,
@@ -8,7 +7,7 @@ use crate::{
         segmentation::{BaseSegmentationManager, Segment},
     },
     errors::ASABRError,
-    types::{DataRate, Date, Duration, Priority, TimeInterval},
+    types::{DataRate, Date, Duration, Priority, TimeInterval, Volume},
 };
 
 extern crate alloc;
@@ -277,7 +276,7 @@ mod tests {
     fn start_test(
         input: Vec<InputSeg>,
         output: Vec<OutputSeg>,
-        requests: Vec<(Bundle, i64, bool)>,
+        requests: Vec<(Bundle, Volume, bool)>,
     ) {
         let contact_info = ContactInfo::new(0.into(), 1.into(), 0, 200);
         let mut delay_segments: Vec<Segment<Date>> = Vec::new();

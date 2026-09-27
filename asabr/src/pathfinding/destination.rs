@@ -52,7 +52,7 @@ pub trait RoutableDest<'id, NM: NodeManager, CM: ContactManager>:
         finder: &'a mut (impl Pathfinding<'id, NM, CM, Self> + ?Sized),
         routing_time: Date,
         source: INodeRef<'id>,
-        prune_time: Option<i64>,
+        prune_time: Option<Date>,
     ) -> Result<Option<Self::RoutingOutput<'a>>, ASABRError>;
 }
 
@@ -186,7 +186,7 @@ impl<'id, CM: ContactManager> RoutableDest<'id, NoManagement, CM> for Dest<'id> 
         finder: &'a mut (impl Pathfinding<'id, NoManagement, CM, Self> + ?Sized),
         routing_time: Date,
         source: INodeRef<'id>,
-        prune_time: Option<i64>,
+        prune_time: Option<Date>,
     ) -> Result<Option<Self::RoutingOutput<'a>>, ASABRError> {
         let path = finder.find_path(graph, routing_time, source, bundle, self, prune_time)?;
         match self {
@@ -305,7 +305,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> RoutableDest<'id, NM, CM> for INo
         finder: &'a mut (impl Pathfinding<'id, NM, CM, Self> + ?Sized),
         routing_time: Date,
         source: INodeRef<'id>,
-        prune_time: Option<i64>,
+        prune_time: Option<Date>,
     ) -> Result<Option<Self::RoutingOutput<'a>>, ASABRError> {
         let path = finder.find_path(graph, routing_time, source, bundle, self, prune_time)?;
         classical_route(path, *self, bundle, graph)
@@ -356,7 +356,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> RoutableDest<'id, NM, CM> for VNo
         finder: &'a mut (impl Pathfinding<'id, NM, CM, Self> + ?Sized),
         routing_time: Date,
         source: INodeRef<'id>,
-        prune_time: Option<i64>,
+        prune_time: Option<Date>,
     ) -> Result<Option<Self::RoutingOutput<'a>>, ASABRError> {
         let path = finder.find_path(graph, routing_time, source, bundle, self, prune_time)?;
         classical_route(path, *self, bundle, graph)
@@ -412,7 +412,7 @@ impl<'id, NM: NodeManager, CM: ContactManager> RoutableDest<'id, NM, CM> for Rou
         finder: &'a mut (impl Pathfinding<'id, NM, CM, Self> + ?Sized),
         routing_time: Date,
         source: INodeRef<'id>,
-        prune_time: Option<i64>,
+        prune_time: Option<Date>,
     ) -> Result<Option<Self::RoutingOutput<'a>>, ASABRError> {
         let path = finder.find_path(graph, routing_time, source, bundle, self, prune_time)?;
         classical_route(path, *self, bundle, graph)
@@ -461,7 +461,7 @@ impl<'id, CM: ContactManager> RoutableDest<'id, NoManagement, CM> for All {
         finder: &'a mut (impl Pathfinding<'id, NoManagement, CM, Self> + ?Sized),
         routing_time: Date,
         source: INodeRef<'id>,
-        prune_time: Option<i64>,
+        prune_time: Option<Date>,
     ) -> Result<Option<Self::RoutingOutput<'a>>, ASABRError> {
         let path = finder.find_path(graph, routing_time, source, bundle, self, prune_time)?;
         let collect = (0..graph.get_internal_count())
