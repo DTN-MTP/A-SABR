@@ -7,23 +7,23 @@ use crate::types::{Date, HeuristicQuery, NodeID, TimeInterval};
 
 use super::NodeManager;
 
-/// `NodeManager` that behaves like `T` except that it has
+/// `NodeManager` that behaves like `NM` except that it has
 /// a delay matrix to every other node. Used in `AStar` to compute the
 /// delay heuristic.
 #[derive(Debug, Clone, Default)]
-pub struct DelayHeuristic<T: NodeManager> {
-    inner: T,
+pub struct DelayHeuristic<NM: NodeManager> {
+    inner: NM,
     /// array with the minimal delay from this node to the others
     row: Box<[Date]>,
 }
 
-impl<T: NodeManager> DelayHeuristic<T> {
-    pub fn new(inner: T, row: Box<[Date]>) -> Self {
+impl<NM: NodeManager> DelayHeuristic<NM> {
+    pub fn new(inner: NM, row: Box<[Date]>) -> Self {
         Self { inner, row }
     }
 }
 
-impl<T: NodeManager> NodeManager for DelayHeuristic<T> {
+impl<NM: NodeManager> NodeManager for DelayHeuristic<NM> {
     fn accept(&self, bundle: &Bundle, time: TimeInterval, sender: NodeID) -> bool {
         self.inner.accept(bundle, time, sender)
     }
