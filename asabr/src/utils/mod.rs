@@ -106,7 +106,7 @@ where
     }
 }
 
-pub trait Routing<'id, NM, CM, D>
+pub trait Routing<'id, NM, CM, D>: DerefMut<Target = Multigraph<'id, NM, CM>>
 where
     NM: NodeManager,
     CM: ContactManager,
@@ -343,13 +343,22 @@ macro_rules! mk_router {
     ) => {{
         let algo_args: Option<usize> = $algo_args;
 
-        // Alias for the dynamic Trait Object type to coerce match arms
+        // Alias for the dynamic Trait Object types to coerce match arms
         type TraitObj<'a> = Box<
             dyn $crate::pathfinding::Pathfinding<
                     'a,
                     $NM,
                     $CM,
                     $crate::multigraph::RoutableNodeRef<'a>,
+                > + 'a,
+        >;
+        type RoutingObj<'a> = Box<
+            dyn $crate::utils::Routing<
+                    'a,
+                    $NM,
+                    $CM,
+                    $crate::multigraph::RoutableNodeRef<'a>,
+                    Pathfinder = TraitObj<'a>,
                 > + 'a,
         >;
 
@@ -704,7 +713,13 @@ macro_rules! mk_router {
                 ));
             }
         };
+
         use $crate::utils::Routing as _;
-        Ok($router_type::new($multigraph, pathfinder))
+        Ok(Box::new($router_type::<
+            $NM,
+            $CM,
+            _,
+            $crate::multigraph::RoutableNodeRef<'_>,
+        >::new($multigraph, pathfinder)) as RoutingObj<'_>)
     }};
 }
