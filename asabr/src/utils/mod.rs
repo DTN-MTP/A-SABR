@@ -126,6 +126,11 @@ where
         Err(ASABRError::RoutingError("Source INodeRef isn't not set"))
     }
 
+    // Get Source
+    fn get_source(&self) -> Result<INodeRef<'id>, ASABRError> {
+        Err(ASABRError::RoutingError("Source INodeRef isn't not set"))
+    }
+
     // ---- defaults ----
     fn build<T>(
         guard: Guard<'id>,
@@ -162,7 +167,6 @@ where
         &'a mut self,
         mut destination: D,
         routing_time: Date,
-        source: INodeRef<'id>,
         bundle: &Bundle,
         prune_time: Option<Date>,
     ) -> Result<Option<PathFindingOutput<'id, 'a>>, ASABRError>
@@ -171,11 +175,12 @@ where
         CM: 'a,
         D: 'a,
     {
+        let src = self.get_source()?;
         let (multigraph, pathfinder) = self.parts_mut();
         pathfinder.find_path(
             multigraph,
             routing_time,
-            source,
+            src,
             bundle,
             &mut destination,
             prune_time,
@@ -247,6 +252,12 @@ where
                 self.source = Some(_src);
                 Ok(())
             }
+        }
+    }
+    fn get_source(&self) -> Result<INodeRef<'id>, ASABRError> {
+        match self.source {
+            Some(src) => Ok(src),
+            None => Err(ASABRError::RoutingError("Source INodeRef isn't not set")),
         }
     }
 
