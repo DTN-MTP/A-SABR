@@ -12,7 +12,7 @@ use a_sabr::contact_plan::{ContactPlan, asabr_file_lexer};
 use a_sabr::mk_router;
 use a_sabr::multigraph::{Multigraph, NodeRef};
 use a_sabr::parsing::CMDynStandard;
-use a_sabr::utils::Routing;
+use a_sabr::utils::{Routing, SingeSourceRouter};
 use a_sabr::{bundle::Bundle, errors::ASABRError, node_manager::none::NoManagement};
 use generativity::make_guard;
 
@@ -51,6 +51,7 @@ fn main() -> Result<(), ASABRError> {
     let graph_spsn = Multigraph::new(id, contact_plan_spsn).unwrap();
     let mut spsn_router = mk_router!(
         id,
+        SingeSourceRouter,
         NoManagement,
         CMDynStandard,
         3,
@@ -89,6 +90,7 @@ fn main() -> Result<(), ASABRError> {
     let graph_cgr = Multigraph::new(id, contact_plan_volcgr).unwrap();
     let mut volcgr_router = mk_router!(
         id,
+        SingeSourceRouter,
         NoManagement,
         CMDynStandard,
         3,
@@ -126,6 +128,7 @@ fn main() -> Result<(), ASABRError> {
     let graph_firstending = Multigraph::new(id, contact_plan_firstending).unwrap();
     let mut firstending_router = mk_router!(
         id,
+        SingeSourceRouter,
         NoManagement,
         CMDynStandard,
         3,
