@@ -12,6 +12,7 @@ use a_sabr::contact_plan::{ContactPlan, asabr_file_lexer};
 use a_sabr::mk_router;
 use a_sabr::multigraph::{Multigraph, NodeRef};
 use a_sabr::parsing::CMDynStandard;
+use a_sabr::utils::Routing;
 use a_sabr::{bundle::Bundle, errors::ASABRError, node_manager::none::NoManagement};
 use generativity::make_guard;
 

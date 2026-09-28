@@ -105,7 +105,109 @@ where
         )
     }
 }
-pub struct Router<
+
+pub trait Routing<'id, NM, CM, D>
+where
+    NM: NodeManager,
+    CM: ContactManager,
+    D: RoutableDest<'id, NM, CM>,
+{
+    type Pathfinder: Pathfinding<'id, NM, CM, D>;
+
+    // ---- required: the only parts that touch the fields ----
+    fn new(multigraph: Multigraph<'id, NM, CM>, pathfinder: Self::Pathfinder) -> Self
+    where
+        Self: Sized;
+
+    fn parts_mut(&mut self) -> (&mut Multigraph<'id, NM, CM>, &mut Self::Pathfinder);
+
+    // Set Source
+    fn set_source(&mut self, _src: INodeRef<'id>) -> Result<(), ASABRError> {
+        Err(ASABRError::RoutingError("Source INodeRef isn't not set"))
+    }
+
+    // ---- defaults ----
+    fn build<T>(
+        guard: Guard<'id>,
+        contact_plan: ContactPlan<NM, CM>,
+        pathfinder_args: T,
+    ) -> Result<Self, ASABRError>
+    where
+        Self: Sized,
+        for<'a> (&'a Multigraph<'id, NM, CM>, T): Into<Self::Pathfinder>,
+    {
+        let multigraph = Multigraph::new(guard, contact_plan)?;
+        let pathfinder = (&multigraph, pathfinder_args).into();
+        Ok(Self::new(multigraph, pathfinder))
+    }
+
+    /// # Safety
+    /// see Multigraph::new_unguarder
+    unsafe fn build_unguarded<T>(
+        contact_plan: ContactPlan<NM, CM>,
+        pathfinder_args: T,
+    ) -> Result<Self, ASABRError>
+    where
+        Self: Sized,
+        for<'a> (&'a Multigraph<'id, NM, CM>, T): Into<Self::Pathfinder>,
+    {
+        Self::build(
+            unsafe { Guard::new(Id::new()) },
+            contact_plan,
+            pathfinder_args,
+        )
+    }
+
+    fn find_path<'a>(
+        &'a mut self,
+        mut destination: D,
+        routing_time: Date,
+        source: INodeRef<'id>,
+        bundle: &Bundle,
+        prune_time: Option<Date>,
+    ) -> Result<Option<PathFindingOutput<'id, 'a>>, ASABRError>
+    where
+        NM: 'a,
+        CM: 'a,
+        D: 'a,
+    {
+        let (multigraph, pathfinder) = self.parts_mut();
+        pathfinder.find_path(
+            multigraph,
+            routing_time,
+            source,
+            bundle,
+            &mut destination,
+            prune_time,
+        )
+    }
+
+    fn route<'a>(
+        &'a mut self,
+        mut destination: D,
+        routing_time: Date,
+        source: INodeRef<'id>,
+        bundle: &Bundle,
+        prune_time: Option<Date>,
+    ) -> Result<Option<D::RoutingOutput<'a>>, ASABRError>
+    where
+        NM: 'a,
+        CM: 'a,
+        D: 'a,
+    {
+        let (multigraph, pathfinder) = self.parts_mut();
+        destination.route(
+            multigraph,
+            bundle,
+            pathfinder,
+            routing_time,
+            source,
+            prune_time,
+        )
+    }
+}
+
+pub struct SingeSourceRouter<
     'id,
     NM: NodeManager,
     CM: ContactManager,
@@ -114,88 +216,42 @@ pub struct Router<
 > {
     pub multigraph: Multigraph<'id, NM, CM>,
     pub pathfinder: P,
+    source: Option<INodeRef<'id>>,
     _phantom: PhantomData<fn(D)>,
 }
 
-impl<
-    'id,
+impl<'id, NM, CM, P, D> Routing<'id, NM, CM, D> for SingeSourceRouter<'id, NM, CM, P, D>
+where
     NM: NodeManager,
     CM: ContactManager,
     P: Pathfinding<'id, NM, CM, D>,
     D: RoutableDest<'id, NM, CM>,
-> Router<'id, NM, CM, P, D>
 {
-    pub fn build<T>(
-        guard: Guard<'id>,
-        contact_plan: ContactPlan<NM, CM>,
-        pathfinder_args: T,
-    ) -> Result<Self, ASABRError>
-    where
-        for<'a> (&'a Multigraph<'id, NM, CM>, T): Into<P>,
-    {
-        let multigraph = Multigraph::new(guard, contact_plan)?;
-        let pathfinder = (&multigraph, pathfinder_args).into();
-        Ok(Self {
-            multigraph,
-            pathfinder,
-            _phantom: PhantomData,
-        })
-    }
-    pub fn new(multigraph: Multigraph<'id, NM, CM>, pathfinder: P) -> Self {
+    type Pathfinder = P;
+
+    fn new(multigraph: Multigraph<'id, NM, CM>, pathfinder: P) -> Self {
         Self {
             multigraph,
             pathfinder,
+            source: None,
             _phantom: PhantomData,
         }
     }
-    /// # Safety
-    /// see Multigraph::new_unguarder
-    pub unsafe fn build_unguarded<T>(
-        contact_plan: ContactPlan<NM, CM>,
-        pathfinder_args: T,
-    ) -> Result<Self, ASABRError>
-    where
-        for<'a> (&'a Multigraph<'id, NM, CM>, T): Into<P>,
-    {
-        Self::build(
-            unsafe { Guard::new(Id::new()) },
-            contact_plan,
-            pathfinder_args,
-        )
+
+    fn set_source(&mut self, _src: INodeRef<'id>) -> Result<(), ASABRError> {
+        match self.source {
+            Some(_) => Err(ASABRError::RoutingError(
+                "Single source router, source already set",
+            )),
+            None => {
+                self.source = Some(_src);
+                Ok(())
+            }
+        }
     }
-    pub fn find_path(
-        &mut self,
-        mut destination: D,
-        routing_time: Date,
-        source: INodeRef<'id>,
-        bundle: &Bundle,
-        prune_time: Option<Date>,
-    ) -> Result<Option<PathFindingOutput<'id, '_>>, ASABRError> {
-        self.pathfinder.find_path(
-            &mut self.multigraph,
-            routing_time,
-            source,
-            bundle,
-            &mut destination,
-            prune_time,
-        )
-    }
-    pub fn route<'a>(
-        &'a mut self,
-        mut destination: D,
-        routing_time: Date,
-        source: INodeRef<'id>,
-        bundle: &Bundle,
-        prune_time: Option<Date>,
-    ) -> Result<Option<D::RoutingOutput<'a>>, ASABRError> {
-        destination.route(
-            &mut self.multigraph,
-            bundle,
-            &mut self.pathfinder,
-            routing_time,
-            source,
-            prune_time,
-        )
+
+    fn parts_mut(&mut self) -> (&mut Multigraph<'id, NM, CM>, &mut P) {
+        (&mut self.multigraph, &mut self.pathfinder)
     }
 }
 
@@ -205,7 +261,7 @@ impl<
     CM: ContactManager,
     P: Pathfinding<'id, NM, CM, D>,
     D: FindableDest<'id, NM, CM>,
-> Deref for Router<'id, NM, CM, P, D>
+> Deref for SingeSourceRouter<'id, NM, CM, P, D>
 {
     type Target = Multigraph<'id, NM, CM>;
     fn deref(&self) -> &Self::Target {
@@ -219,9 +275,9 @@ impl<
     CM: ContactManager,
     P: Pathfinding<'id, NM, CM, D>,
     D: FindableDest<'id, NM, CM>,
-> DerefMut for Router<'id, NM, CM, P, D>
+> DerefMut for SingeSourceRouter<'id, NM, CM, P, D>
 {
-    fn deref_mut(&mut self) -> &mut <Router<'id, NM, CM, P, D> as Deref>::Target {
+    fn deref_mut(&mut self) -> &mut <SingeSourceRouter<'id, NM, CM, P, D> as Deref>::Target {
         &mut self.multigraph
     }
 }
@@ -633,7 +689,10 @@ macro_rules! mk_router {
                 ));
             }
         };
-
-        Ok($crate::utils::Router::new($multigraph, pathfinder))
+        use $crate::utils::Routing;
+        Ok($crate::utils::SingeSourceRouter::new(
+            $multigraph,
+            pathfinder,
+        ))
     }};
 }
