@@ -12,7 +12,7 @@ use crate::{
     contact_plan::{ContactPlan, RealNode},
     errors::ASABRError,
     node::{Node, NodeInfo},
-    node_manager::{NodeManager, heuristic::HeuristicManagement, none::NoManagement},
+    node_manager::{NodeManager, delay_heuristic::DelayHeuristic, none::NoManagement},
     types::{DataRate, Date, Duration, NodeID},
 };
 
@@ -55,9 +55,9 @@ impl FromDelayRow for NoManagement {
     }
 }
 
-impl FromDelayRow for HeuristicManagement {
+impl FromDelayRow for DelayHeuristic<NoManagement> {
     fn from_delay_row(row: Option<&[Date]>) -> Self {
-        HeuristicManagement::new(row.map(Box::from).unwrap_or_default())
+        DelayHeuristic::new(NoManagement{ }, row.map(Box::from).unwrap_or_default())
     }
 }
 
