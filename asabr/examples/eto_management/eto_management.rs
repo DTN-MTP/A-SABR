@@ -38,6 +38,7 @@ fn main() -> Result<(), ASABRError> {
     // Retrieve typed references for nodes 0 and 3
     // Validity guarantees are given now, reducing later checks
     let src_0 = router.node_id_ref(0.into()).unwrap().internal().unwrap();
+    router.set_source(src_0)?;
     let dest_3 = router.node_id_ref(3.into()).unwrap().routable().unwrap();
 
     // Scenario 1: Route the first bundle to node 3
@@ -48,7 +49,7 @@ fn main() -> Result<(), ASABRError> {
     };
 
     // let's route with current time == 15
-    let (iter_1, first) = router.route(dest_3, 15, src_0, &bundle_1, None)?.unwrap();
+    let (iter_1, first) = router.route(dest_3, 15, &bundle_1, None)?.unwrap();
 
     println!("{}", iter_1);
 
@@ -68,7 +69,7 @@ fn main() -> Result<(), ASABRError> {
     };
 
     // let's route with current time == 15, and ensure that the queueing is taken into account
-    let (iter_2, first) = router.route(dest_3, 15, src_0, &bundle_2, None)?.unwrap();
+    let (iter_2, first) = router.route(dest_3, 15, &bundle_2, None)?.unwrap();
 
     println!("{}", iter_2);
 
@@ -96,7 +97,7 @@ fn main() -> Result<(), ASABRError> {
     let dest_4 = router.node_id_ref(4.into()).unwrap().routable().unwrap();
 
     // Should fail as the transmission queue is full
-    let out_3 = router.route(dest_4, 15, src_0, &bundle_3, None)?;
+    let out_3 = router.route(dest_4, 15, &bundle_3, None)?;
     println!(
         "Sending bundle 3 to node 4, the routing output should be None: {}",
         out_3.is_none()
@@ -115,7 +116,7 @@ fn main() -> Result<(), ASABRError> {
 
     println!("Retry for bundle 3");
 
-    let (iter_4, _first) = router.route(dest_4, 15, src_0, &bundle_3, None)?.unwrap();
+    let (iter_4, _first) = router.route(dest_4, 15, &bundle_3, None)?.unwrap();
     println!("{}", iter_4);
 
     // === OUTPUT ===

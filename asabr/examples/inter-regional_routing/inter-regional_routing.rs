@@ -52,10 +52,11 @@ fn main() -> Result<(), ASABRError> {
     let Ok(NodeRef::I(source)) = router.node_id_ref(0.into()) else {
         panic!("Expected RNodeRef for source node 0")
     };
+    router.set_source(source)?;
     let destination = router.node_id_ref(8.into())?.routable().unwrap();
 
     // We schedule the bundle (resource updates were conducted).
-    let out = router.route(destination, 0, source, &bundle, None)?;
+    let out = router.route(destination, 0, &bundle, None)?;
 
     if let Some((path, _)) = out {
         println!("{}", path);

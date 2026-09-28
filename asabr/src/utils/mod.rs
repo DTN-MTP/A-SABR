@@ -191,7 +191,6 @@ where
         &'a mut self,
         mut destination: D,
         routing_time: Date,
-        source: INodeRef<'id>,
         bundle: &Bundle,
         prune_time: Option<Date>,
     ) -> Result<Option<D::RoutingOutput<'a>>, ASABRError>
@@ -200,13 +199,14 @@ where
         CM: 'a,
         D: 'a,
     {
+        let src = self.get_source()?;
         let (multigraph, pathfinder) = self.parts_mut();
         destination.route(
             multigraph,
             bundle,
             pathfinder,
             routing_time,
-            source,
+            src,
             prune_time,
         )
     }

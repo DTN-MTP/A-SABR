@@ -63,6 +63,8 @@ fn main() -> Result<(), ASABRError> {
         panic!()
     };
 
+    spsn_router.set_source(spsn_source)?;
+
     let Ok(spsn_dest) = spsn_router.node_id_ref(4.into()) else {
         return Err(ASABRError::ContactPlanError("No node number 4"));
     };
@@ -70,7 +72,7 @@ fn main() -> Result<(), ASABRError> {
     let spsn_dest = spsn_dest.routable()?;
 
     // High-level route call returning (path_output, first_hop)
-    let out = spsn_router.route(spsn_dest, 0, spsn_source, &b, None)?;
+    let out = spsn_router.route(spsn_dest, 0, &b, None)?;
 
     println!("--- Spsn ---");
     match out {
@@ -99,13 +101,15 @@ fn main() -> Result<(), ASABRError> {
         panic!()
     };
 
+    volcgr_router.set_source(volcgr_source)?;
+
     let Ok(volcgr_dest) = volcgr_router.node_id_ref(4.into()) else {
         return Err(ASABRError::ContactPlanError("No node number 4"));
     };
 
     let volcgr_dest = volcgr_dest.routable()?;
 
-    let out = volcgr_router.route(volcgr_dest, 0, volcgr_source, &b, None)?;
+    let out = volcgr_router.route(volcgr_dest, 0, &b, None)?;
 
     println!("--- VolCgr ---");
     match out {
@@ -134,13 +138,15 @@ fn main() -> Result<(), ASABRError> {
         panic!()
     };
 
+    firstending_router.set_source(fe_source)?;
+
     let Ok(fe_dest) = firstending_router.node_id_ref(4.into()) else {
         return Err(ASABRError::ContactPlanError("No node number 4"));
     };
 
     let fe_dest = fe_dest.routable()?;
 
-    let out = firstending_router.route(fe_dest, 0, fe_source, &b, None)?;
+    let out = firstending_router.route(fe_dest, 0, &b, None)?;
 
     println!("--- CGR FirstEnding ---");
     match out {
