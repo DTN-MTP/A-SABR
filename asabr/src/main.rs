@@ -54,7 +54,8 @@ fn main() -> Result<(), ASABRError> {
         CMDynStandard,
         3,
         "SpsnHybridParenting",
-        graph_spsn
+        graph_spsn,
+        Some(10)
     )?;
 
     let Ok(NodeRef::I(spsn_source)) = spsn_router.node_id_ref(0.into()) else {
@@ -89,7 +90,8 @@ fn main() -> Result<(), ASABRError> {
         CMDynStandard,
         3,
         "VolCgrHybridParenting",
-        graph_cgr
+        graph_cgr,
+        None
     )?;
 
     let Ok(NodeRef::I(volcgr_source)) = volcgr_router.node_id_ref(0.into()) else {
@@ -123,7 +125,8 @@ fn main() -> Result<(), ASABRError> {
         CMDynStandard,
         3,
         "CgrFirstEndingHybridParenting",
-        graph_firstending
+        graph_firstending,
+        None
     )?;
 
     let Ok(NodeRef::I(fe_source)) = firstending_router.node_id_ref(0.into()) else {

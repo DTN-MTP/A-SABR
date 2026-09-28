@@ -105,7 +105,6 @@ where
         )
     }
 }
-
 pub struct Router<
     'id,
     NM: NodeManager,
@@ -227,6 +226,13 @@ impl<
     }
 }
 
+#[doc(hidden)]
+pub fn spsn_args(arg: Option<usize>) -> Result<(usize, ()), ASABRError> {
+    arg.map(|v| (v, ())).ok_or(ASABRError::ContactPlanError(
+        "SPSN routers require a usize argument",
+    ))
+}
+
 /// Builds a `Router` from an already-parsed `ContactPlan`.
 ///
 /// `$algo` is the router name used to select the concrete pathfinding
@@ -261,8 +267,11 @@ macro_rules! mk_router {
     (
         $id:ident,$NM:ty,
         $CM:ty,$prio_count:expr,
-        $algo:expr,$multigraph:expr
+        $algo:expr,$multigraph:expr,
+        $algo_args:expr
     ) => {{
+        let algo_args: Option<usize> = $algo_args;
+
         // Alias for the dynamic Trait Object type to coerce match arms
         type TraitObj<'a> = Box<
             dyn $crate::pathfinding::Pathfinding<
@@ -283,7 +292,7 @@ macro_rules! mk_router {
                     $NM,
                     $CM,
                     $crate::multigraph::RoutableNodeRef<'_>,
-                >::new((&$multigraph, (10, ())).into()),
+                >::new((&$multigraph, $crate::utils::spsn_args(algo_args)?).into()),
             ) as TraitObj<'_>,
 
             "SpsnHybridParenting" => Box::new(
@@ -292,7 +301,7 @@ macro_rules! mk_router {
                     $NM,
                     $CM,
                     $crate::multigraph::RoutableNodeRef<'_>,
-                >::new((&$multigraph, (10, ())).into()),
+                >::new((&$multigraph, $crate::utils::spsn_args(algo_args)?).into()),
             ) as TraitObj<'_>,
 
             "SpsnContactParenting" => Box::new(
@@ -301,7 +310,7 @@ macro_rules! mk_router {
                     $NM,
                     $CM,
                     $crate::multigraph::RoutableNodeRef<'_>,
-                >::new((&$multigraph, (10, ())).into()),
+                >::new((&$multigraph, $crate::utils::spsn_args(algo_args)?).into()),
             ) as TraitObj<'_>,
 
             // ============================================================
@@ -313,7 +322,7 @@ macro_rules! mk_router {
                     $NM,
                     $CM,
                     $crate::multigraph::RoutableNodeRef<'_>,
-                >::new((&$multigraph, (10, ())).into()),
+                >::new((&$multigraph, $crate::utils::spsn_args(algo_args)?).into()),
             ) as TraitObj<'_>,
 
             "SpsnHybridParentingHop" => Box::new(
@@ -322,7 +331,7 @@ macro_rules! mk_router {
                     $NM,
                     $CM,
                     $crate::multigraph::RoutableNodeRef<'_>,
-                >::new((&$multigraph, (10, ())).into()),
+                >::new((&$multigraph, $crate::utils::spsn_args(algo_args)?).into()),
             ) as TraitObj<'_>,
 
             "SpsnContactParentingHop" => Box::new(
@@ -331,7 +340,7 @@ macro_rules! mk_router {
                     $NM,
                     $CM,
                     $crate::multigraph::RoutableNodeRef<'_>,
-                >::new((&$multigraph, (10, ())).into()),
+                >::new((&$multigraph, $crate::utils::spsn_args(algo_args)?).into()),
             ) as TraitObj<'_>,
 
             // ============================================================
