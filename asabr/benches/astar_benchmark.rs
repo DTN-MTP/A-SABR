@@ -1,11 +1,7 @@
 use std::fs::File;
 
 use a_sabr::{
-    bundle::Bundle,
-    contact_manager::segmentation::seg::SegmentationManager,
-    contact_plan::from_tvgutil_file::TVGUtilContactPlan,
-    node_manager::{heuristic::HeuristicManagement},
-    pathfinding::{destination::RoutableDest, top_level::aliases::build_generic_router},
+    bundle::Bundle, contact_manager::segmentation::seg::SegmentationManager, contact_plan::from_tvgutil_file::TVGUtilContactPlan, node_manager::{delay_heuristic::DelayHeuristic, none::NoManagement}, pathfinding::{destination::RoutableDest, top_level::aliases::build_generic_router},
 };
 use criterion::{BatchSize, Criterion, black_box, criterion_group, criterion_main};
 
@@ -36,7 +32,7 @@ pub fn benchmark(c: &mut Criterion) {
     let file = File::open(ptvg_filepath).unwrap();
     let json = serde_json::from_reader(file).unwrap();
     let contact_plan =
-        TVGUtilContactPlan::parse::<HeuristicManagement, SegmentationManager>(json).unwrap();
+        TVGUtilContactPlan::parse::<DelayHeuristic<NoManagement>, SegmentationManager>(json).unwrap();
 
     let mut group = c.benchmark_group("Routers");
 

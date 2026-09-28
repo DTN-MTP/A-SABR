@@ -11,20 +11,21 @@ use super::NodeManager;
 /// a delay matrix to every other node. Used in `AStar` to compute the
 /// delay heuristic.
 #[derive(Debug, Clone, Default)]
-pub struct HeuristicManagement {
+pub struct DelayHeuristic<T: NodeManager>{
+    inner: T,
     /// array with the minimal delay from this node to the others
     row: Box<[Date]>,
 }
 
-impl HeuristicManagement {
-    pub fn new(row: Box<[Date]>) -> Self {
-        Self { row }
+impl<T: NodeManager> DelayHeuristic<T> {
+    pub fn new(inner: T, row: Box<[Date]>) -> Self {
+        Self { inner, row }
     }
 }
 
-impl NodeManager for HeuristicManagement {
+impl<T: NodeManager> NodeManager for DelayHeuristic<T> {
     fn accept(&self, _bundle: &Bundle, _time: TimeInterval, _sender: NodeID) -> bool {
-        true
+        self.inner.accept(_bundle, _time, _sender)
     }
 
     fn dry_run_retention(
@@ -35,7 +36,7 @@ impl NodeManager for HeuristicManagement {
         _transmission: TimeInterval,
         _next: NodeID,
     ) -> bool {
-        true
+        self.inner.dry_run_retention(_bundle, _reception, _sender, _transmission, _next)
     }
 
     fn dry_run_multi(
@@ -45,7 +46,7 @@ impl NodeManager for HeuristicManagement {
         _sender: NodeID,
         transmissions: &[(TimeInterval, NodeID)],
     ) -> Option<usize> {
-        Some(transmissions.len())
+        self.inner.dry_run_multi(_bundle, _reception, _sender, transmissions)
     }
 
     fn commit(
@@ -55,7 +56,7 @@ impl NodeManager for HeuristicManagement {
         _sender: NodeID,
         _transmissions: &[(TimeInterval, NodeID)],
     ) -> Result<(), ASABRError> {
-        Ok(())
+        self.inner.commit(_bundle, _reception, _sender, _transmissions)
     }
 
     fn heuristic_delay_to(&self, target: usize) -> Date {

@@ -5,7 +5,7 @@ use crate::{
     errors::ASABRError,
     types::{Date, NodeID, TimeInterval},
 };
-pub mod heuristic;
+pub mod delay_heuristic;
 /// Node manager implementation that applies no resource-management constraints.
 pub mod none;
 
