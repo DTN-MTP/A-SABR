@@ -332,9 +332,13 @@ pub fn spsn_args(arg: Option<usize>) -> Result<(usize, ()), ASABRError> {
 #[macro_export]
 macro_rules! mk_router {
     (
-        $id:ident,$NM:ty,
-        $CM:ty,$prio_count:expr,
-        $algo:expr,$multigraph:expr,
+        $id:ident,
+        $router_type:ident,
+        $NM:ty,
+        $CM:ty,
+        $prio_count:expr,
+        $algo:expr,
+        $multigraph:expr,
         $algo_args:expr
     ) => {{
         let algo_args: Option<usize> = $algo_args;
@@ -700,10 +704,7 @@ macro_rules! mk_router {
                 ));
             }
         };
-        use $crate::utils::Routing;
-        Ok($crate::utils::SingeSourceRouter::new(
-            $multigraph,
-            pathfinder,
-        ))
+        use $crate::utils::Routing as _;
+        Ok($router_type::new($multigraph, pathfinder))
     }};
 }
