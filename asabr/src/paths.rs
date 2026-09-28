@@ -1,5 +1,7 @@
-use crate::multigraph::{ContactRef, RealNodeRef};
-use crate::types::{Date, HopCount, TimeInterval};
+use crate::contact_manager::ContactManager;
+use crate::multigraph::{ContactRef, Multigraph, RealNodeRef};
+use crate::node_manager::NodeManager;
+use crate::types::{Date, HeuristicQuery, HopCount, NodeID, TimeInterval};
 use core::fmt::Display;
 
 /// Represents an intermediate hop in a route, typically used for multi-hop communication or routing.
@@ -77,6 +79,21 @@ impl<'id> PathFragment<'id> {
             rx_node: node,
             expiration: Date::MAX,
         }
+    }
+
+    pub fn heuristic<NM: NodeManager, CM: ContactManager>(
+        &self,
+        graph: &Multigraph<'id, NM, CM>,
+        target: NodeID,
+    ) -> Date {
+        let query = HeuristicQuery {
+            node: graph.into_nodeid(self.rx_node.into()),
+            reception: self.recv,
+            hop_count: self.hop_count,
+            target,
+        };
+        // in the future can add heuristic for ContactManager
+        graph[self.rx_node].manager.heuristic_delay(&query)
     }
 }
 
