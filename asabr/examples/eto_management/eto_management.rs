@@ -12,7 +12,7 @@ use a_sabr::multigraph::RoutableNodeRef;
 use a_sabr::node_manager::none::NoManagement;
 use a_sabr::parsing::CMDynStandard;
 use a_sabr::pathfinding::top_level::aliases::SpsnHybridParenting;
-use a_sabr::utils::Router;
+use a_sabr::utils::{Routing, SingeSourceRouter};
 use generativity::make_guard;
 use static_assertions::assert_cfg;
 
@@ -28,7 +28,7 @@ fn main() -> Result<(), ASABRError> {
     make_guard!(id);
 
     // We want variations for contact management, register ETO and EVL
-    let mut router = Router::<
+    let mut router = SingeSourceRouter::<
         NoManagement,
         CMDynStandard,
         SpsnHybridParenting<1, _, _, _>,

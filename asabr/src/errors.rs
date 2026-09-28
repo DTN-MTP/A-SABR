@@ -18,6 +18,9 @@ pub enum ASABRError {
     /// Returned when multicast routing is requested but not supported.
     MulticastUnsupportedError,
 
+    /// Returned when the top level router api is not used properly.
+    RoutingError(&'static str),
+
     /// Returned when parsing fails at a specific input location.
     ParsingError(Located<&'static str>),
 }
@@ -31,6 +34,7 @@ impl fmt::Display for ASABRError {
             ASABRError::MulticastUnsupportedError => {
                 write!(f, "Multicast is Unsupported in A-SABR")
             }
+            ASABRError::RoutingError(s) => write!(f, "RoutingError in A-SABR: {}", s),
             ASABRError::ParsingError(Located { data, line, toknum }) => write!(
                 f,
                 "Parsing Error encountered at line {line} token {toknum} in A-SABR: {data}",
