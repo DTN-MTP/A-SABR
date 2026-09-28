@@ -57,7 +57,7 @@ impl FromDelayRow for NoManagement {
 
 impl FromDelayRow for DelayHeuristic<NoManagement> {
     fn from_delay_row(row: Option<&[Date]>) -> Self {
-        DelayHeuristic::new(NoManagement{ }, row.map(Box::from).unwrap_or_default())
+        DelayHeuristic::new(NoManagement {}, row.map(Box::from).unwrap_or_default())
     }
 }
 
@@ -108,7 +108,7 @@ impl TVGUtilContactPlan {
     /// Parses a TVGUtil JSON value into a contact plan.
     ///
     /// If the JSON has a top-level `"distances"` all-pairs delay matrix, each node's row is handed
-    /// to `NM::from_delay_row` 
+    /// to `NM::from_delay_row`
     ///
     /// A missing `"distances"` key yields no heuristic data at all (`None`, every node's row is
     /// empty).

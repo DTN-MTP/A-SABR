@@ -38,10 +38,13 @@ impl<
         let Some(target) = destination.to_id(graph) else {
             return D::cmp(first, second, graph, bundle, destination);
         };
-        let h1 = graph[first.rx_node].manager.heuristic_delay_to(target);
-        let h2 = graph[second.rx_node].manager.heuristic_delay_to(target);
-        let mut adj_first = first.clone();
-        let mut adj_second = second.clone();
+        let target_nodeid = graph.routable_index_to_nodeid(target);
+
+        let h1 = first.heuristic(graph, target_nodeid);
+        let h2 = second.heuristic(graph, target_nodeid);
+
+        let mut adj_first = *first;
+        let mut adj_second = *second;
         adj_first.recv.start = adj_first.recv.start.saturating_add(h1);
         adj_first.recv.end = adj_first.recv.end.saturating_add(h1);
         adj_second.recv.start = adj_second.recv.start.saturating_add(h2);

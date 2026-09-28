@@ -373,6 +373,14 @@ impl<'id, NM: NodeManager, CM: ContactManager> Multigraph<'id, NM, CM> {
         }
     }
 
+    pub fn routable_index_to_nodeid(&self, idx: usize) -> NodeID {
+        if idx < self.get_internal_count() {
+            idx.into()
+        } else {
+            (idx + self.get_external_count()).into()
+        }
+    }
+
     /// Converts a routable node reference into the flattened routing index.
     pub fn routable_to_usize(&self, node: RoutableNodeRef<'id>) -> usize {
         match node {

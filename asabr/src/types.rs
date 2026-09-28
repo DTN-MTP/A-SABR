@@ -38,6 +38,14 @@ pub struct TimeInterval {
     pub end: Date,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct HeuristicQuery {
+    pub node: NodeID,
+    pub reception: TimeInterval,
+    pub hop_count: HopCount,
+    pub target: NodeID,
+}
+
 /// Represent an value encompassing all of the above, typically for use in parser
 //  Must implement FromStr and TryInto to all the above
 #[derive(Clone, Copy, Debug)]
