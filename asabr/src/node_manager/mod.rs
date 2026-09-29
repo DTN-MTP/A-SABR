@@ -229,9 +229,8 @@ macro_rules! transparent_NM {
     };
 }
 
-// A trait to color an NM, so that we can use get_heuristic with a distance that
-// needs and heuristic
-// this trait can be used for any heuristic using a Node (and we can do the same for contacts)
+/// A trait to allow a `NodeManager` to have a heuristic. This can then be used in `Distance`
+/// to compare two nodes using their respective heuristics.
 pub trait NodeHeuristic: NodeManager + Sized {
     fn get_heuristic<'id, CM: ContactManager>(
         path: &PathFragment<'id>,

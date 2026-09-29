@@ -44,9 +44,8 @@ pub fn benchmark(c: &mut Criterion) {
     for router_type in router_types {
         group.bench_function(router_type, |b| {
             b.iter_batched_ref(
-                || match unsafe {
-                    build_astar_router::<3, _, _>(router_type, contact_plan.clone())
-                } {
+                || match unsafe { build_astar_router::<3, _, _>(router_type, contact_plan.clone()) }
+                {
                     Ok((graph, router)) => {
                         let source = graph.node_id_ref(source).unwrap().try_into().unwrap();
                         let dest = graph
