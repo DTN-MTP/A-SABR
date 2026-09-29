@@ -4,7 +4,7 @@ use crate::{
     bundle::Bundle,
     contact_manager::ContactManager,
     multigraph::Multigraph,
-    node_manager::NodeManager,
+    node_manager::{NodeHeuristic, NodeManager},
     pathfinding::{HybridParentingOrd, destination::FindableDest},
     paths::PathFragment,
 };
@@ -13,7 +13,7 @@ use super::Distance;
 
 /// Wrap a `Distance` metric `D` with an A* heuristic: order `PathFragment`s
 /// by `f = g + h` instead of `g` alone. `g` comes from what `D` already reads of `recv`.
-/// `h` comes from `NodeManager::heuristic_delay_to`
+/// `h` comes from `NodeHeuristic::get_heuristic`
 #[derive(Debug, Default)]
 pub struct AStar<D> {
     _phantom: PhantomData<D>,
@@ -21,7 +21,7 @@ pub struct AStar<D> {
 
 impl<
     'id,
-    NM: NodeManager,
+    NM: NodeManager + NodeHeuristic,
     CM: ContactManager,
     D: Distance<'id, NM, CM, De>,
     De: FindableDest<'id, NM, CM>,
@@ -40,8 +40,8 @@ impl<
         };
         let target_nodeid = graph.routable_index_to_nodeid(target);
 
-        let h1 = first.heuristic(graph, target_nodeid);
-        let h2 = second.heuristic(graph, target_nodeid);
+        let h1 = NM::get_heuristic(first, graph, target_nodeid);
+        let h2 = NM::get_heuristic(second, graph, target_nodeid);
 
         let mut adj_first = *first;
         let mut adj_second = *second;

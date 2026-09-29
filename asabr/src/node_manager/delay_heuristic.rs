@@ -2,8 +2,12 @@ extern crate alloc;
 use alloc::boxed::Box;
 
 use crate::bundle::Bundle;
+use crate::contact_manager::ContactManager;
 use crate::errors::ASABRError;
-use crate::types::{Date, HeuristicQuery, NodeID, TimeInterval};
+use crate::multigraph::Multigraph;
+use crate::node_manager::NodeHeuristic;
+use crate::paths::PathFragment;
+use crate::types::{Date, NodeID, TimeInterval};
 
 use super::NodeManager;
 
@@ -71,14 +75,15 @@ impl<NM: NodeManager> NodeManager for DelayHeuristic<NM> {
     ) -> Result<(), ASABRError> {
         self.inner.commit(bundle, reception, sender, transmissions)
     }
+}
 
-    fn heuristic_delay(&self, query: &HeuristicQuery) -> Date {
-        let own_heuristic = self
-            .row
-            .get(usize::from(query.target))
-            .copied()
-            .unwrap_or(0);
-
-        own_heuristic.max(self.inner.heuristic_delay(query))
+impl<NM: NodeManager> NodeHeuristic for DelayHeuristic<NM> {
+    fn get_heuristic<'id, CM: ContactManager>(
+        path: &PathFragment<'id>,
+        graph: &Multigraph<'id, Self, CM>,
+        target: NodeID,
+    ) -> Date {
+        let me = &graph[path.rx_node].manager;
+        me.row.get(usize::from(target)).copied().unwrap_or(0)
     }
 }
