@@ -17,19 +17,19 @@ use super::NodeManager;
 /// a delay matrix to every other node. Used in `AStar` to compute the
 /// delay heuristic.
 #[derive(Debug, Clone, Default)]
-pub struct DelayHeuristic<NM: NodeManager> {
+pub struct DelayHeuristicManager<NM: NodeManager> {
     inner: NM,
     /// array with the minimal delay from this node to the others
     row: Box<[Date]>,
 }
 
-impl<NM: NodeManager> DelayHeuristic<NM> {
+impl<NM: NodeManager> DelayHeuristicManager<NM> {
     pub fn new(inner: NM, row: Box<[Date]>) -> Self {
         Self { inner, row }
     }
 }
 
-impl<NM: NodeManager> NodeManager for DelayHeuristic<NM> {
+impl<NM: NodeManager> NodeManager for DelayHeuristicManager<NM> {
     fn accept(&self, bundle: &Bundle, time: TimeInterval, sender: NodeID) -> bool {
         self.inner.accept(bundle, time, sender)
     }
@@ -79,7 +79,7 @@ impl<NM: NodeManager> NodeManager for DelayHeuristic<NM> {
     }
 }
 
-impl<NM: NodeManager> NodeHeuristic for DelayHeuristic<NM> {
+impl<NM: NodeManager> NodeHeuristic for DelayHeuristicManager<NM> {
     fn get_heuristic<'id, CM: ContactManager>(
         path: &PathFragment<'id>,
         graph: &Multigraph<'id, Self, CM>,
@@ -90,11 +90,11 @@ impl<NM: NodeManager> NodeHeuristic for DelayHeuristic<NM> {
     }
 }
 
-impl<NM: NodeManager> From<(Vec<Date>, NM)> for DelayHeuristic<NM> {
+impl<NM: NodeManager> From<(Vec<Date>, NM)> for DelayHeuristicManager<NM> {
     fn from((row, inner): (Vec<Date>, NM)) -> Self {
         Self::new(inner, row.into_boxed_slice())
     }
 }
 
 // `DelayHeuristic<NM>` is written as its heuristic row followed by the tokens of `NM`
-parse_transparent!(DelayHeuristic<NM>, (Vec<Date>, NM), NM: NodeManager + Parse);
+parse_transparent!(DelayHeuristicManager<NM>, (Vec<Date>, NM), NM: NodeManager + Parse);
