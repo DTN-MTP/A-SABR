@@ -64,3 +64,11 @@ path = "examples/inter-regional_routing/inter-regional_routing.rs"
 [[example]]
 name = "memtest"
 path = "examples/memtest/memtest.rs"
+
+[[example]]
+name = "astar_routing"
+path = "examples/astar_routing/astar_routing.rs"
+
+[[example]]
+name = "astar_grid"
+path = "examples/astar_grid/astar_grid.rs"
