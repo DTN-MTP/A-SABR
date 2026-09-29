@@ -12,7 +12,7 @@ use crate::{
     distance::{astar::AStar, hop::Hop, sabr::SABR},
     errors::ASABRError,
     multigraph::{Multigraph, RoutableNodeRef},
-    node_manager::NodeManager,
+    node_manager::{NodeHeuristic, NodeManager},
     pathfinding::{
         DestAll, Pathfinding,
         dijkstra_impl::{ContactParenting, HybridParenting, NodeParenting},
@@ -245,21 +245,6 @@ pub unsafe fn build_generic_router<
         "SpsnContactParentingHop" => Box::new(
             SpsnContactParentingHop::<PRIO_COUNT, NM, CM, _>::new((&multigraph, (10, ())).into()),
         ),
-        "SpsnNodeParentingAStar" => Box::new(SpsnNodeParentingAStar::<
-            PRIO_COUNT,
-            NM,
-            CM,
-            RoutableNodeRef<'id>,
-        >::new((&multigraph, (10, ())).into())),
-        "SpsnHybridParentingAStar" => Box::new(
-            SpsnHybridParentingAStar::<PRIO_COUNT, NM, CM, _>::new((&multigraph, (10, ())).into()),
-        ),
-        "SpsnContactParentingAStar" => Box::new(SpsnContactParentingAStar::<
-            PRIO_COUNT,
-            NM,
-            CM,
-            RoutableNodeRef<'id>,
-        >::new((&multigraph, (10, ())).into())),
         "VolCgrNodeParenting" => Box::new(VolCgrNodeParenting::new(
             RoutingTable::new(),
             NodeParenting::new(),
@@ -281,18 +266,6 @@ pub unsafe fn build_generic_router<
             ContactParenting::new(),
         )),
         "VolCgrContactParentingHop" => Box::new(VolCgrContactParentingHop::new(
-            RoutingTable::new(),
-            ContactParenting::new(),
-        )),
-        "VolCgrNodeParentingAStar" => Box::new(VolCgrNodeParentingAStar::new(
-            RoutingTable::new(),
-            NodeParenting::new(),
-        )),
-        "VolCgrHybridParentingAStar" => Box::new(VolCgrHybridParentingAStar::new(
-            RoutingTable::new(),
-            HybridParenting::new(),
-        )),
-        "VolCgrContactParentingAStar" => Box::new(VolCgrContactParentingAStar::new(
             RoutingTable::new(),
             ContactParenting::new(),
         )),
@@ -374,3 +347,73 @@ pub unsafe fn build_generic_router<
 
     Ok((multigraph, router))
 }
+
+/// Same as `build_generic_router`, but also knows the A* routers, which need node managers
+/// providing a heuristic. Any other router type is delegated to `build_generic_router`.
+/// # Safety
+/// unsafe because it return a unguarded graph. see `Multigraph::new_unguarded` for more information
+#[allow(clippy::type_complexity)]
+pub unsafe fn build_astar_router<
+    'id,
+    const PRIO_COUNT: usize,
+    NM: NodeHeuristic + 'static,
+    CM: ContactManager + 'static,
+>(
+    router_type: &str,
+    contact_plan: ContactPlan<NM, CM>,
+) -> Result<
+    (
+        Multigraph<'id, NM, CM>,
+        Box<dyn Pathfinding<'id, NM, CM, RoutableNodeRef<'id>> + 'id>,
+    ),
+    ASABRError,
+> {
+    if !ASTAR_ROUTERS.contains(&router_type) {
+        return unsafe { build_generic_router::<PRIO_COUNT, NM, CM>(router_type, contact_plan) };
+    }
+
+    let multigraph = unsafe { Multigraph::new_unguarded(contact_plan) }?;
+    let router = match router_type {
+        "SpsnNodeParentingAStar" => Box::new(SpsnNodeParentingAStar::<
+            PRIO_COUNT,
+            NM,
+            CM,
+            RoutableNodeRef<'id>,
+        >::new((&multigraph, (10, ())).into()))
+            as Box<dyn Pathfinding<'id, NM, CM, RoutableNodeRef<'id>> + 'id>,
+        "SpsnHybridParentingAStar" => Box::new(
+            SpsnHybridParentingAStar::<PRIO_COUNT, NM, CM, _>::new((&multigraph, (10, ())).into()),
+        ),
+        "SpsnContactParentingAStar" => Box::new(SpsnContactParentingAStar::<
+            PRIO_COUNT,
+            NM,
+            CM,
+            RoutableNodeRef<'id>,
+        >::new((&multigraph, (10, ())).into())),
+        "VolCgrNodeParentingAStar" => Box::new(VolCgrNodeParentingAStar::new(
+            RoutingTable::new(),
+            NodeParenting::new(),
+        )),
+        "VolCgrHybridParentingAStar" => Box::new(VolCgrHybridParentingAStar::new(
+            RoutingTable::new(),
+            HybridParenting::new(),
+        )),
+        "VolCgrContactParentingAStar" => Box::new(VolCgrContactParentingAStar::new(
+            RoutingTable::new(),
+            ContactParenting::new(),
+        )),
+        _ => return Err(ASABRError::ContactPlanError("Not a known router type !")),
+    };
+
+    Ok((multigraph, router))
+}
+
+/// Router types built by `build_astar_router` itself.
+const ASTAR_ROUTERS: [&str; 6] = [
+    "SpsnNodeParentingAStar",
+    "SpsnHybridParentingAStar",
+    "SpsnContactParentingAStar",
+    "VolCgrNodeParentingAStar",
+    "VolCgrHybridParentingAStar",
+    "VolCgrContactParentingAStar",
+];

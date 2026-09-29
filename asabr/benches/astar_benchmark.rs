@@ -5,7 +5,7 @@ use a_sabr::{
     contact_manager::segmentation::seg::SegmentationManager,
     contact_plan::from_tvgutil_file::TVGUtilContactPlan,
     node_manager::{delay_heuristic::DelayHeuristic, none::NoManagement},
-    pathfinding::{destination::RoutableDest, top_level::aliases::build_generic_router},
+    pathfinding::{destination::RoutableDest, top_level::aliases::build_astar_router},
 };
 use criterion::{BatchSize, Criterion, black_box, criterion_group, criterion_main};
 
@@ -45,7 +45,7 @@ pub fn benchmark(c: &mut Criterion) {
         group.bench_function(router_type, |b| {
             b.iter_batched_ref(
                 || match unsafe {
-                    build_generic_router::<3, _, _>(router_type, contact_plan.clone())
+                    build_astar_router::<3, _, _>(router_type, contact_plan.clone())
                 } {
                     Ok((graph, router)) => {
                         let source = graph.node_id_ref(source).unwrap().try_into().unwrap();

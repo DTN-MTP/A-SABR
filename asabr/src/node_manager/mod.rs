@@ -2,8 +2,11 @@ extern crate alloc;
 
 use crate::{
     bundle::Bundle,
+    contact_manager::ContactManager,
     errors::ASABRError,
-    types::{Date, HeuristicQuery, NodeID, TimeInterval},
+    multigraph::Multigraph,
+    paths::PathFragment,
+    types::{Date, NodeID, TimeInterval},
 };
 pub mod delay_heuristic;
 /// Node manager implementation that applies no resource-management constraints.
@@ -119,14 +122,6 @@ pub trait NodeManager {
         sender: NodeID,
         transmissions: &[(TimeInterval, NodeID)],
     ) -> Result<(), ASABRError>;
-
-    #[allow(unused_variables)]
-    /// Heuristic estimate of the remaining delay from this
-    /// node to the routable node at flattened index `target`.
-    /// The default 0 produces Dijkstra behaviour.
-    fn heuristic_delay(&self, query: &HeuristicQuery) -> Date {
-        0
-    }
 }
 
 // Implementation of `NodeManager` for dyn references.
@@ -177,10 +172,6 @@ impl<T: AsRef<dyn NodeManager> + AsMut<dyn NodeManager>> NodeManager for T {
     ) -> Result<(), ASABRError> {
         self.as_mut()
             .commit(bundle, reception, sender, transmitions)
-    }
-
-    fn heuristic_delay(&self, query: &HeuristicQuery) -> Date {
-        self.as_ref().heuristic_delay(query)
     }
 }
 /// Auto implement NodeManager for wrapper struct where element 0 is the actual node manager
@@ -234,10 +225,17 @@ macro_rules! transparent_NM {
             ) -> Result<(), ASABRError> {
                 self.0.commit(bundle, reception, sender, transmitions)
             }
-
-            fn heuristic_delay(&self, query: &HeuristicQuery) -> Date {
-                self.0.heuristic_delay(query)
-            }
         }
     };
+}
+
+// A trait to color an NM, so that we can use get_heuristic with a distance that
+// needs and heuristic
+// this trait can be used for any heuristic using a Node (and we can do the same for contacts)
+pub trait NodeHeuristic: NodeManager + Sized {
+    fn get_heuristic<'id, CM: ContactManager>(
+        path: &PathFragment<'id>,
+        graph: &Multigraph<'id, Self, CM>,
+        target: NodeID,
+    ) -> Date;
 }
