@@ -1,11 +1,13 @@
 extern crate alloc;
-use alloc::boxed::Box;
+use alloc::{boxed::Box, vec::Vec};
 
 use crate::bundle::Bundle;
 use crate::contact_manager::ContactManager;
 use crate::errors::ASABRError;
 use crate::multigraph::Multigraph;
 use crate::node_manager::NodeHeuristic;
+use crate::parse_transparent;
+use crate::parsing::Parse;
 use crate::paths::PathFragment;
 use crate::types::{Date, NodeID, TimeInterval};
 
@@ -87,3 +89,12 @@ impl<NM: NodeManager> NodeHeuristic for DelayHeuristic<NM> {
         me.row.get(usize::from(target)).copied().unwrap_or(0)
     }
 }
+
+impl<NM: NodeManager> From<(Vec<Date>, NM)> for DelayHeuristic<NM> {
+    fn from((row, inner): (Vec<Date>, NM)) -> Self {
+        Self::new(inner, row.into_boxed_slice())
+    }
+}
+
+// `DelayHeuristic<NM>` is written as its heuristic row followed by the tokens of `NM`
+parse_transparent!(DelayHeuristic<NM>, (Vec<Date>, NM), NM: NodeManager + Parse);
