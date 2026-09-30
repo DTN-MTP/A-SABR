@@ -176,12 +176,12 @@ pub fn dijkstra<
 
 /// Dijkstra pathfinder parameterized by a workspace and distance metric.
 #[derive(Default)]
-pub struct Disktra<W, D> {
+pub struct Dijkstra<W, D> {
     _phantom: PhantomData<fn(W, D)>,
 }
 
 impl<'id, W, D, NM, CM, De: FindableDest<'id, NM, CM>> Pathfinding<'id, NM, CM, De>
-    for Disktra<W, D>
+    for Dijkstra<W, D>
 where
     W: DijkstraWorkspace<'id, NM, CM, De>,
     D: Distance<'id, NM, CM, De>,
@@ -208,7 +208,7 @@ where
     }
 }
 
-impl<W, D> Disktra<W, D> {
+impl<W, D> Dijkstra<W, D> {
     /// Creates a new Dijkstra pathfinder.
     pub fn new() -> Self {
         Self {
@@ -218,7 +218,7 @@ impl<W, D> Disktra<W, D> {
 }
 
 impl<W, D, NM: NodeManager, CM: ContactManager> From<(&Multigraph<'_, NM, CM>, ())>
-    for Disktra<W, D>
+    for Dijkstra<W, D>
 {
     fn from(_value: (&Multigraph<'_, NM, CM>, ())) -> Self {
         Self::new()

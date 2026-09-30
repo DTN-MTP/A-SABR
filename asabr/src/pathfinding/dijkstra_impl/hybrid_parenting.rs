@@ -12,7 +12,7 @@ use crate::{
     node_manager::NodeManager,
     pathfinding::{
         destination::FindableDest,
-        dijkstra::{DijkstraWorkspace, Disktra},
+        dijkstra::{Dijkstra, DijkstraWorkspace},
         flatten,
     },
     paths::{PathFragment, ViaHop},
@@ -38,7 +38,7 @@ where
 }
 
 /// Dijkstra pathfinder using the hybrid-parenting work area.
-pub type HybridParenting<'id, D, NM, CM> = Disktra<HybridParentingWorkArea<'id, NM, CM, D>, D>;
+pub type HybridParenting<'id, D, NM, CM> = Dijkstra<HybridParentingWorkArea<'id, NM, CM, D>, D>;
 
 /// Not intended for public use, use `HybridParenting` directly
 pub struct HybridParentingWorkArea<

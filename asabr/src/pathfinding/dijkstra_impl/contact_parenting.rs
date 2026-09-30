@@ -14,7 +14,7 @@ use crate::{
     node_manager::NodeManager,
     pathfinding::{
         destination::FindableDest,
-        dijkstra::{DijkstraWorkspace, Disktra},
+        dijkstra::{Dijkstra, DijkstraWorkspace},
         flatten,
     },
     paths::{PathFragment, ViaHop},
@@ -31,7 +31,7 @@ use super::super::PathFindingOutput;
 /// * `NM` - A type that implements the `NodeManager` trait.
 /// * `CM` - A type that implements the `ContactManager` trait.
 pub type ContactParenting<'id, NM, CM, D, De> =
-    Disktra<ContactParentingWorkArea<'id, NM, CM, D, De>, D>;
+    Dijkstra<ContactParentingWorkArea<'id, NM, CM, D, De>, D>;
 
 /// Not intended for public use, use `ContactParenting` directly
 pub struct ContactParentingWorkArea<

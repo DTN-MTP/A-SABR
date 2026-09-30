@@ -12,7 +12,7 @@ use crate::{
     pathfinding::{
         PathFragment,
         destination::FindableDest,
-        dijkstra::{DijkstraWorkspace, Disktra},
+        dijkstra::{Dijkstra, DijkstraWorkspace},
     },
     paths::ViaHop,
 };
@@ -28,7 +28,7 @@ use super::super::PathFindingOutput;
 /// * `NM` - A type that implements the `NodeManager` trait.
 /// * `CM` - A type that implements the `ContactManager` trait.
 /// * `D` - A type that implements the `Distance<NM, CM>` trait.
-pub type NodeParenting<'id, D> = Disktra<NodeParentingWorkArea<'id, D>, D>;
+pub type NodeParenting<'id, D> = Dijkstra<NodeParentingWorkArea<'id, D>, D>;
 
 /// Not intended for public use, use `NodeParenting` directly
 pub struct NodeParentingWorkArea<'id, D> {
