@@ -1,22 +1,28 @@
-use std::fs::File;
+use std::{
+    fs::File,
+    io::{BufRead, BufReader},
+};
 
 use a_sabr::{
     bundle::Bundle,
     contact_manager::segmentation::seg::SegmentationManager,
-    contact_plan::from_tvgutil_file::TVGUtilContactPlan,
-    node_manager::none::NoManagement,
+    contact_plan::asabr_file_lexer::parse_from_iter,
+    node_manager::{delay_heuristic::DelayHeuristicManager, none::NoManagement},
     pathfinding::{destination::RoutableDest, top_level::aliases::build_generic_router},
 };
 use criterion::{BatchSize, Criterion, black_box, criterion_group, criterion_main};
 
 pub fn benchmark(c: &mut Criterion) {
-    let ptvg_filepath = "benches/ptvg_files/sample1.json";
+    let file = File::open("benches/astar_graphs/100.cp").unwrap();
+    let lines = BufReader::new(file).lines().map(|l| l.unwrap());
+    let contact_plan =
+        parse_from_iter::<DelayHeuristicManager<NoManagement>, SegmentationManager>(lines).unwrap();
 
     let source = 0.into();
-    let destinatation = 79.into();
+    let destinatation = 60.into();
     let bundle = Bundle {
         priority: 0,
-        size: 4_900_000,
+        size: 1_000,
         expiration: 24060,
     };
     let curr_time = 60;
@@ -42,8 +48,6 @@ pub fn benchmark(c: &mut Criterion) {
 
     #[cfg(feature = "first_depleted")]
     router_types.extend([
-        "CgrFirstDepletedNodeParenting",
-        "CgrFirstDepletedHybridParenting",
         "CgrFirstDepletedContactParenting",
         "CgrFirstDepletedNodeParentingHop",
         "CgrFirstDepletedHybridParentingHop",
@@ -58,10 +62,6 @@ pub fn benchmark(c: &mut Criterion) {
         "VolCgrHybridParentingHop",
         "VolCgrContactParentingHop",
     ]);
-    let file = File::open(ptvg_filepath).unwrap();
-    let json = serde_json::from_reader(file).unwrap();
-    let contact_plan =
-        TVGUtilContactPlan::parse::<NoManagement, SegmentationManager>(json).unwrap();
 
     let mut group = c.benchmark_group("Routers");
 
