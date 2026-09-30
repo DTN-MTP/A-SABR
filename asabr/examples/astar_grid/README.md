@@ -18,6 +18,8 @@ The contact plan is generated in code, in the A-SABR format. Each node carries a
 
 To measure the work done, the heuristic wraps a small `Counting` node manager, defined in the example, that counts the calls to `accept`: one per hop the pathfinder tries. This also shows the nesting of node managers: `DelayHeuristicManager<Counting>` provides the heuristic, and delegates resource management to `Counting`.
 
+It also measures the time it takes to find a path, averaged over 200 runs.
+
 ### Behavior
 
 Both distances find the same route (29 hops, arrival at t=29). `SABR` explores most of the grid before reaching the destination, while `AStar<SABR>` only follows the nodes leading to it:
@@ -25,7 +27,9 @@ Both distances find the same route (29 hops, arrival at t=29). `SABR` explores m
 ```
 30x30 grid, from node 450 to node 479
 
-distance      hops tried    result
-SABR                1324    Route to enode: 479 at t=29 with 29 hop(s):
-AStar<SABR>           87    Route to enode: 479 at t=29 with 29 hop(s):
+distance      hops tried  time/search    result
+SABR                1324       44.7µs    Route to enode: 479 at t=29 with 29 hop(s):
+AStar<SABR>           87        4.9µs    Route to enode: 479 at t=29 with 29 hop(s):
 ```
+
+Run ```cargo run --release --example astar_grid``` to get more meaningful timing numbers. Note that the time/search depends of the machine but hops tried doesn't.

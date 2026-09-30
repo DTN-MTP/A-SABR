@@ -1,5 +1,7 @@
 use std::fmt::Write;
+use std::hint::black_box;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Instant;
 
 use a_sabr::bundle::Bundle;
 use a_sabr::contact_manager::legacy::evl::EVLManager;
@@ -15,6 +17,8 @@ use a_sabr::types::{NodeID, TimeInterval};
 const WIDTH: usize = 30;
 const HEIGHT: usize = 30;
 const HOP_DELAY: i64 = 1;
+/// Number of searches the time is averaged over.
+const RUNS: u32 = 200;
 
 /// Number of hops the pathfinder tried (one `accept` call per candidate hop).
 static HOPS_TRIED: AtomicUsize = AtomicUsize::new(0);
@@ -118,6 +122,20 @@ macro_rules! route {
         let mut destination = graph.node_id_ref($dest.into())?.routable().unwrap();
         let mut finder = NodeParenting::<$distance>::new();
 
+        // A search doesn't book resources, so it can be repeated.
+        let start = Instant::now();
+        for _ in 0..RUNS {
+            black_box(finder.find_path(
+                black_box(&mut graph),
+                0,
+                source,
+                &bundle,
+                &mut destination,
+                None,
+            )?);
+        }
+        let time = start.elapsed() / RUNS;
+
         HOPS_TRIED.store(0, Ordering::Relaxed);
         let res = finder.find_path(&mut graph, 0, source, &bundle, &mut destination, None)?;
         let hops_tried = HOPS_TRIED.load(Ordering::Relaxed);
@@ -128,9 +146,10 @@ macro_rules! route {
             .unwrap_or_else(|| "no route".into());
 
         println!(
-            "{:<12} {:>11}    {}",
+            "{:<12} {:>11} {:>12}    {}",
             stringify!($distance),
             hops_tried,
+            format!("{time:.1?}"),
             arrival
         );
     }};
@@ -141,7 +160,10 @@ fn main() -> Result<(), ASABRError> {
     let source = id(0, HEIGHT / 2);
     let dest = id(WIDTH - 1, HEIGHT / 2);
     println!("{WIDTH}x{HEIGHT} grid, from node {source} to node {dest}\n");
-    println!("{:<12} {:>11}    result", "distance", "hops tried",);
+    println!(
+        "{:<12} {:>11} {:>12}    result",
+        "distance", "hops tried", "time/search"
+    );
     route!(SABR, plan, source, dest);
     route!(AStar<SABR>, plan, source, dest);
     Ok(())
