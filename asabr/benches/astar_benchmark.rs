@@ -6,7 +6,7 @@ use std::{
 use a_sabr::{
     bundle::Bundle,
     contact_manager::segmentation::seg::SegmentationManager,
-    contact_plan::{asabr_file_lexer::parse_from_iter},
+    contact_plan::asabr_file_lexer::parse_from_iter,
     node_manager::{delay_heuristic::DelayHeuristicManager, none::NoManagement},
     pathfinding::{destination::RoutableDest, top_level::aliases::build_astar_router},
 };
