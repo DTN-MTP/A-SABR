@@ -13,6 +13,8 @@ use crate::{
     types::Date,
 };
 
+pub mod aliases;
+
 use core::{
     marker::PhantomData,
     ops::{Deref, DerefMut},
@@ -212,12 +214,13 @@ where
     }
 }
 
-pub struct SingeSourceRouter<
+pub struct Router<
     'id,
     NM: NodeManager,
     CM: ContactManager,
     P: Pathfinding<'id, NM, CM, D>,
     D: FindableDest<'id, NM, CM>,
+    const SINGLE: bool,
 > {
     pub multigraph: Multigraph<'id, NM, CM>,
     pub pathfinder: P,
@@ -225,7 +228,11 @@ pub struct SingeSourceRouter<
     _phantom: PhantomData<fn(D)>,
 }
 
-impl<'id, NM, CM, P, D> Routing<'id, NM, CM, D> for SingeSourceRouter<'id, NM, CM, P, D>
+pub type SingleSourceRouter<'id, NM, CM, P, D> = Router<'id, NM, CM, P, D, true>;
+pub type MultiSourceRouter<'id, NM, CM, P, D> = Router<'id, NM, CM, P, D, false>;
+
+impl<'id, NM, CM, P, D, const SINGLE: bool> Routing<'id, NM, CM, D>
+    for Router<'id, NM, CM, P, D, SINGLE>
 where
     NM: NodeManager,
     CM: ContactManager,
@@ -243,22 +250,19 @@ where
         }
     }
 
-    fn set_source(&mut self, _src: INodeRef<'id>) -> Result<(), ASABRError> {
-        match self.source {
-            Some(_) => Err(ASABRError::RoutingError(
+    fn set_source(&mut self, src: INodeRef<'id>) -> Result<(), ASABRError> {
+        if SINGLE && self.source.is_some() {
+            return Err(ASABRError::RoutingError(
                 "Single source router, source already set",
-            )),
-            None => {
-                self.source = Some(_src);
-                Ok(())
-            }
+            ));
         }
+        self.source = Some(src);
+        Ok(())
     }
+
     fn get_source(&self) -> Result<INodeRef<'id>, ASABRError> {
-        match self.source {
-            Some(src) => Ok(src),
-            None => Err(ASABRError::RoutingError("Source INodeRef isn't not set")),
-        }
+        self.source
+            .ok_or(ASABRError::RoutingError("Source INodeRef isn't set"))
     }
 
     fn parts_mut(&mut self) -> (&mut Multigraph<'id, NM, CM>, &mut P) {
@@ -272,7 +276,8 @@ impl<
     CM: ContactManager,
     P: Pathfinding<'id, NM, CM, D>,
     D: FindableDest<'id, NM, CM>,
-> Deref for SingeSourceRouter<'id, NM, CM, P, D>
+    const SINGLE: bool,
+> Deref for Router<'id, NM, CM, P, D, SINGLE>
 {
     type Target = Multigraph<'id, NM, CM>;
     fn deref(&self) -> &Self::Target {
@@ -286,9 +291,10 @@ impl<
     CM: ContactManager,
     P: Pathfinding<'id, NM, CM, D>,
     D: FindableDest<'id, NM, CM>,
-> DerefMut for SingeSourceRouter<'id, NM, CM, P, D>
+    const SINGLE: bool,
+> DerefMut for Router<'id, NM, CM, P, D, SINGLE>
 {
-    fn deref_mut(&mut self) -> &mut <SingeSourceRouter<'id, NM, CM, P, D> as Deref>::Target {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.multigraph
     }
 }
@@ -299,47 +305,17 @@ pub fn spsn_args(arg: Option<usize>) -> Result<(usize, ()), ASABRError> {
         "SPSN routers require a usize argument",
     ))
 }
-
-/// Builds a `Router` from an already-parsed `ContactPlan`.
-///
-/// `$algo` is the router name used to select the concrete pathfinding
-/// implementation.
-///
-/// Example:
-///
-/// ```ignore
-/// mk_router!(
-///     router,
-///     NoManagement,
-///     CMDynStandard,
-///     "SpsnHybridParenting",
-///     contact_plan
-/// );
-/// ```
-///
-/// The resulting router has the concrete type:
-///
-/// ```ignore
-/// Router<
-///     NM,
-///     CM,
-///     Box<dyn Pathfinding<'id, NM, CM, RoutableNodeRef<'id>> + 'id>,
-///     RoutableNodeRef<'id>,
-/// >
-/// ```
-/// Builds a `Router` from an already-constructed `Multigraph`.
-/// Evaluates to `PyResult<Router<...>>` directly compatible with PyO3.
 #[macro_export]
 macro_rules! mk_router {
     (
         $id:ident,
-        $router_type:ident,
         $NM:ty,
         $CM:ty,
         $prio_count:expr,
         $algo:expr,
         $multigraph:expr,
-        $algo_args:expr
+        $algo_args:expr,
+        $DISTANCE:ty
     ) => {{
         let algo_args: Option<usize> = $algo_args;
 
@@ -362,148 +338,133 @@ macro_rules! mk_router {
                 > + 'a,
         >;
 
-        let pathfinder: TraitObj<'_> = match $algo {
+        // Decided next to each algo's construction, so there is only one list to maintain.
+        enum SourceKind {
+            Multi,
+            Single,
+        }
+
+        let (pathfinder, kind): (TraitObj<'_>, SourceKind) = match $algo {
             // ============================================================
-            // SPSN - SABR
+            // Multi source
             // ============================================================
-            "SpsnNodeParenting" => Box::new(
-                $crate::pathfinding::top_level::aliases::SpsnNodeParenting::<
+            "OracleNodeParenting" => (
+                Box::new(
+                    $crate::pathfinding::dijkstra_impl::NodeParenting::<$DISTANCE>::from((
+                        &$multigraph,
+                        (),
+                    )),
+                ) as TraitObj<'_>,
+                SourceKind::Multi,
+            ),
+
+            "OracleContactParenting" => (
+                Box::new($crate::pathfinding::dijkstra_impl::ContactParenting::<
+                    $NM,
+                    $CM,
+                    $DISTANCE,
+                    $crate::multigraph::RoutableNodeRef<'_>,
+                >::from((&$multigraph, ()))) as TraitObj<'_>,
+                SourceKind::Multi,
+            ),
+
+            "OracleHybridParenting" => (
+                Box::new($crate::pathfinding::dijkstra_impl::HybridParenting::<
+                    $DISTANCE,
+                    $NM,
+                    $CM,
+                >::from((&$multigraph, ()))) as TraitObj<'_>,
+                SourceKind::Multi,
+            ),
+
+            // ============================================================
+            // SPSN
+            // ============================================================
+            "SpsnNodeParenting" => (
+                Box::new($crate::utils::aliases::SpsnNodeParenting::<
                     $prio_count,
                     $NM,
                     $CM,
                     $crate::multigraph::RoutableNodeRef<'_>,
-                >::new((&$multigraph, $crate::utils::spsn_args(algo_args)?).into()),
-            ) as TraitObj<'_>,
+                    $DISTANCE,
+                >::from((
+                    &$multigraph,
+                    $crate::utils::spsn_args(algo_args)?,
+                ))) as TraitObj<'_>,
+                SourceKind::Single,
+            ),
 
-            "SpsnHybridParenting" => Box::new(
-                $crate::pathfinding::top_level::aliases::SpsnHybridParenting::<
+            "SpsnHybridParenting" => (
+                Box::new($crate::utils::aliases::SpsnHybridParenting::<
                     $prio_count,
                     $NM,
                     $CM,
                     $crate::multigraph::RoutableNodeRef<'_>,
-                >::new((&$multigraph, $crate::utils::spsn_args(algo_args)?).into()),
-            ) as TraitObj<'_>,
+                    $DISTANCE,
+                >::from((
+                    &$multigraph,
+                    $crate::utils::spsn_args(algo_args)?,
+                ))) as TraitObj<'_>,
+                SourceKind::Single,
+            ),
 
-            "SpsnContactParenting" => Box::new(
-                $crate::pathfinding::top_level::aliases::SpsnContactParenting::<
+            "SpsnContactParenting" => (
+                Box::new($crate::utils::aliases::SpsnContactParenting::<
                     $prio_count,
                     $NM,
                     $CM,
                     $crate::multigraph::RoutableNodeRef<'_>,
-                >::new((&$multigraph, $crate::utils::spsn_args(algo_args)?).into()),
-            ) as TraitObj<'_>,
+                    $DISTANCE,
+                >::from((
+                    &$multigraph,
+                    $crate::utils::spsn_args(algo_args)?,
+                ))) as TraitObj<'_>,
+                SourceKind::Single,
+            ),
 
             // ============================================================
-            // SPSN - Hop
+            // VolCGR
             // ============================================================
-            "SpsnNodeParentingHop" => Box::new(
-                $crate::pathfinding::top_level::aliases::SpsnNodeParentingHop::<
-                    $prio_count,
+            "VolCgrNodeParenting" => (
+                Box::new(<$crate::utils::aliases::VolCgrNodeParenting<
                     $NM,
                     $CM,
                     $crate::multigraph::RoutableNodeRef<'_>,
-                >::new((&$multigraph, $crate::utils::spsn_args(algo_args)?).into()),
-            ) as TraitObj<'_>,
+                    $DISTANCE,
+                >>::from((&$multigraph, ((), ())))) as TraitObj<'_>,
+                SourceKind::Single,
+            ),
 
-            "SpsnHybridParentingHop" => Box::new(
-                $crate::pathfinding::top_level::aliases::SpsnHybridParentingHop::<
-                    $prio_count,
+            "VolCgrHybridParenting" => (
+                Box::new(<$crate::utils::aliases::VolCgrHybridParenting<
                     $NM,
                     $CM,
                     $crate::multigraph::RoutableNodeRef<'_>,
-                >::new((&$multigraph, $crate::utils::spsn_args(algo_args)?).into()),
-            ) as TraitObj<'_>,
+                    $DISTANCE,
+                >>::from((&$multigraph, ((), ())))) as TraitObj<'_>,
+                SourceKind::Single,
+            ),
 
-            "SpsnContactParentingHop" => Box::new(
-                $crate::pathfinding::top_level::aliases::SpsnContactParentingHop::<
-                    $prio_count,
+            "VolCgrContactParenting" => (
+                Box::new(<$crate::utils::aliases::VolCgrContactParenting<
                     $NM,
                     $CM,
                     $crate::multigraph::RoutableNodeRef<'_>,
-                >::new((&$multigraph, $crate::utils::spsn_args(algo_args)?).into()),
-            ) as TraitObj<'_>,
-
-            // ============================================================
-            // VolCGR - SABR
-            // ============================================================
-            "VolCgrNodeParenting" => Box::new(
-                $crate::pathfinding::top_level::aliases::VolCgrNodeParenting::<
-                    $NM,
-                    $CM,
-                    $crate::multigraph::RoutableNodeRef<'_>,
-                >::new(
-                    $crate::route_storage::table::RoutingTable::new(),
-                    $crate::pathfinding::dijkstra_impl::NodeParenting::new(),
-                ),
-            ) as TraitObj<'_>,
-
-            "VolCgrHybridParenting" => Box::new(
-                $crate::pathfinding::top_level::aliases::VolCgrHybridParenting::<
-                    $NM,
-                    $CM,
-                    $crate::multigraph::RoutableNodeRef<'_>,
-                >::new(
-                    $crate::route_storage::table::RoutingTable::new(),
-                    $crate::pathfinding::dijkstra_impl::HybridParenting::new(),
-                ),
-            ) as TraitObj<'_>,
-
-            "VolCgrContactParenting" => Box::new(
-                $crate::pathfinding::top_level::aliases::VolCgrContactParenting::<
-                    $NM,
-                    $CM,
-                    $crate::multigraph::RoutableNodeRef<'_>,
-                >::new(
-                    $crate::route_storage::table::RoutingTable::new(),
-                    $crate::pathfinding::dijkstra_impl::ContactParenting::new(),
-                ),
-            ) as TraitObj<'_>,
-
-            // ============================================================
-            // VolCGR - Hop
-            // ============================================================
-            "VolCgrNodeParentingHop" => Box::new(
-                $crate::pathfinding::top_level::aliases::VolCgrNodeParentingHop::<
-                    $NM,
-                    $CM,
-                    $crate::multigraph::RoutableNodeRef<'_>,
-                >::new(
-                    $crate::route_storage::table::RoutingTable::new(),
-                    $crate::pathfinding::dijkstra_impl::NodeParenting::new(),
-                ),
-            ) as TraitObj<'_>,
-
-            "VolCgrHybridParentingHop" => Box::new(
-                $crate::pathfinding::top_level::aliases::VolCgrHybridParentingHop::<
-                    $NM,
-                    $CM,
-                    $crate::multigraph::RoutableNodeRef<'_>,
-                >::new(
-                    $crate::route_storage::table::RoutingTable::new(),
-                    $crate::pathfinding::dijkstra_impl::HybridParenting::new(),
-                ),
-            ) as TraitObj<'_>,
-
-            "VolCgrContactParentingHop" => Box::new(
-                $crate::pathfinding::top_level::aliases::VolCgrContactParentingHop::<
-                    $NM,
-                    $CM,
-                    $crate::multigraph::RoutableNodeRef<'_>,
-                >::new(
-                    $crate::route_storage::table::RoutingTable::new(),
-                    $crate::pathfinding::dijkstra_impl::ContactParenting::new(),
-                ),
-            ) as TraitObj<'_>,
+                    $DISTANCE,
+                >>::from((&$multigraph, ((), ())))) as TraitObj<'_>,
+                SourceKind::Single,
+            ),
 
             // ============================================================
             // CGR - First Ending
             // ============================================================
             #[cfg(feature = "contact_suppression")]
-            "CgrFirstEndingHybridParenting" => Box::new(
-                $crate::pathfinding::top_level::aliases::CgrSupressorHybridParenting::<
+            "CgrFirstEndingHybridParenting" => (
+                Box::new($crate::utils::aliases::CgrSupressorHybridParenting::<
                     $NM,
                     $CM,
                     $crate::multigraph::RoutableNodeRef<'_>,
+                    $DISTANCE,
                 >::new(
                     $crate::pathfinding::limiting_contact::Suppressor::new(
                         $crate::pathfinding::dijkstra_impl::HybridParenting::new(),
@@ -512,15 +473,17 @@ macro_rules! mk_router {
                     ),
                     $crate::route_storage::table::RoutingTable::new(),
                     &$multigraph,
-                ),
-            ) as TraitObj<'_>,
+                )) as TraitObj<'_>,
+                SourceKind::Single,
+            ),
 
             #[cfg(feature = "contact_suppression")]
-            "CgrFirstEndingNodeParenting" => Box::new(
-                $crate::pathfinding::top_level::aliases::CgrSupressorNodeParenting::<
+            "CgrFirstEndingNodeParenting" => (
+                Box::new($crate::utils::aliases::CgrSupressorNodeParenting::<
                     $NM,
                     $CM,
                     $crate::multigraph::RoutableNodeRef<'_>,
+                    $DISTANCE,
                 >::new(
                     $crate::pathfinding::limiting_contact::Suppressor::new(
                         $crate::pathfinding::dijkstra_impl::NodeParenting::new(),
@@ -529,15 +492,17 @@ macro_rules! mk_router {
                     ),
                     $crate::route_storage::table::RoutingTable::new(),
                     &$multigraph,
-                ),
-            ) as TraitObj<'_>,
+                )) as TraitObj<'_>,
+                SourceKind::Single,
+            ),
 
             #[cfg(feature = "contact_suppression")]
-            "CgrFirstEndingContactParenting" => Box::new(
-                $crate::pathfinding::top_level::aliases::CgrSupressorContactParenting::<
+            "CgrFirstEndingContactParenting" => (
+                Box::new($crate::utils::aliases::CgrSupressorContactParenting::<
                     $NM,
                     $CM,
                     $crate::multigraph::RoutableNodeRef<'_>,
+                    $DISTANCE,
                 >::new(
                     $crate::pathfinding::limiting_contact::Suppressor::new(
                         $crate::pathfinding::dijkstra_impl::ContactParenting::new(),
@@ -546,70 +511,20 @@ macro_rules! mk_router {
                     ),
                     $crate::route_storage::table::RoutingTable::new(),
                     &$multigraph,
-                ),
-            ) as TraitObj<'_>,
-
-            #[cfg(feature = "contact_suppression")]
-            "CgrFirstEndingHybridParentingHop" => Box::new(
-                $crate::pathfinding::top_level::aliases::CgrSupressorHybridParentingHop::<
-                    $NM,
-                    $CM,
-                    $crate::multigraph::RoutableNodeRef<'_>,
-                >::new(
-                    $crate::pathfinding::limiting_contact::Suppressor::new(
-                        $crate::pathfinding::dijkstra_impl::HybridParenting::new(),
-                        $crate::pathfinding::limiting_contact::ends_earlier_than,
-                        &$multigraph,
-                    ),
-                    $crate::route_storage::table::RoutingTable::new(),
-                    &$multigraph,
-                ),
-            ) as TraitObj<'_>,
-
-            #[cfg(feature = "contact_suppression")]
-            "CgrFirstEndingNodeParentingHop" => Box::new(
-                $crate::pathfinding::top_level::aliases::CgrSupressorNodeParentingHop::<
-                    $NM,
-                    $CM,
-                    $crate::multigraph::RoutableNodeRef<'_>,
-                >::new(
-                    $crate::pathfinding::limiting_contact::Suppressor::new(
-                        $crate::pathfinding::dijkstra_impl::NodeParenting::new(),
-                        $crate::pathfinding::limiting_contact::ends_earlier_than,
-                        &$multigraph,
-                    ),
-                    $crate::route_storage::table::RoutingTable::new(),
-                    &$multigraph,
-                ),
-            ) as TraitObj<'_>,
-
-            #[cfg(feature = "contact_suppression")]
-            "CgrFirstEndingContactParentingHop" => Box::new(
-                $crate::pathfinding::top_level::aliases::CgrSupressorContactParentingHop::<
-                    $NM,
-                    $CM,
-                    $crate::multigraph::RoutableNodeRef<'_>,
-                    $crate::multigraph::RoutableNodeRef<'_>,
-                >::new(
-                    $crate::pathfinding::limiting_contact::Suppressor::new(
-                        $crate::pathfinding::dijkstra_impl::ContactParenting::new(),
-                        $crate::pathfinding::limiting_contact::ends_earlier_than,
-                        &$multigraph,
-                    ),
-                    $crate::route_storage::table::RoutingTable::new(),
-                    &$multigraph,
-                ),
-            ) as TraitObj<'_>,
+                )) as TraitObj<'_>,
+                SourceKind::Single,
+            ),
 
             // ============================================================
             // CGR - First Depleted
             // ============================================================
             #[cfg(all(feature = "contact_suppression", feature = "first_depleted"))]
-            "CgrFirstDepletedHybridParenting" => Box::new(
-                $crate::pathfinding::top_level::aliases::CgrSupressorHybridParenting::<
+            "CgrFirstDepletedHybridParenting" => (
+                Box::new($crate::utils::aliases::CgrSupressorHybridParenting::<
                     $NM,
                     $CM,
                     $crate::multigraph::RoutableNodeRef<'_>,
+                    $DISTANCE,
                 >::new(
                     $crate::pathfinding::limiting_contact::Suppressor::new(
                         $crate::pathfinding::dijkstra_impl::HybridParenting::new(),
@@ -618,15 +533,17 @@ macro_rules! mk_router {
                     ),
                     $crate::route_storage::table::RoutingTable::new(),
                     &$multigraph,
-                ),
-            ) as TraitObj<'_>,
+                )) as TraitObj<'_>,
+                SourceKind::Single,
+            ),
 
             #[cfg(all(feature = "contact_suppression", feature = "first_depleted"))]
-            "CgrFirstDepletedNodeParenting" => Box::new(
-                $crate::pathfinding::top_level::aliases::CgrSupressorNodeParenting::<
+            "CgrFirstDepletedNodeParenting" => (
+                Box::new($crate::utils::aliases::CgrSupressorNodeParenting::<
                     $NM,
                     $CM,
                     $crate::multigraph::RoutableNodeRef<'_>,
+                    $DISTANCE,
                 >::new(
                     $crate::pathfinding::limiting_contact::Suppressor::new(
                         $crate::pathfinding::dijkstra_impl::NodeParenting::new(),
@@ -635,15 +552,17 @@ macro_rules! mk_router {
                     ),
                     $crate::route_storage::table::RoutingTable::new(),
                     &$multigraph,
-                ),
-            ) as TraitObj<'_>,
+                )) as TraitObj<'_>,
+                SourceKind::Single,
+            ),
 
             #[cfg(all(feature = "contact_suppression", feature = "first_depleted"))]
-            "CgrFirstDepletedContactParenting" => Box::new(
-                $crate::pathfinding::top_level::aliases::CgrSupressorContactParenting::<
+            "CgrFirstDepletedContactParenting" => (
+                Box::new($crate::utils::aliases::CgrSupressorContactParenting::<
                     $NM,
                     $CM,
                     $crate::multigraph::RoutableNodeRef<'_>,
+                    $DISTANCE,
                 >::new(
                     $crate::pathfinding::limiting_contact::Suppressor::new(
                         $crate::pathfinding::dijkstra_impl::ContactParenting::new(),
@@ -652,60 +571,9 @@ macro_rules! mk_router {
                     ),
                     $crate::route_storage::table::RoutingTable::new(),
                     &$multigraph,
-                ),
-            ) as TraitObj<'_>,
-
-            #[cfg(all(feature = "contact_suppression", feature = "first_depleted"))]
-            "CgrFirstDepletedHybridParentingHop" => Box::new(
-                $crate::pathfinding::top_level::aliases::CgrSupressorHybridParentingHop::<
-                    $NM,
-                    $CM,
-                    $crate::multigraph::RoutableNodeRef<'_>,
-                >::new(
-                    $crate::pathfinding::limiting_contact::Suppressor::new(
-                        $crate::pathfinding::dijkstra_impl::HybridParenting::new(),
-                        $crate::pathfinding::limiting_contact::had_less_volume_than,
-                        &$multigraph,
-                    ),
-                    $crate::route_storage::table::RoutingTable::new(),
-                    &$multigraph,
-                ),
-            ) as TraitObj<'_>,
-
-            #[cfg(all(feature = "contact_suppression", feature = "first_depleted"))]
-            "CgrFirstDepletedNodeParentingHop" => Box::new(
-                $crate::pathfinding::top_level::aliases::CgrSupressorNodeParentingHop::<
-                    $NM,
-                    $CM,
-                    $crate::multigraph::RoutableNodeRef<'_>,
-                >::new(
-                    $crate::pathfinding::limiting_contact::Suppressor::new(
-                        $crate::pathfinding::dijkstra_impl::NodeParenting::new(),
-                        $crate::pathfinding::limiting_contact::had_less_volume_than,
-                        &$multigraph,
-                    ),
-                    $crate::route_storage::table::RoutingTable::new(),
-                    &$multigraph,
-                ),
-            ) as TraitObj<'_>,
-
-            #[cfg(all(feature = "contact_suppression", feature = "first_depleted"))]
-            "CgrFirstDepletedContactParentingHop" => Box::new(
-                $crate::pathfinding::top_level::aliases::CgrSupressorContactParentingHop::<
-                    $NM,
-                    $CM,
-                    $crate::multigraph::RoutableNodeRef<'_>,
-                    $crate::multigraph::RoutableNodeRef<'_>,
-                >::new(
-                    $crate::pathfinding::limiting_contact::Suppressor::new(
-                        $crate::pathfinding::dijkstra_impl::ContactParenting::new(),
-                        $crate::pathfinding::limiting_contact::had_less_volume_than,
-                        &$multigraph,
-                    ),
-                    $crate::route_storage::table::RoutingTable::new(),
-                    &$multigraph,
-                ),
-            ) as TraitObj<'_>,
+                )) as TraitObj<'_>,
+                SourceKind::Single,
+            ),
 
             _ => {
                 return Err($crate::errors::ASABRError::ContactPlanError(
@@ -715,11 +583,21 @@ macro_rules! mk_router {
         };
 
         use $crate::utils::Routing as _;
-        Ok(Box::new($router_type::<
-            $NM,
-            $CM,
-            _,
-            $crate::multigraph::RoutableNodeRef<'_>,
-        >::new($multigraph, pathfinder)) as RoutingObj<'_>)
+        match kind {
+            SourceKind::Multi => Ok(Box::new($crate::utils::MultiSourceRouter::<
+                $NM,
+                $CM,
+                _,
+                $crate::multigraph::RoutableNodeRef<'_>,
+            >::new($multigraph, pathfinder))
+                as RoutingObj<'_>),
+            SourceKind::Single => Ok(Box::new($crate::utils::SingleSourceRouter::<
+                $NM,
+                $CM,
+                _,
+                $crate::multigraph::RoutableNodeRef<'_>,
+            >::new($multigraph, pathfinder))
+                as RoutingObj<'_>),
+        }
     }};
 }

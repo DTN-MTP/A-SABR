@@ -11,7 +11,7 @@ use a_sabr::{
     node_manager::none::NoManagement,
     parsing::CMDynStandard,
     pathfinding::top_level::aliases::SpsnHybridParenting,
-    utils::{Routing, SingeSourceRouter},
+    utils::{Routing, SingleSourceRouter},
 };
 use generativity::make_guard;
 
@@ -31,7 +31,7 @@ fn main() -> Result<(), ASABRError> {
 
     make_guard!(id);
     let mut router =
-        SingeSourceRouter::<_, _, SpsnHybridParenting<1, _, _, _>, RoutableNodeRef>::build(
+        SingleSourceRouter::<_, _, SpsnHybridParenting<1, _, _, _>, RoutableNodeRef>::build(
             id,
             contact_plan,
             (10, ()),

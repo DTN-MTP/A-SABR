@@ -9,10 +9,10 @@ use std::io::{BufRead, BufReader};
 use std::process::exit;
 
 use a_sabr::contact_plan::{ContactPlan, asabr_file_lexer};
+use a_sabr::distance::sabr::SABR;
 use a_sabr::mk_router;
 use a_sabr::multigraph::{Multigraph, NodeRef};
 use a_sabr::parsing::CMDynStandard;
-use a_sabr::utils::SingeSourceRouter;
 use a_sabr::{bundle::Bundle, errors::ASABRError, node_manager::none::NoManagement};
 use generativity::make_guard;
 
@@ -51,13 +51,13 @@ fn main() -> Result<(), ASABRError> {
     let graph_spsn = Multigraph::new(id, contact_plan_spsn).unwrap();
     let mut spsn_router = mk_router!(
         id,
-        SingeSourceRouter,
         NoManagement,
         CMDynStandard,
         3,
         "SpsnHybridParenting",
         graph_spsn,
-        Some(10)
+        Some(10),
+        SABR
     )?;
 
     let Ok(NodeRef::I(spsn_source)) = spsn_router.node_id_ref(0.into()) else {
@@ -90,13 +90,13 @@ fn main() -> Result<(), ASABRError> {
     let graph_cgr = Multigraph::new(id, contact_plan_volcgr).unwrap();
     let mut volcgr_router = mk_router!(
         id,
-        SingeSourceRouter,
         NoManagement,
         CMDynStandard,
         3,
         "VolCgrHybridParenting",
         graph_cgr,
-        None
+        None,
+        SABR
     )?;
 
     let Ok(NodeRef::I(volcgr_source)) = volcgr_router.node_id_ref(0.into()) else {
@@ -128,13 +128,13 @@ fn main() -> Result<(), ASABRError> {
     let graph_firstending = Multigraph::new(id, contact_plan_firstending).unwrap();
     let mut firstending_router = mk_router!(
         id,
-        SingeSourceRouter,
         NoManagement,
         CMDynStandard,
         3,
         "CgrFirstEndingHybridParenting",
         graph_firstending,
-        None
+        None,
+        SABR
     )?;
 
     let Ok(NodeRef::I(fe_source)) = firstending_router.node_id_ref(0.into()) else {
@@ -152,6 +152,61 @@ fn main() -> Result<(), ASABRError> {
     let out = firstending_router.route(fe_dest, 0, &b, None)?;
 
     println!("--- CGR FirstEnding ---");
+    match out {
+        Some((path_output, first_hop)) => {
+            println!("Path Output: {:?}", path_output);
+            println!("First Hop: {:?}", first_hop);
+        }
+        None => println!("No route found."),
+    }
+
+    // ---- Oracle Hybrid (multi source) ----
+    let contact_plan_oracle = parse_cp(&args[1])?;
+    make_guard!(id);
+    let graph_oracle = Multigraph::new(id, contact_plan_oracle).unwrap();
+    let mut oracle_router = mk_router!(
+        id,
+        NoManagement,
+        CMDynStandard,
+        3,
+        "OracleHybridParenting",
+        graph_oracle,
+        None,
+        SABR
+    )?;
+
+    // Destination (shared by both routings)
+    let Ok(oracle_dest) = oracle_router.node_id_ref(4.into()) else {
+        return Err(ASABRError::ContactPlanError("No node number 4"));
+    };
+    let oracle_dest = oracle_dest.routable()?;
+
+    println!("--- Oracle Hybrid ---");
+
+    // First source: node 0
+    let Ok(NodeRef::I(oracle_src_0)) = oracle_router.node_id_ref(0.into()) else {
+        panic!()
+    };
+    oracle_router.set_source(oracle_src_0)?;
+
+    let out = oracle_router.route(oracle_dest, 0, &b, None)?;
+    println!("Source 0 -> 4");
+    match out {
+        Some((path_output, first_hop)) => {
+            println!("Path Output: {:?}", path_output);
+            println!("First Hop: {:?}", first_hop);
+        }
+        None => println!("No route found."),
+    }
+
+    // Second source: node 1 (allowed because the router is multi source)
+    let Ok(NodeRef::I(oracle_src_1)) = oracle_router.node_id_ref(1.into()) else {
+        panic!()
+    };
+    oracle_router.set_source(oracle_src_1)?;
+
+    let out = oracle_router.route(oracle_dest, 0, &b, None)?;
+    println!("Source 1 -> 4");
     match out {
         Some((path_output, first_hop)) => {
             println!("Path Output: {:?}", path_output);
