@@ -52,6 +52,7 @@ path = "examples/bundle_processing/bundle_processing.rs"
 [[example]]
 name = "eto_management"
 path = "examples/eto_management/eto_management.rs"
+required-features = ["manual_queueing"]
 
 [[example]]
 name = "contact_plans"

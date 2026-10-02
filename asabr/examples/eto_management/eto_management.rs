@@ -1,5 +1,3 @@
-assert_cfg!(feature = "manual_queueing");
-
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
@@ -14,7 +12,6 @@ use a_sabr::parsing::CMDynStandard;
 use a_sabr::pathfinding::top_level::aliases::SpsnHybridParenting;
 use a_sabr::utils::{Routing, SingeSourceRouter};
 use generativity::make_guard;
-use static_assertions::assert_cfg;
 
 fn main() -> Result<(), ASABRError> {
     // We read the file content

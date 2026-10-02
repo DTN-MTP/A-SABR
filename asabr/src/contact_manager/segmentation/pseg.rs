@@ -1,4 +1,6 @@
 #[cfg(feature = "first_depleted")]
+use crate::types::Volume;
+
 use crate::{
     bundle::Bundle,
     contact::ContactInfo,
@@ -7,7 +9,7 @@ use crate::{
         segmentation::{BaseSegmentationManager, Segment},
     },
     errors::ASABRError,
-    types::{DataRate, Date, Duration, Priority, TimeInterval, Volume},
+    types::{DataRate, Date, Duration, Priority, TimeInterval},
 };
 
 extern crate alloc;
@@ -258,7 +260,7 @@ mod tests {
     use crate::contact::ContactInfo;
     use crate::contact_manager::ContactManager;
     use crate::contact_manager::segmentation::Segment;
-    use crate::types::{Date, Duration};
+    use crate::types::{Date, Duration, Volume};
 
     #[derive(Debug, PartialEq, Clone)]
     enum InputSeg {
