@@ -1,5 +1,7 @@
 use a_sabr::contact::Contact;
 use a_sabr::contact_manager::legacy::evl::EVLManager;
+use a_sabr::distance::sabr::SABR;
+use a_sabr::utils::aliases::SpsnHybridParenting;
 use std::alloc::System;
 use std::hint::black_box;
 
@@ -14,7 +16,7 @@ use a_sabr::pathfinding::{HybridParenting, Pathfinding};
 use a_sabr::route_storage::Cached;
 use a_sabr::{
     bundle::Bundle, errors::ASABRError, node_manager::none::NoManagement,
-    pathfinding::top_level::aliases::SpsnHybridParenting, route_storage::cache::TreeCache,
+    route_storage::cache::TreeCache,
 };
 use generativity::make_guard;
 #[global_allocator]
@@ -62,7 +64,7 @@ fn main() -> Result<(), ASABRError> {
         // We create a storage for the Paths
         let table = TreeCache::new(&multigraph, 10);
         // We initialize the routing algorithm with the storage and the contacts/nodes created thanks to the parser
-        let mut spsn = SpsnHybridParenting::<3, _, _, _>::new(Cached::new(
+        let mut spsn = SpsnHybridParenting::<3, _, _, _, SABR>::new(Cached::new(
             table,
             AlwaysAll::new(HybridParenting::new()),
         ));

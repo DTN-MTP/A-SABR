@@ -188,17 +188,6 @@ pub type CgrSupressorContactParentingHop<'id, NM, CM, D, De> = Cgr<
     D,
 >;
 
-/// Options controlling SPSN route selection.
-#[derive(Clone)]
-pub struct SpsnOptions {
-    /// Whether bundle size is checked.
-    pub check_size: bool,
-    /// Whether bundle priority is checked.
-    pub check_priority: bool,
-    /// Maximum number of entries to keep.
-    pub max_entries: usize,
-}
-
 /// Intended for tests / benchmarking where you deal with a bunch of router types, not production code
 /// Initialise the correct router directly where possible
 /// # Safety

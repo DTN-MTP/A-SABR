@@ -3,18 +3,13 @@ use std::{
     io::{BufRead, BufReader},
 };
 
+use a_sabr::mk_router_from_cp;
 use a_sabr::{
-    bundle::Bundle,
-    contact_plan::asabr_file_lexer::parse_from_iter,
-    errors::ASABRError,
-    multigraph::{NodeRef, RoutableNodeRef},
-    node_manager::none::NoManagement,
+    bundle::Bundle, contact_plan::asabr_file_lexer::parse_from_iter, distance::sabr::SABR,
+    errors::ASABRError, multigraph::NodeRef, node_manager::none::NoManagement,
     parsing::CMDynStandard,
-    pathfinding::top_level::aliases::SpsnHybridParenting,
-    utils::{Routing, SingleSourceRouter},
 };
 use generativity::make_guard;
-
 fn main() -> Result<(), ASABRError> {
     let cp_path = "asabr/examples/inter-regional_routing/asabr_format_dynamic.cp";
     // All nodes will have the same management approach (NoManagement) but the contacts may be of various types.
@@ -30,15 +25,20 @@ fn main() -> Result<(), ASABRError> {
     );
 
     make_guard!(id);
-    let mut router =
-        SingleSourceRouter::<_, _, SpsnHybridParenting<1, _, _, _>, RoutableNodeRef>::build(
-            id,
-            contact_plan,
-            (10, ()),
-        )?;
+
+    let mut router = mk_router_from_cp!(
+        id,
+        NoManagement,
+        CMDynStandard,
+        1,
+        "SpsnHybridParenting",
+        contact_plan,
+        Some(10),
+        SABR
+    )?;
 
     println!("Virtual nodes:");
-    println!("{}", *router);
+    println!("{}", router);
 
     println!("\n---\n");
 

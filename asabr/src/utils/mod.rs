@@ -16,6 +16,7 @@ use crate::{
 pub mod aliases;
 
 use core::{
+    fmt::Display,
     marker::PhantomData,
     ops::{Deref, DerefMut},
 };
@@ -189,6 +190,8 @@ where
         )
     }
 
+    fn multigraph(&self) -> &Multigraph<'id, NM, CM>;
+
     fn route<'a>(
         &'a mut self,
         mut destination: D,
@@ -231,6 +234,18 @@ pub struct Router<
 pub type SingleSourceRouter<'id, NM, CM, P, D> = Router<'id, NM, CM, P, D, true>;
 pub type MultiSourceRouter<'id, NM, CM, P, D> = Router<'id, NM, CM, P, D, false>;
 
+impl<'id, NM, CM, P, D, const SINGLE: bool> Display for Router<'id, NM, CM, P, D, SINGLE>
+where
+    NM: NodeManager,
+    CM: ContactManager,
+    P: Pathfinding<'id, NM, CM, D> + Display,
+    D: RoutableDest<'id, NM, CM>,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        self.pathfinder.fmt(f) // or: write!(f, "{}", self.pathfinder)
+    }
+}
+
 impl<'id, NM, CM, P, D, const SINGLE: bool> Routing<'id, NM, CM, D>
     for Router<'id, NM, CM, P, D, SINGLE>
 where
@@ -263,6 +278,10 @@ where
     fn get_source(&self) -> Result<INodeRef<'id>, ASABRError> {
         self.source
             .ok_or(ASABRError::RoutingError("Source INodeRef isn't set"))
+    }
+
+    fn multigraph(&self) -> &Multigraph<'id, NM, CM> {
+        &self.multigraph
     }
 
     fn parts_mut(&mut self) -> (&mut Multigraph<'id, NM, CM>, &mut P) {
@@ -299,14 +318,34 @@ impl<
     }
 }
 
+impl<'a, NM, CM, D, PF> Display for dyn Routing<'a, NM, CM, D, Pathfinder = PF> + 'a
+where
+    NM: NodeManager,
+    CM: ContactManager,
+    D: RoutableDest<'a, NM, CM>,
+    PF: Pathfinding<'a, NM, CM, D>,
+    Multigraph<'a, NM, CM>: Display,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.multigraph())
+    }
+}
+
 #[doc(hidden)]
 pub fn spsn_args(arg: Option<usize>) -> Result<(usize, ()), ASABRError> {
     arg.map(|v| (v, ())).ok_or(ASABRError::ContactPlanError(
         "SPSN routers require a usize argument",
     ))
 }
+
+// Decided next to each algo's construction, so there is only one list to maintain.
+pub enum SourceKind {
+    Multi,
+    Single,
+}
+
 #[macro_export]
-macro_rules! mk_router {
+macro_rules! mk_router_parts {
     (
         $id:ident,
         $NM:ty,
@@ -319,32 +358,7 @@ macro_rules! mk_router {
     ) => {{
         let algo_args: Option<usize> = $algo_args;
 
-        // Alias for the dynamic Trait Object types to coerce match arms
-        type TraitObj<'a> = Box<
-            dyn $crate::pathfinding::Pathfinding<
-                    'a,
-                    $NM,
-                    $CM,
-                    $crate::multigraph::RoutableNodeRef<'a>,
-                > + 'a,
-        >;
-        type RoutingObj<'a> = Box<
-            dyn $crate::utils::Routing<
-                    'a,
-                    $NM,
-                    $CM,
-                    $crate::multigraph::RoutableNodeRef<'a>,
-                    Pathfinder = TraitObj<'a>,
-                > + 'a,
-        >;
-
-        // Decided next to each algo's construction, so there is only one list to maintain.
-        enum SourceKind {
-            Multi,
-            Single,
-        }
-
-        let (pathfinder, kind): (TraitObj<'_>, SourceKind) = match $algo {
+        let (pathfinder, kind): (TraitObj<'_>, $crate::utils::SourceKind) = match $algo {
             // ============================================================
             // Multi source
             // ============================================================
@@ -355,7 +369,7 @@ macro_rules! mk_router {
                         (),
                     )),
                 ) as TraitObj<'_>,
-                SourceKind::Multi,
+                $crate::utils::SourceKind::Multi,
             ),
 
             "OracleContactParenting" => (
@@ -365,7 +379,7 @@ macro_rules! mk_router {
                     $DISTANCE,
                     $crate::multigraph::RoutableNodeRef<'_>,
                 >::from((&$multigraph, ()))) as TraitObj<'_>,
-                SourceKind::Multi,
+                $crate::utils::SourceKind::Multi,
             ),
 
             "OracleHybridParenting" => (
@@ -374,7 +388,7 @@ macro_rules! mk_router {
                     $NM,
                     $CM,
                 >::from((&$multigraph, ()))) as TraitObj<'_>,
-                SourceKind::Multi,
+                $crate::utils::SourceKind::Multi,
             ),
 
             // ============================================================
@@ -391,7 +405,7 @@ macro_rules! mk_router {
                     &$multigraph,
                     $crate::utils::spsn_args(algo_args)?,
                 ))) as TraitObj<'_>,
-                SourceKind::Single,
+                $crate::utils::SourceKind::Single,
             ),
 
             "SpsnHybridParenting" => (
@@ -405,7 +419,7 @@ macro_rules! mk_router {
                     &$multigraph,
                     $crate::utils::spsn_args(algo_args)?,
                 ))) as TraitObj<'_>,
-                SourceKind::Single,
+                $crate::utils::SourceKind::Single,
             ),
 
             "SpsnContactParenting" => (
@@ -419,7 +433,7 @@ macro_rules! mk_router {
                     &$multigraph,
                     $crate::utils::spsn_args(algo_args)?,
                 ))) as TraitObj<'_>,
-                SourceKind::Single,
+                $crate::utils::SourceKind::Single,
             ),
 
             // ============================================================
@@ -432,7 +446,7 @@ macro_rules! mk_router {
                     $crate::multigraph::RoutableNodeRef<'_>,
                     $DISTANCE,
                 >>::from((&$multigraph, ((), ())))) as TraitObj<'_>,
-                SourceKind::Single,
+                $crate::utils::SourceKind::Single,
             ),
 
             "VolCgrHybridParenting" => (
@@ -442,7 +456,7 @@ macro_rules! mk_router {
                     $crate::multigraph::RoutableNodeRef<'_>,
                     $DISTANCE,
                 >>::from((&$multigraph, ((), ())))) as TraitObj<'_>,
-                SourceKind::Single,
+                $crate::utils::SourceKind::Single,
             ),
 
             "VolCgrContactParenting" => (
@@ -452,7 +466,7 @@ macro_rules! mk_router {
                     $crate::multigraph::RoutableNodeRef<'_>,
                     $DISTANCE,
                 >>::from((&$multigraph, ((), ())))) as TraitObj<'_>,
-                SourceKind::Single,
+                $crate::utils::SourceKind::Single,
             ),
 
             // ============================================================
@@ -474,7 +488,7 @@ macro_rules! mk_router {
                     $crate::route_storage::table::RoutingTable::new(),
                     &$multigraph,
                 )) as TraitObj<'_>,
-                SourceKind::Single,
+                $crate::utils::SourceKind::Single,
             ),
 
             #[cfg(feature = "contact_suppression")]
@@ -493,7 +507,7 @@ macro_rules! mk_router {
                     $crate::route_storage::table::RoutingTable::new(),
                     &$multigraph,
                 )) as TraitObj<'_>,
-                SourceKind::Single,
+                $crate::utils::SourceKind::Single,
             ),
 
             #[cfg(feature = "contact_suppression")]
@@ -512,7 +526,7 @@ macro_rules! mk_router {
                     $crate::route_storage::table::RoutingTable::new(),
                     &$multigraph,
                 )) as TraitObj<'_>,
-                SourceKind::Single,
+                $crate::utils::SourceKind::Single,
             ),
 
             // ============================================================
@@ -534,7 +548,7 @@ macro_rules! mk_router {
                     $crate::route_storage::table::RoutingTable::new(),
                     &$multigraph,
                 )) as TraitObj<'_>,
-                SourceKind::Single,
+                $crate::utils::SourceKind::Single,
             ),
 
             #[cfg(all(feature = "contact_suppression", feature = "first_depleted"))]
@@ -553,7 +567,7 @@ macro_rules! mk_router {
                     $crate::route_storage::table::RoutingTable::new(),
                     &$multigraph,
                 )) as TraitObj<'_>,
-                SourceKind::Single,
+                $crate::utils::SourceKind::Single,
             ),
 
             #[cfg(all(feature = "contact_suppression", feature = "first_depleted"))]
@@ -572,7 +586,7 @@ macro_rules! mk_router {
                     $crate::route_storage::table::RoutingTable::new(),
                     &$multigraph,
                 )) as TraitObj<'_>,
-                SourceKind::Single,
+                $crate::utils::SourceKind::Single,
             ),
 
             _ => {
@@ -582,22 +596,135 @@ macro_rules! mk_router {
             }
         };
 
+        (&$multigraph, pathfinder, kind)
+    }};
+}
+
+#[macro_export]
+macro_rules! mk_router_from_graph {
+    (
+        $id:ident,
+        $NM:ty,
+        $CM:ty,
+        $prio_count:expr,
+        $algo:expr,
+        $multigraph:expr,
+        $algo_args:expr,
+        $DISTANCE:ty
+    ) => {{
+        let (multigraph, pathfinder, kind) = $crate::mk_router_parts!(
+            $id,
+            $NM,
+            $CM,
+            $prio_count,
+            $algo,
+            $multigraph,
+            $algo_args,
+            $DISTANCE
+        );
+
+        // Alias for the dynamic Trait Object types to coerce match arms
+        type TraitObj<'a> = Box<
+            dyn $crate::pathfinding::Pathfinding<
+                    'a,
+                    $NM,
+                    $CM,
+                    $crate::multigraph::RoutableNodeRef<'a>,
+                > + 'a,
+        >;
+        type RoutingObj<'a> = Box<
+            dyn $crate::utils::Routing<
+                    'a,
+                    $NM,
+                    $CM,
+                    $crate::multigraph::RoutableNodeRef<'a>,
+                    Pathfinder = TraitObj<'a>,
+                > + 'a,
+        >;
+
         use $crate::utils::Routing as _;
         match kind {
-            SourceKind::Multi => Ok(Box::new($crate::utils::MultiSourceRouter::<
+            $crate::utils::SourceKind::Multi => Ok(Box::new($crate::utils::MultiSourceRouter::<
                 $NM,
                 $CM,
                 _,
                 $crate::multigraph::RoutableNodeRef<'_>,
-            >::new($multigraph, pathfinder))
-                as RoutingObj<'_>),
-            SourceKind::Single => Ok(Box::new($crate::utils::SingleSourceRouter::<
+            >::new(
+                $multigraph, pathfinder
+            )) as RoutingObj<'_>),
+            $crate::utils::SourceKind::Single => Ok(Box::new($crate::utils::SingleSourceRouter::<
                 $NM,
                 $CM,
                 _,
                 $crate::multigraph::RoutableNodeRef<'_>,
-            >::new($multigraph, pathfinder))
-                as RoutingObj<'_>),
+            >::new(
+                $multigraph, pathfinder
+            )) as RoutingObj<'_>),
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! mk_router_from_cp {
+    (
+        $id:ident,
+        $NM:ty,
+        $CM:ty,
+        $prio_count:expr,
+        $algo:expr,
+        $cp:expr,
+        $algo_args:expr,
+        $DISTANCE:ty
+    ) => {{
+        let multigraph = $crate::multigraph::Multigraph::new($id, $cp)?;
+        let (_, pathfinder, kind) = $crate::mk_router_parts!(
+            $id,
+            $NM,
+            $CM,
+            $prio_count,
+            $algo,
+            multigraph,
+            $algo_args,
+            $DISTANCE
+        );
+
+        // Alias for the dynamic Trait Object types to coerce match arms
+        type TraitObj<'a> = Box<
+            dyn $crate::pathfinding::Pathfinding<
+                    'a,
+                    $NM,
+                    $CM,
+                    $crate::multigraph::RoutableNodeRef<'a>,
+                > + 'a,
+        >;
+        type RoutingObj<'a> = Box<
+            dyn $crate::utils::Routing<
+                    'a,
+                    $NM,
+                    $CM,
+                    $crate::multigraph::RoutableNodeRef<'a>,
+                    Pathfinder = TraitObj<'a>,
+                > + 'a,
+        >;
+
+        use $crate::utils::Routing as _;
+        match kind {
+            $crate::utils::SourceKind::Multi => Ok(Box::new($crate::utils::MultiSourceRouter::<
+                $NM,
+                $CM,
+                _,
+                $crate::multigraph::RoutableNodeRef<'_>,
+            >::new(
+                multigraph, pathfinder
+            )) as RoutingObj<'_>),
+            $crate::utils::SourceKind::Single => Ok(Box::new($crate::utils::SingleSourceRouter::<
+                $NM,
+                $CM,
+                _,
+                $crate::multigraph::RoutableNodeRef<'_>,
+            >::new(
+                multigraph, pathfinder
+            )) as RoutingObj<'_>),
         }
     }};
 }

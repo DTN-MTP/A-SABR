@@ -10,7 +10,8 @@ use std::process::exit;
 
 use a_sabr::contact_plan::{ContactPlan, asabr_file_lexer};
 use a_sabr::distance::sabr::SABR;
-use a_sabr::mk_router;
+use a_sabr::mk_router_from_cp;
+use a_sabr::mk_router_from_graph;
 use a_sabr::multigraph::{Multigraph, NodeRef};
 use a_sabr::parsing::CMDynStandard;
 use a_sabr::{bundle::Bundle, errors::ASABRError, node_manager::none::NoManagement};
@@ -49,7 +50,7 @@ fn main() -> Result<(), ASABRError> {
 
     make_guard!(id);
     let graph_spsn = Multigraph::new(id, contact_plan_spsn).unwrap();
-    let mut spsn_router = mk_router!(
+    let mut spsn_router = mk_router_from_graph!(
         id,
         NoManagement,
         CMDynStandard,
@@ -87,14 +88,16 @@ fn main() -> Result<(), ASABRError> {
     // ---- VolCgr ----
     let contact_plan_volcgr = parse_cp(&args[1])?;
     make_guard!(id);
-    let graph_cgr = Multigraph::new(id, contact_plan_volcgr).unwrap();
-    let mut volcgr_router = mk_router!(
+
+    // directly from CP
+    //let graph_cgr = Multigraph::new(id, contact_plan_volcgr).unwrap();
+    let mut volcgr_router = mk_router_from_cp!(
         id,
         NoManagement,
         CMDynStandard,
         3,
         "VolCgrHybridParenting",
-        graph_cgr,
+        contact_plan_volcgr,
         None,
         SABR
     )?;
@@ -126,7 +129,7 @@ fn main() -> Result<(), ASABRError> {
     let contact_plan_firstending = parse_cp(&args[1])?;
     make_guard!(id);
     let graph_firstending = Multigraph::new(id, contact_plan_firstending).unwrap();
-    let mut firstending_router = mk_router!(
+    let mut firstending_router = mk_router_from_graph!(
         id,
         NoManagement,
         CMDynStandard,
@@ -164,7 +167,7 @@ fn main() -> Result<(), ASABRError> {
     let contact_plan_oracle = parse_cp(&args[1])?;
     make_guard!(id);
     let graph_oracle = Multigraph::new(id, contact_plan_oracle).unwrap();
-    let mut oracle_router = mk_router!(
+    let mut oracle_router = mk_router_from_graph!(
         id,
         NoManagement,
         CMDynStandard,

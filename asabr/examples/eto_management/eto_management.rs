@@ -5,12 +5,12 @@ use std::io::BufReader;
 use a_sabr::bundle::Bundle;
 use a_sabr::contact_manager::ContactManager;
 use a_sabr::contact_plan::asabr_file_lexer::parse_from_iter;
+use a_sabr::distance::sabr::SABR;
 use a_sabr::errors::ASABRError;
-use a_sabr::multigraph::RoutableNodeRef;
 use a_sabr::node_manager::none::NoManagement;
 use a_sabr::parsing::CMDynStandard;
-use a_sabr::pathfinding::top_level::aliases::SpsnHybridParenting;
-use a_sabr::utils::{Routing, SingleSourceRouter};
+
+use a_sabr::mk_router_from_cp;
 use generativity::make_guard;
 
 fn main() -> Result<(), ASABRError> {
@@ -24,13 +24,16 @@ fn main() -> Result<(), ASABRError> {
     // Securely initialize the Multigraph lifecycle
     make_guard!(id);
 
-    // We want variations for contact management, register ETO and EVL
-    let mut router = SingleSourceRouter::<
+    let mut router = mk_router_from_cp!(
+        id,
         NoManagement,
         CMDynStandard,
-        SpsnHybridParenting<1, _, _, _>,
-        RoutableNodeRef,
-    >::build(id, contact_plan, (10, ()))?;
+        1,
+        "SpsnHybridParenting",
+        contact_plan,
+        Some(10),
+        SABR
+    )?;
 
     // Retrieve typed references for nodes 0 and 3
     // Validity guarantees are given now, reducing later checks
