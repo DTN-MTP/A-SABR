@@ -358,6 +358,15 @@ macro_rules! mk_router_parts {
     ) => {{
         let algo_args: Option<usize> = $algo_args;
 
+        type TraitObj<'a> = Box<
+            dyn $crate::pathfinding::Pathfinding<
+                    'a,
+                    $NM,
+                    $CM,
+                    $crate::multigraph::RoutableNodeRef<'a>,
+                > + 'a,
+        >;
+
         let (pathfinder, kind): (TraitObj<'_>, $crate::utils::SourceKind) = match $algo {
             // ============================================================
             // Multi source

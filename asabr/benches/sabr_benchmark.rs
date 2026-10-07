@@ -8,7 +8,7 @@ use a_sabr::{
     bundle::Bundle,
     contact_manager::segmentation::seg::SegmentationManager,
     contact_plan::asabr_file_lexer::parse_from_iter,
-    distance::{astar::AStar, sabr::SABR},
+    distance::sabr::SABR,
     errors::ASABRError,
     mk_router_from_cp,
     multigraph::NodeRef,
@@ -72,7 +72,7 @@ pub fn benchmark(c: &mut Criterion) {
             router_name,
             contact_plan.clone(),
             param,
-            AStar<SABR>
+            SABR
         )?;
 
         let Ok(NodeRef::I(src)) = router.node_id_ref(source) else {
