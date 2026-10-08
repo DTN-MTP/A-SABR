@@ -30,11 +30,7 @@ criterion = "0.3"
 trackalloc = "0.4.0"
 
 [[bench]]
-name = "sabr_benchmark"
-harness = false
-
-[[bench]]
-name = "astar_benchmark"
+name = "benchmark"
 harness = false
 
 [[example]]
