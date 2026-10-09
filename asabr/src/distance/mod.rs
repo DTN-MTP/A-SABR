@@ -51,6 +51,21 @@ where
         bundle: &Bundle,
         destination: &D,
     ) -> Ordering;
+
+    /// Compares two `RouteStage` instances to order the priority queue.
+    ///
+    /// This method is used to decide which path is expanded first. `cmp` and `cmp_queue` only
+    /// differ in distances that order the exploration differently, like `AStar`.
+    /// Defaults to `cmp`.
+    fn cmp_queue(
+        first: &PathFragment<'id>,
+        second: &PathFragment<'id>,
+        graph: &Multigraph<'id, NM, CM>,
+        bundle: &Bundle,
+        destination: &D,
+    ) -> Ordering {
+        Self::cmp(first, second, graph, bundle, destination)
+    }
 }
 
 /// Compares two values by an extracted ordering key.

@@ -93,7 +93,7 @@ impl<
         let mut id = self.elts.len();
         self.elts.push(elt);
         while let Some(parent) = parent(id)
-            && D::cmp(&self.elts[parent].0, &elt.0, graph, bundle, dest) == Ordering::Greater
+            && D::cmp_queue(&self.elts[parent].0, &elt.0, graph, bundle, dest) == Ordering::Greater
         {
             self.elts[id] = self.elts[parent];
             id = parent;
@@ -130,7 +130,7 @@ impl<
                             break;
                         }
                         (Some(left), None) => {
-                            if D::cmp(&self.elts[left].0, &fst.0, graph, bundle, dest)
+                            if D::cmp_queue(&self.elts[left].0, &fst.0, graph, bundle, dest)
                                 == Ordering::Less
                             {
                                 self.elts[id] = self.elts[left];
@@ -141,7 +141,7 @@ impl<
                             break;
                         }
                         (Some(left), Some(right)) => {
-                            let min = if D::cmp(
+                            let min = if D::cmp_queue(
                                 &self.elts[left].0,
                                 &self.elts[right].0,
                                 graph,
@@ -153,7 +153,7 @@ impl<
                             } else {
                                 right
                             };
-                            if D::cmp(&self.elts[min].0, &fst.0, graph, bundle, dest)
+                            if D::cmp_queue(&self.elts[min].0, &fst.0, graph, bundle, dest)
                                 == Ordering::Less
                             {
                                 self.elts[id] = self.elts[min];

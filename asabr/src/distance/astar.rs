@@ -27,6 +27,8 @@ impl<
     De: FindableDest<'id, NM, CM>,
 > Distance<'id, NM, CM, De> for AStar<D>
 {
+    /// Paths reaching the same node are compared by `D` alone: the heuristic can
+    /// depend on the arrival time, so comparing by `g + h` could keep a later arrival.
     #[inline(always)]
     fn cmp(
         first: &PathFragment<'id>,
@@ -35,21 +37,35 @@ impl<
         bundle: &Bundle,
         destination: &De,
     ) -> Ordering {
+        D::cmp(first, second, graph, bundle, destination)
+    }
+
+    /// The queue is ordered by `f = g + h`. Ties on `f` go to the smaller `g` (via `D`),
+    /// otherwise a time-dependent heuristic can expand a node from a non-optimal path.
+    #[inline(always)]
+    fn cmp_queue(
+        first: &PathFragment<'id>,
+        second: &PathFragment<'id>,
+        graph: &Multigraph<'id, NM, CM>,
+        bundle: &Bundle,
+        destination: &De,
+    ) -> Ordering {
         let Some(target) = destination.to_id(graph) else {
-            return D::cmp(first, second, graph, bundle, destination);
+            return D::cmp_queue(first, second, graph, bundle, destination);
         };
         let target_nodeid = graph.routable_index_to_nodeid(target);
 
-        let h1 = NM::get_heuristic(first, graph, target_nodeid);
-        let h2 = NM::get_heuristic(second, graph, target_nodeid);
+        let f1 = first
+            .recv
+            .end
+            .saturating_add(NM::get_heuristic(first, graph, target_nodeid));
+        let f2 = second
+            .recv
+            .end
+            .saturating_add(NM::get_heuristic(second, graph, target_nodeid));
 
-        let mut adj_first = *first;
-        let mut adj_second = *second;
-        adj_first.recv.start = adj_first.recv.start.saturating_add(h1);
-        adj_first.recv.end = adj_first.recv.end.saturating_add(h1);
-        adj_second.recv.start = adj_second.recv.start.saturating_add(h2);
-        adj_second.recv.end = adj_second.recv.end.saturating_add(h2);
-        D::cmp(&adj_first, &adj_second, graph, bundle, destination)
+        f1.cmp(&f2)
+            .then_with(|| D::cmp_queue(first, second, graph, bundle, destination))
     }
 }
 
