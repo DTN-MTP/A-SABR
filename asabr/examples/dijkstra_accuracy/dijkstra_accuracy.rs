@@ -78,41 +78,45 @@ fn main() -> Result<(), ASABRError> {
     Ok(())
 
     // === OUTPUT ===
-    // Running with contact plan location=asabr/examples/dijkstra_accuracy/contact_plan_1.cp, and destination node=3
+    // Running with contact plan location=asabr/examples/dijkstra_accuracy/contact_plan_1.cp, and destination node=enode: 3
 
-    // With NodeParentingPath pathfinding. Route to node 3 at t=30 with 3 hop(s):
-    //         - Reach node 0 at t=0 with 0 hop(s)
-    //         - Reach node 1 at t=0 with 1 hop(s)
-    //         - Reach node 2 at t=10 with 2 hop(s)
-    //         - Reach node 3 at t=30 with 3 hop(s)
-    // With ContactParentingPath pathfinding. Route to node 3 at t=30 with 2 hop(s):
-    //         - Reach node 0 at t=0 with 0 hop(s)
-    //         - Reach node 2 at t=25 with 1 hop(s)
-    //         - Reach node 3 at t=30 with 2 hop(s)
-    // With HybridParentingPath pathfinding. Route to node 3 at t=30 with 2 hop(s):
-    //         - Reach node 0 at t=0 with 0 hop(s)
-    //         - Reach node 2 at t=25 with 1 hop(s)
-    //         - Reach node 3 at t=30 with 2 hop(s)
+    // With NodeParentingPath pathfinding. Route to enode: 3 at t=30 with 3 hop(s):
+    //         - Reach node enode: 3 at t=30 with 3 hop(s)
+    //         - Reach node enode: 2 at t=10 with 2 hop(s)
+    //         - Reach node enode: 1 at t=0 with 1 hop(s)
+    //         - Reach node enode: 0 at t=0 with 0 hop(s)
 
-    // Running with contact plan location=asabr/examples/dijkstra_accuracy/contact_plan_2.cp, and destination node=4
+    // With ContactParentingPath pathfinding. Route to enode: 3 at t=30 with 2 hop(s):
+    //         - Reach node enode: 3 at t=30 with 2 hop(s)
+    //         - Reach node enode: 2 at t=25 with 1 hop(s)
+    //         - Reach node enode: 0 at t=0 with 0 hop(s)
 
-    // With NodeParentingPath pathfinding. Route to node 4 at t=50 with 4 hop(s):
-    //         - Reach node 0 at t=0 with 0 hop(s)
-    //         - Reach node 1 at t=0 with 1 hop(s)
-    //         - Reach node 2 at t=10 with 2 hop(s)
-    //         - Reach node 3 at t=20 with 3 hop(s)
-    //         - Reach node 4 at t=50 with 4 hop(s)
-    // With ContactParentingPath pathfinding. Route to node 4 at t=50 with 4 hop(s):
-    //         - Reach node 0 at t=0 with 0 hop(s)
-    //         - Reach node 1 at t=0 with 1 hop(s)
-    //         - Reach node 2 at t=10 with 2 hop(s)
-    //         - Reach node 3 at t=20 with 3 hop(s)
-    //         - Reach node 4 at t=50 with 4 hop(s)
-    // With HybridParentingPath pathfinding. Route to node 4 at t=50 with 3 hop(s):
-    //         - Reach node 0 at t=0 with 0 hop(s)
-    //         - Reach node 2 at t=25 with 1 hop(s)
-    //         - Reach node 3 at t=25 with 2 hop(s)
-    //         - Reach node 4 at t=50 with 3 hop(s)
+    // With HybridParentingPath pathfinding. Route to enode: 3 at t=30 with 2 hop(s):
+    //         - Reach node enode: 3 at t=30 with 2 hop(s)
+    //         - Reach node enode: 2 at t=25 with 1 hop(s)
+    //         - Reach node enode: 0 at t=0 with 0 hop(s)
+
+    // Running with contact plan location=asabr/examples/dijkstra_accuracy/contact_plan_2.cp, and destination node=enode: 4
+
+    // With NodeParentingPath pathfinding. Route to enode: 4 at t=50 with 4 hop(s):
+    //         - Reach node enode: 4 at t=50 with 4 hop(s)
+    //         - Reach node enode: 3 at t=20 with 3 hop(s)
+    //         - Reach node enode: 2 at t=10 with 2 hop(s)
+    //         - Reach node enode: 1 at t=0 with 1 hop(s)
+    //         - Reach node enode: 0 at t=0 with 0 hop(s)
+
+    // With ContactParentingPath pathfinding. Route to enode: 4 at t=50 with 4 hop(s):
+    //         - Reach node enode: 4 at t=50 with 4 hop(s)
+    //         - Reach node enode: 3 at t=20 with 3 hop(s)
+    //         - Reach node enode: 2 at t=10 with 2 hop(s)
+    //         - Reach node enode: 1 at t=0 with 1 hop(s)
+    //         - Reach node enode: 0 at t=0 with 0 hop(s)
+
+    // With HybridParentingPath pathfinding. Route to enode: 4 at t=50 with 3 hop(s):
+    //         - Reach node enode: 4 at t=50 with 3 hop(s)
+    //         - Reach node enode: 3 at t=25 with 2 hop(s)
+    //         - Reach node enode: 2 at t=25 with 1 hop(s)
+    //         - Reach node enode: 0 at t=0 with 0 hop(s)
 
     // N.B.: Results with the single end-to-end "Path" variant. We would get the same results with their "Tree" versions.
 }
