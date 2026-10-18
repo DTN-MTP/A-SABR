@@ -3,9 +3,7 @@ use crate::types::Volume;
 use crate::{
     bundle::Bundle,
     contact::ContactInfo,
-    contact_manager::{
-        segmentation::Segment, ContactManager, ContactManagerTxData,
-    },
+    contact_manager::{ContactManager, ContactManagerTxData, segmentation::Segment},
     errors::ASABRError,
     poly::Polynome,
     types::{Date, Duration, TimeInterval},
@@ -30,10 +28,7 @@ pub struct PolySegManager<const N: usize> {
 }
 
 impl<const N: usize> PolySegManager<N> {
-    pub fn new(
-        polynome: Polynome<N>,
-        delay_intervals: Vec<Segment<Duration>>,
-    ) -> Self {
+    pub fn new(polynome: Polynome<N>, delay_intervals: Vec<Segment<Duration>>) -> Self {
         Self {
             free_intervals: Vec::new(),
             delay_intervals,
@@ -58,13 +53,11 @@ impl<const N: usize> ContactManager for PolySegManager<N> {
                 continue;
             }
             tx_start = Date::max(free_seg.start, at_time);
-            
-            let Some(tx_end) = self.polynome.find_end_bundle(
-                free_seg.start,
-                free_seg.end,
-                tx_start,
-                bundle.size,
-            ) else {
+
+            let Some(tx_end) =
+                self.polynome
+                    .find_end_bundle(free_seg.start, free_seg.end, tx_start, bundle.size)
+            else {
                 continue;
             };
 
@@ -137,7 +130,7 @@ impl<const N: usize> ContactManager for PolySegManager<N> {
             self.original_volume = vol_end - vol_start;
         }
 
-        true 
+        true
     }
 
     #[cfg(feature = "first_depleted")]
@@ -146,15 +139,11 @@ impl<const N: usize> ContactManager for PolySegManager<N> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
-        bundle::Bundle,
-        contact::ContactInfo,
-        contact_manager::ContactManager,
-        poly::Polynome,
+        bundle::Bundle, contact::ContactInfo, contact_manager::ContactManager, poly::Polynome,
         types::TimeInterval,
     };
 
@@ -164,7 +153,7 @@ mod tests {
     fn test_poly_segmentation_simple() {
         // Creation of a constant polynomial (flow rate of 100 units per second)
         let mut coeffs = [0; TEST_N];
-        coeffs[0] = 100; 
+        coeffs[0] = 100;
         let poly = Polynome::new(coeffs, 0);
 
         // Creation of a constant 4-second delay across the entire contact.
@@ -195,7 +184,7 @@ mod tests {
 
         assert!(dry_run_res.is_some(), "The bundle should be able to pass");
         let tx_data = dry_run_res.unwrap();
-        
+
         // Verification of time windows
         assert_eq!(tx_data.send.start, 0);
         assert_eq!(tx_data.send.end, 10);
@@ -203,11 +192,8 @@ mod tests {
         assert_eq!(tx_data.recv.end, 14); // end + delay
 
         // Schedule test: reserving the time
-        let schedule_res = manager.schedule_tx(
-            TimeInterval { start: 0, end: 200 },
-            tx_data,
-            &bundle,
-        );
+        let schedule_res =
+            manager.schedule_tx(TimeInterval { start: 0, end: 200 }, tx_data, &bundle);
         assert!(schedule_res.is_ok(), "Scheduling failed");
 
         // Check of remaining free intervals: [10, 200] must remain.
@@ -226,14 +212,22 @@ mod tests {
         let poly = Polynome::new(coeffs, 0);
 
         // Manager initialization (network delay of 2 units)
-        let delay_segments = vec![Segment { start: 0, end: 100, val: 2 }];
+        let delay_segments = vec![Segment {
+            start: 0,
+            end: 100,
+            val: 2,
+        }];
         let mut manager = PolySegManager::new(poly, delay_segments);
 
         let contact_info = ContactInfo::new(0.into(), 1.into(), 0, 100);
         assert!(manager.try_init(&contact_info));
 
         // Bundle creation (analytically calculated size: 104)
-        let bundle = Bundle { priority: 1, size: 104, expiration: 1000 };
+        let bundle = Bundle {
+            priority: 1,
+            size: 104,
+            expiration: 1000,
+        };
 
         // Capacity prediction execution
         let dry_run_res = manager.dry_run_tx(
@@ -245,10 +239,13 @@ mod tests {
         // Verification of the integration engine and dichotomy
         assert!(dry_run_res.is_some(), "The bundle should pass");
         let tx_data = dry_run_res.unwrap();
-        
+
         assert_eq!(tx_data.send.start, 0);
-        assert_eq!(tx_data.send.end, 4, "The dichotomy did not find the exact root of the polynomial");
+        assert_eq!(
+            tx_data.send.end, 4,
+            "The dichotomy did not find the exact root of the polynomial"
+        );
         assert_eq!(tx_data.recv.start, 2); // 0 + delay(2)
-        assert_eq!(tx_data.recv.end, 6);   // 4 + delay(2)
+        assert_eq!(tx_data.recv.end, 6); // 4 + delay(2)
     }
 }

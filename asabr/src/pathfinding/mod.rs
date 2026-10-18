@@ -455,10 +455,7 @@ fn try_make_hop<'id, 'a, NM: NodeManager + 'a, CM: ContactManager, T: AsRef<Cont
     #[allow(unused_variables)]
     let suppressed = contacts.filter(|(_, _, _, ct)| {
         #[cfg(feature = "contact_suppression")]
-        if ct.as_ref().suppressed {
-            return false;
-        }
-        true
+        !ct.as_ref().suppressed
     });
     let mut best: Option<Best<'id>> = None;
 

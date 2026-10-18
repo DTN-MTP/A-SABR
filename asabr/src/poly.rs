@@ -3,30 +3,36 @@ use crate::types::{Date, Duration, Volume};
 #[derive(Debug, Clone)]
 pub struct Polynome<const N: usize> {
     pub coefficients: [i64; N],
-    pub offset: Date
+    pub offset: Date,
 }
 
-impl<const N: usize> Polynome<N>{
-    pub fn new(coefficients: [i64;N], offset: Date) -> Self{
-        Self {coefficients, offset}
+impl<const N: usize> Polynome<N> {
+    pub fn new(coefficients: [i64; N], offset: Date) -> Self {
+        Self {
+            coefficients,
+            offset,
+        }
     }
 
-    pub fn evaluate_exact_integral(&self, x:Date) -> Volume{
+    pub fn evaluate_exact_integral(&self, x: Date) -> Volume {
         let x_offset: Duration = x - self.offset;
-        self.coefficients
+        if x_offset == 0 {
+            return 0;
+        }
+
+        // Horner (from right to left)
+        let inner: i64 = self.coefficients
             .iter()
             .enumerate()
-            .fold(0, |acc, (i, &c)| {
-                // If the coefficient is 0, the power is not calculated to avoid an unnecessary overflow
-                if c == 0 {
-                    acc
-                } else {
-                    acc + (c * self.pow_simple(x_offset, i + 1)) / (i as i64 + 1)
-                }
-            })
+            .rfold(0, |acc, (i, &c)| {
+                // acc * x + (c / (i + 1))
+                (acc * x_offset) + (c / (i as i64 + 1))
+            });
+
+        inner * x_offset
     }
 
-    fn pow_simple(&self, base:Duration, exp:usize) -> i64{
+    fn pow_simple(&self, base: Duration, exp: usize) -> i64 {
         let mut res = 1;
         for _ in 0..exp {
             res *= base;
@@ -34,7 +40,7 @@ impl<const N: usize> Polynome<N>{
         res
     }
 
-    pub fn find_end_bundle(&self, tx:Date, rx:Date, x:Date, i_target:Volume) -> Option<Date> {
+    pub fn find_end_bundle(&self, tx: Date, rx: Date, x: Date, i_target: Volume) -> Option<Date> {
         if x < tx || x >= rx {
             return None;
         }
@@ -42,7 +48,7 @@ impl<const N: usize> Polynome<N>{
         let f_rx = self.evaluate_exact_integral(rx);
         let available_area: Volume = f_rx - f_x;
 
-        if i_target >= 0 && available_area < i_target{
+        if i_target >= 0 && available_area < i_target {
             return None;
         }
         if i_target < 0 && available_area > i_target {
@@ -65,9 +71,8 @@ impl<const N: usize> Polynome<N>{
             } else {
                 upper_bound = y - 1;
             }
-        } 
+        }
 
         Some(lower_bound)
     }
 }
-
