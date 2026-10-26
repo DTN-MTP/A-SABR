@@ -21,23 +21,15 @@ impl<const N: usize> Polynome<N> {
         }
 
         // Horner (from right to left)
-        let inner: i64 = self.coefficients
+        let inner: Volume = self
+            .coefficients
             .iter()
             .enumerate()
-            .rfold(0, |acc, (i, &c)| {
-                // acc * x + (c / (i + 1))
-                (acc * x_offset) + (c / (i as i64 + 1))
+            .rfold(0 as Volume, |acc, (i, &c)| {
+                (acc * (x_offset as Volume)) + ((c as Volume) / (i as Volume + 1))
             });
 
-        inner * x_offset
-    }
-
-    fn pow_simple(&self, base: Duration, exp: usize) -> i64 {
-        let mut res = 1;
-        for _ in 0..exp {
-            res *= base;
-        }
-        res
+        inner * (x_offset as Volume)
     }
 
     pub fn find_end_bundle(&self, tx: Date, rx: Date, x: Date, i_target: Volume) -> Option<Date> {

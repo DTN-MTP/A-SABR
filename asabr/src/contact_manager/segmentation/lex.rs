@@ -41,9 +41,6 @@ pub type SegmentInfo = (Token, Vec<Segment<Duration>>, Token, Vec<Segment<DataRa
 
 pub const MAX_N: usize = 26;
 
-pub type PolyMax = Polynome<MAX_N>;
-parse_single_tok!(PolyMax);
-
 /// Parsed polynomial segmentation manager data.
 pub type PolySegmentInfo = (Token, Vec<Segment<Duration>>, Token, Vec<i64>, Date);
 
