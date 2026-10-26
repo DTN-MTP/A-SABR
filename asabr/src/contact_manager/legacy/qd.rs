@@ -5,11 +5,11 @@
 use crate::contact_manager::legacy::LegacyManager;
 
 /// Queue-delay manager without priority or budget handling.
-pub type QDManager = LegacyManager<true, true, 1, false>;
+pub type QDManager = LegacyManager<true, true, 1, 0>;
 /// Queue-delay manager with priority handling.
-pub type PQDManager = LegacyManager<true, true, 3, false>;
+pub type PQDManager = LegacyManager<true, true, 3, 0>;
 /// Queue-delay manager with priority and budget handling.
-pub type PBQDManager = LegacyManager<true, true, 3, true>;
+pub type PBQDManager = LegacyManager<true, true, 3, 1>;
 
 #[cfg(test)]
 mod tests {

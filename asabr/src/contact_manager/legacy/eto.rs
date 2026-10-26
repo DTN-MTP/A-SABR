@@ -4,11 +4,11 @@ use crate::contact_manager::legacy::LegacyManager;
 // external means
 
 /// ETO manager without priority or budget handling.
-pub type ETOManager = LegacyManager<true, false, 1, false>;
+pub type ETOManager = LegacyManager<true, false, 1, 0>;
 /// ETO manager with priority handling.
-pub type PETOManager = LegacyManager<true, false, 3, false>;
+pub type PETOManager = LegacyManager<true, false, 3, 0>;
 /// ETO manager with priority and budget handling.
-pub type PBETOManager = LegacyManager<true, false, 3, true>;
+pub type PBETOManager = LegacyManager<true, false, 3, 1>;
 
 #[cfg(test)]
 mod tests {

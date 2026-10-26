@@ -78,13 +78,13 @@ hop-first distance.
 
 This project includes several example programs demonstrating key features:
 
-- **Contact Plans**: See [`examples/contact_plans/`](examples/contact_plans/) for contact plan formats and parsing.
+- **Contact Plans**: See [`asabr/examples/contact_plans/`](asabr/examples/contact_plans/) for contact plan formats and parsing.
 
-- **Dijkstra Accuracy**: See [`examples/dijkstra_accuracy/`](examples/dijkstra_accuracy/) for the implementation of Dijkstra's algorithm accuracy tests.
+- **Dijkstra Accuracy**: See [`asabr/examples/dijkstra_accuracy/`](asabr/examples/dijkstra_accuracy/) for the implementation of Dijkstra's algorithm accuracy tests.
 
-- **ETO Management**: Explore [`examples/eto_management/`](examples/eto_management/) for managing Earliest Transmission Opportunity in the context of the library.
+- **ETO Management**: Explore [`asabr/examples/eto_management/`](asabr/examples/eto_management/) for managing Earliest Transmission Opportunity in the context of the library.
 
-- **Satellite Constellation**: The satellite constellation example can be found in [`examples/satellite_constellation/`](examples/satellite_constellation/) to see how to implement a new resource management approach, to disable retention on nodes.
+- **Satellite Constellation**: The satellite constellation example can be found in [`asabr/examples/satellite_constellation/`](asabr/examples/satellite_constellation/) to see how to implement a new resource management approach, to disable retention on nodes.
 
 
 ## Contact plans

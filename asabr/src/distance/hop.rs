@@ -1,8 +1,12 @@
 use core::cmp::Ordering;
 
 use crate::{
-    bundle::Bundle, contact_manager::ContactManager, multigraph::Multigraph,
-    node_manager::NodeManager, pathfinding::HybridParentingOrd, paths::PathFragment,
+    bundle::Bundle,
+    contact_manager::ContactManager,
+    multigraph::Multigraph,
+    node_manager::NodeManager,
+    pathfinding::{HybridParentingOrd, destination::FindableDest},
+    paths::PathFragment,
 };
 
 use super::Distance;
@@ -16,7 +20,9 @@ use super::Distance;
 #[derive(Debug)]
 pub struct Hop {}
 
-impl<NM: NodeManager, CM: ContactManager> Distance<NM, CM> for Hop {
+impl<'id, NM: NodeManager, CM: ContactManager, D: FindableDest<'id, NM, CM>>
+    Distance<'id, NM, CM, D> for Hop
+{
     /// Compares two `RouteStage` instances to determine their ordering based on
     /// the SABR standard tie-break rules, but by prioritizing fewer hop counts before earliest arrival times.
     ///
@@ -37,11 +43,12 @@ impl<NM: NodeManager, CM: ContactManager> Distance<NM, CM> for Hop {
     /// # Performance
     /// This function is marked with `#[inline(always)]` for potential performance optimizations.
     #[inline(always)]
-    fn cmp<'id>(
+    fn cmp(
         first: &PathFragment<'id>,
         second: &PathFragment<'id>,
         _graph: &Multigraph<'id, NM, CM>,
         _bundle: &Bundle,
+        _dest: &D,
     ) -> Ordering {
         super::cmp_by(first, second, |frag| {
             (frag.hop_count, frag.recv.end, frag.expiration)

@@ -11,7 +11,8 @@ use crate::{
     multigraph::{INodeRef, Multigraph, RoutableNodeRef},
     node_manager::NodeManager,
     pathfinding::{
-        dijkstra::{DijkstraWorkspace, Disktra},
+        destination::FindableDest,
+        dijkstra::{Dijkstra, DijkstraWorkspace},
         flatten,
     },
     paths::{PathFragment, ViaHop},
@@ -37,7 +38,7 @@ where
 }
 
 /// Dijkstra pathfinder using the hybrid-parenting work area.
-pub type HybridParenting<'id, D, NM, CM> = Disktra<HybridParentingWorkArea<'id, NM, CM, D>, D>;
+pub type HybridParenting<'id, D, NM, CM> = Dijkstra<HybridParentingWorkArea<'id, NM, CM, D>, D>;
 
 /// Not intended for public use, use `HybridParenting` directly
 pub struct HybridParentingWorkArea<
@@ -56,10 +57,14 @@ pub struct HybridParentingWorkArea<
     _phantom: PhantomData<fn(NM, CM, D)>,
 }
 
-impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParentingOrd<NM, CM>>
-    DijkstraWorkspace<'id, NM, CM> for HybridParentingWorkArea<'id, NM, CM, D>
+impl<
+    'id,
+    NM: NodeManager,
+    CM: ContactManager,
+    D: Distance<'id, NM, CM, De> + HybridParentingOrd<NM, CM>,
+    De: FindableDest<'id, NM, CM>,
+> DijkstraWorkspace<'id, NM, CM, De> for HybridParentingWorkArea<'id, NM, CM, D>
 {
-    #[inline(always)]
     fn new(graph: &Multigraph<'id, NM, CM>) -> Self {
         Self {
             possible_paths: Vec::new(),
@@ -85,14 +90,20 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParen
         actual_node: RoutableNodeRef<'id>,
         graph: &Multigraph<'id, NM, CM>,
         bundle: &Bundle,
+        dest: &De,
     ) -> Option<usize> {
         match actual_node {
             RoutableNodeRef::I(actual_node) => {
                 let new_idx = self.possible_paths.len();
                 let routes_for_node = &mut self.by_destination[usize::from(actual_node)];
                 if let Some(fst) = routes_for_node.first_mut() {
-                    if D::cmp(&proposition, &self.possible_paths[*fst], graph, bundle)
-                        == Ordering::Less
+                    if D::cmp(
+                        &proposition,
+                        &self.possible_paths[*fst],
+                        graph,
+                        bundle,
+                        dest,
+                    ) == Ordering::Less
                     {
                         if D::keep_both(&proposition, &self.possible_paths[*fst], graph, bundle) {
                             let tmp = *fst;
@@ -106,8 +117,13 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParen
                         }
                     } else {
                         for prop in routes_for_node.iter() {
-                            if D::cmp(&proposition, &self.possible_paths[*prop], graph, bundle)
-                                == Ordering::Less
+                            if D::cmp(
+                                &proposition,
+                                &self.possible_paths[*prop],
+                                graph,
+                                bundle,
+                                dest,
+                            ) == Ordering::Less
                             {
                                 self.possible_paths[*prop] = proposition;
                                 return Some(*prop);
@@ -139,8 +155,13 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParen
                     Some(new_idx)
                 }
                 Some(old) => {
-                    if D::cmp(&proposition, &self.possible_paths[*old], graph, bundle)
-                        == Ordering::Less
+                    if D::cmp(
+                        &proposition,
+                        &self.possible_paths[*old],
+                        graph,
+                        bundle,
+                        dest,
+                    ) == Ordering::Less
                     {
                         self.possible_paths[*old] = proposition;
                         Some(*old)
@@ -159,6 +180,7 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM> + HybridParen
     ) -> bool {
         true
     }
+    #[inline(always)]
     fn poped_relevant_new(
         &mut self,
         frag: PathFragment<'id>,

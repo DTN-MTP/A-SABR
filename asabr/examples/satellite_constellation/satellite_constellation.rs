@@ -140,10 +140,10 @@ fn main() -> Result<(), ASABRError> {
 
     // === OUTPUT ===
     // Running with contact plan location=asabr/examples/satellite_constellation/contact_plan_1.cp, and destination node=2
-    // Route to node 2 at t=11 with 2 hop(s):
-    //         - Reach node 0 at t=0 with 0 hop(s)
-    //         - Reach node 1 at t=0 with 1 hop(s)
-    //         - Reach node 2 at t=11 with 2 hop(s)
+    // Route to enode: 2 at t=11 with 2 hop(s):
+    //         - Reach node enode: 2 at t=11 with 2 hop(s)
+    //         - Reach node enode: 1 at t=0 with 1 hop(s)
+    //         - Reach node enode: 0 at t=0 with 0 hop(s)
 
     // Running with contact plan location=asabr/examples/satellite_constellation/contact_plan_2.cp, and destination node=2
     // No route found to node 2.

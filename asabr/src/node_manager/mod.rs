@@ -2,9 +2,13 @@ extern crate alloc;
 
 use crate::{
     bundle::Bundle,
+    contact_manager::ContactManager,
     errors::ASABRError,
+    multigraph::Multigraph,
+    paths::PathFragment,
     types::{Date, NodeID, TimeInterval},
 };
+pub mod delay_heuristic;
 /// Node manager implementation that applies no resource-management constraints.
 pub mod none;
 
@@ -223,4 +227,14 @@ macro_rules! transparent_NM {
             }
         }
     };
+}
+
+/// A trait to allow a `NodeManager` to have a heuristic. This can then be used in `Distance`
+/// to compare two nodes using their respective heuristics.
+pub trait NodeHeuristic: NodeManager + Sized {
+    fn get_heuristic<'id, CM: ContactManager>(
+        path: &PathFragment<'id>,
+        graph: &Multigraph<'id, Self, CM>,
+        target: NodeID,
+    ) -> Date;
 }

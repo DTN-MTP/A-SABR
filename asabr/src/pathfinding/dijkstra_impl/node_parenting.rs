@@ -11,7 +11,8 @@ use crate::{
     node_manager::NodeManager,
     pathfinding::{
         PathFragment,
-        dijkstra::{DijkstraWorkspace, Disktra},
+        destination::FindableDest,
+        dijkstra::{Dijkstra, DijkstraWorkspace},
     },
     paths::ViaHop,
 };
@@ -27,7 +28,7 @@ use super::super::PathFindingOutput;
 /// * `NM` - A type that implements the `NodeManager` trait.
 /// * `CM` - A type that implements the `ContactManager` trait.
 /// * `D` - A type that implements the `Distance<NM, CM>` trait.
-pub type NodeParenting<'id, D> = Disktra<NodeParentingWorkArea<'id, D>, D>;
+pub type NodeParenting<'id, D> = Dijkstra<NodeParentingWorkArea<'id, D>, D>;
 
 /// Not intended for public use, use `NodeParenting` directly
 pub struct NodeParentingWorkArea<'id, D> {
@@ -36,8 +37,13 @@ pub struct NodeParentingWorkArea<'id, D> {
     _phantom: PhantomData<D>,
 }
 
-impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> DijkstraWorkspace<'id, NM, CM>
-    for NodeParentingWorkArea<'id, D>
+impl<
+    'id,
+    NM: NodeManager,
+    CM: ContactManager,
+    D: Distance<'id, NM, CM, De>,
+    De: FindableDest<'id, NM, CM>,
+> DijkstraWorkspace<'id, NM, CM, De> for NodeParentingWorkArea<'id, D>
 {
     fn new(graph: &Multigraph<'id, NM, CM>) -> Self {
         Self {
@@ -60,12 +66,12 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> DijkstraWork
         node: RoutableNodeRef<'id>,
         graph: &Multigraph<'id, NM, CM>,
         bundle: &Bundle,
+        destination: &De,
     ) -> Option<usize> {
         let dest = &mut self.paths[graph.routable_to_usize(node)];
-        if dest
-            .as_ref()
-            .is_none_or(|old| D::cmp(&proposition, old, graph, bundle) == Ordering::Less)
-        {
+        if dest.as_ref().is_none_or(|old| {
+            D::cmp(&proposition, old, graph, bundle, destination) == Ordering::Less
+        }) {
             *dest = Some(proposition);
             Some(graph.routable_to_usize(node))
         } else {
@@ -76,6 +82,7 @@ impl<'id, NM: NodeManager, CM: ContactManager, D: Distance<NM, CM>> DijkstraWork
     fn node_check(&mut self, node: RoutableNodeRef<'id>, graph: &Multigraph<'id, NM, CM>) -> bool {
         !self.visited[graph.routable_to_usize(node)]
     }
+    #[inline(always)]
     fn poped_relevant_new(
         &mut self,
         frag: PathFragment<'id>,

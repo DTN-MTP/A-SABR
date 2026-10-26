@@ -8,7 +8,7 @@ use crate::{
     node::{Node, NodeInfo},
     node_manager::NodeManager,
     pathfinding::ASABRError,
-    types::{Date, NodeID},
+    types::{DataRate, Date, Duration, NodeID, Priority, Volume},
 };
 
 #[derive(Debug)]
@@ -122,10 +122,10 @@ pub(crate) fn make_vertex<NM: NodeManager>(id: usize, name: &str, nm: NM) -> Rea
 pub(crate) fn make_contact(
     tx: usize,
     rx: usize,
-    start: i64,
-    end: i64,
-    rate: i64,
-    delay: i64,
+    start: Date,
+    end: Date,
+    rate: DataRate,
+    delay: Duration,
 ) -> (Contact<EVLManager>, usize, usize) {
     Contact::try_new(
         ContactInfo::new(tx.into(), rx.into(), start, end),
@@ -134,7 +134,7 @@ pub(crate) fn make_contact(
     .expect("Contact creation failed")
 }
 
-pub(crate) fn make_bundle(priority: i8, size: i64, expiration: Date) -> Bundle {
+pub(crate) fn make_bundle(priority: Priority, size: Volume, expiration: Date) -> Bundle {
     Bundle {
         priority,
         size,

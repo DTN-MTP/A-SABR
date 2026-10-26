@@ -12,6 +12,7 @@ pub use node_parenting::NodeParenting;
 use crate::{parsing::Either, pathfinding::PathFindingOutput, paths::PathFragment};
 
 /// Builds a pathfinding output by selecting path fragments by destination.
+#[inline(always)]
 pub fn flatten<'id, 'a>(
     paths: &[PathFragment<'id>],
     by_dest: impl Iterator<Item = Option<usize>>,

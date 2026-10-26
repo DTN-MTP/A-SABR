@@ -6,30 +6,47 @@ use alloc::vec::Vec;
 
 use crate::{
     bundle::Bundle, contact_manager::ContactManager, distance::Distance, multigraph::Multigraph,
-    node_manager::NodeManager, paths::PathFragment,
+    node_manager::NodeManager, pathfinding::destination::FindableDest, paths::PathFragment,
 };
 
 /// A custom if fairly classical implementation of a priority queue using a binary heap, allowing to pass a reference to the graph in order to compare elements
 /// This is a min priority queue respective to the distance D
 #[derive(Debug, Default)]
-pub struct PrioQueue<'id, D: Distance<NM, CM>, NM: NodeManager, CM: ContactManager, T: Copy> {
+pub struct PrioQueue<
+    'id,
+    D: Distance<'id, NM, CM, De>,
+    NM: NodeManager,
+    CM: ContactManager,
+    De: FindableDest<'id, NM, CM>,
+    T: Copy,
+> {
     /// Triplet pathfragment, node reached by it, custom aditional data
     elts: Vec<(PathFragment<'id>, T)>,
-    _phantom: PhantomData<fn(&'id (), D, NM, CM)>,
+    #[allow(clippy::complexity)]
+    _phantom: PhantomData<fn(&'id (), D, NM, CM, De)>,
 }
 
+// #[inline(always)]
 fn parent(i: usize) -> Option<usize> {
     if i == 0 { None } else { Some((i - 1) / 2) }
 }
+// #[inline(always)]
 fn left_child(i: usize) -> usize {
     2 * i + 1
 }
+// #[inline(always)]
 fn right_child(i: usize) -> usize {
     2 * i + 2
 }
 
-impl<'id, D: Distance<NM, CM>, NM: NodeManager, CM: ContactManager, T: Copy>
-    PrioQueue<'id, D, NM, CM, T>
+impl<
+    'id,
+    D: Distance<'id, NM, CM, De>,
+    NM: NodeManager,
+    CM: ContactManager,
+    De: FindableDest<'id, NM, CM>,
+    T: Copy,
+> PrioQueue<'id, D, NM, CM, De, T>
 {
     /// Create a new empty priority queue
     pub fn new() -> Self {
@@ -45,6 +62,7 @@ impl<'id, D: Distance<NM, CM>, NM: NodeManager, CM: ContactManager, T: Copy>
             _phantom: PhantomData,
         }
     }
+    #[inline(always)]
     fn left_child(&self, i: usize) -> Option<usize> {
         let child = left_child(i);
         if child >= self.elts.len() {
@@ -53,6 +71,7 @@ impl<'id, D: Distance<NM, CM>, NM: NodeManager, CM: ContactManager, T: Copy>
             Some(child)
         }
     }
+    #[inline(always)]
     fn right_child(&self, i: usize) -> Option<usize> {
         let child = right_child(i);
         if child >= self.elts.len() {
@@ -63,16 +82,18 @@ impl<'id, D: Distance<NM, CM>, NM: NodeManager, CM: ContactManager, T: Copy>
     }
     /// Insert an element in the priority queue, sorting it by the distance D, requiring a reference to the graph to do the comparison.
     /// It is obviously a logic error to change the multigraph in a way wich change the distance while having a live queue
+    // #[inline(always)]
     pub fn insert(
         &mut self,
         elt: (PathFragment<'id>, T),
         graph: &Multigraph<'id, NM, CM>,
         bundle: &Bundle,
+        dest: &De,
     ) {
         let mut id = self.elts.len();
         self.elts.push(elt);
         while let Some(parent) = parent(id)
-            && D::cmp(&self.elts[parent].0, &elt.0, graph, bundle) == Ordering::Greater
+            && D::cmp_queue(&self.elts[parent].0, &elt.0, graph, bundle, dest) == Ordering::Greater
         {
             self.elts[id] = self.elts[parent];
             id = parent;
@@ -80,15 +101,18 @@ impl<'id, D: Distance<NM, CM>, NM: NodeManager, CM: ContactManager, T: Copy>
         self.elts[id] = elt;
     }
     /// Check the minimum element
+    #[inline(always)]
     pub fn peek_min(&self) -> Option<&(PathFragment<'id>, T)> {
         self.elts.first()
     }
     /// Pop the minimum element, returning it. Reorganize the queue according to the distance D, requiring a reference to the graph to do the comparison.
     /// It is obviously a logic error to change the multigraph in a way wich change the distance while having a live queue
+    #[inline(always)]
     pub fn pop_min(
         &mut self,
         graph: &Multigraph<'id, NM, CM>,
         bundle: &Bundle,
+        dest: &De,
     ) -> Option<(PathFragment<'id>, T)> {
         if self.elts.is_empty() {
             cold_path();
@@ -106,7 +130,9 @@ impl<'id, D: Distance<NM, CM>, NM: NodeManager, CM: ContactManager, T: Copy>
                             break;
                         }
                         (Some(left), None) => {
-                            if D::cmp(&self.elts[left].0, &fst.0, graph, bundle) == Ordering::Less {
+                            if D::cmp_queue(&self.elts[left].0, &fst.0, graph, bundle, dest)
+                                == Ordering::Less
+                            {
                                 self.elts[id] = self.elts[left];
                                 self.elts[left] = fst;
                             } else {
@@ -115,15 +141,21 @@ impl<'id, D: Distance<NM, CM>, NM: NodeManager, CM: ContactManager, T: Copy>
                             break;
                         }
                         (Some(left), Some(right)) => {
-                            let min =
-                                if D::cmp(&self.elts[left].0, &self.elts[right].0, graph, bundle)
-                                    == Ordering::Less
-                                {
-                                    left
-                                } else {
-                                    right
-                                };
-                            if D::cmp(&self.elts[min].0, &fst.0, graph, bundle) == Ordering::Less {
+                            let min = if D::cmp_queue(
+                                &self.elts[left].0,
+                                &self.elts[right].0,
+                                graph,
+                                bundle,
+                                dest,
+                            ) == Ordering::Less
+                            {
+                                left
+                            } else {
+                                right
+                            };
+                            if D::cmp_queue(&self.elts[min].0, &fst.0, graph, bundle, dest)
+                                == Ordering::Less
+                            {
                                 self.elts[id] = self.elts[min];
                                 id = min
                             } else {
@@ -140,6 +172,7 @@ impl<'id, D: Distance<NM, CM>, NM: NodeManager, CM: ContactManager, T: Copy>
         }
     }
     /// Returns whether the priority queue contains no elements.
+    // #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.elts.is_empty()
     }

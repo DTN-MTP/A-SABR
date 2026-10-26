@@ -1,5 +1,3 @@
-assert_cfg!(feature = "manual_queueing");
-
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
@@ -7,14 +5,13 @@ use std::io::BufReader;
 use a_sabr::bundle::Bundle;
 use a_sabr::contact_manager::ContactManager;
 use a_sabr::contact_plan::asabr_file_lexer::parse_from_iter;
+use a_sabr::distance::sabr::SABR;
 use a_sabr::errors::ASABRError;
-use a_sabr::multigraph::RoutableNodeRef;
 use a_sabr::node_manager::none::NoManagement;
 use a_sabr::parsing::CMDynStandard;
-use a_sabr::pathfinding::top_level::aliases::SpsnHybridParenting;
-use a_sabr::utils::Router;
+
+use a_sabr::mk_router_from_cp;
 use generativity::make_guard;
-use static_assertions::assert_cfg;
 
 fn main() -> Result<(), ASABRError> {
     // We read the file content
@@ -27,17 +24,21 @@ fn main() -> Result<(), ASABRError> {
     // Securely initialize the Multigraph lifecycle
     make_guard!(id);
 
-    // We want variations for contact management, register ETO and EVL
-    let mut router = Router::<
+    let mut router = mk_router_from_cp!(
+        id,
         NoManagement,
         CMDynStandard,
-        SpsnHybridParenting<1, _, _, _>,
-        RoutableNodeRef,
-    >::build(id, contact_plan, (10, ()))?;
+        1,
+        "SpsnHybridParenting",
+        contact_plan,
+        Some(10),
+        SABR
+    )?;
 
     // Retrieve typed references for nodes 0 and 3
     // Validity guarantees are given now, reducing later checks
     let src_0 = router.node_id_ref(0.into()).unwrap().internal().unwrap();
+    router.set_source(src_0)?;
     let dest_3 = router.node_id_ref(3.into()).unwrap().routable().unwrap();
 
     // Scenario 1: Route the first bundle to node 3
@@ -48,7 +49,7 @@ fn main() -> Result<(), ASABRError> {
     };
 
     // let's route with current time == 15
-    let (iter_1, first) = router.route(dest_3, 15, src_0, &bundle_1, None)?.unwrap();
+    let (iter_1, first) = router.route(dest_3, 15, &bundle_1, None)?.unwrap();
 
     println!("{}", iter_1);
 
@@ -68,7 +69,7 @@ fn main() -> Result<(), ASABRError> {
     };
 
     // let's route with current time == 15, and ensure that the queueing is taken into account
-    let (iter_2, first) = router.route(dest_3, 15, src_0, &bundle_2, None)?.unwrap();
+    let (iter_2, first) = router.route(dest_3, 15, &bundle_2, None)?.unwrap();
 
     println!("{}", iter_2);
 
@@ -96,7 +97,7 @@ fn main() -> Result<(), ASABRError> {
     let dest_4 = router.node_id_ref(4.into()).unwrap().routable().unwrap();
 
     // Should fail as the transmission queue is full
-    let out_3 = router.route(dest_4, 15, src_0, &bundle_3, None)?;
+    let out_3 = router.route(dest_4, 15, &bundle_3, None)?;
     println!(
         "Sending bundle 3 to node 4, the routing output should be None: {}",
         out_3.is_none()
@@ -115,7 +116,7 @@ fn main() -> Result<(), ASABRError> {
 
     println!("Retry for bundle 3");
 
-    let (iter_4, _first) = router.route(dest_4, 15, src_0, &bundle_3, None)?.unwrap();
+    let (iter_4, _first) = router.route(dest_4, 15, &bundle_3, None)?.unwrap();
     println!("{}", iter_4);
 
     // === OUTPUT ===

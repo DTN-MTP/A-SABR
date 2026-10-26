@@ -569,6 +569,7 @@ macro_rules! tupples_joy {
 parse_single_tok!(u16, AnyNumber);
 parse_single_tok!(i8, AnyNumber);
 parse_single_tok!(i64, AnyNumber);
+parse_single_tok!(i128, AnyNumber);
 parse_single_tok!(f64, AnyNumber);
 parse_single_tok!(Delimiter);
 

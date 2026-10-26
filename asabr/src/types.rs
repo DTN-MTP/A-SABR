@@ -11,7 +11,7 @@ use core::{fmt::Display, marker::PhantomData, str::FromStr};
 pub struct NodeID(usize);
 
 /// Represents a duration in millisecond. Technically, ASABR never input any duration value itself, so if all manager / contact plan / library user agree, use any unit you want
-pub type Duration = i64;
+pub type Duration = i128;
 
 /// Represents a date. Recommended as a number of millisecond since epoch, same comment as `Duration`.
 pub type Date = Duration;
@@ -20,10 +20,10 @@ pub type Date = Duration;
 pub type Priority = i8;
 
 /// Represents the volume of data (arbitrary unit, recomended in bytes for interop).
-pub type Volume = i64;
+pub type Volume = i128;
 
 /// Represents a data transfer rate (arbtitrary unit, recomended in bits per second for interop.).
-pub type DataRate = i64;
+pub type DataRate = i128;
 
 /// Represents the count of hops in a routing path.
 pub type HopCount = u16;
@@ -41,7 +41,7 @@ pub struct TimeInterval {
 /// Represent an value encompassing all of the above, typically for use in parser
 //  Must implement FromStr and TryInto to all the above
 #[derive(Clone, Copy, Debug)]
-pub struct AnyNumber(i64);
+pub struct AnyNumber(i128);
 assert_impl_all!(
     AnyNumber: TryFrom<&'static str>,
     Into<Duration>,
@@ -98,6 +98,13 @@ impl From<AnyNumber> for i64 {
         value.0 as Self
     }
 }
+
+impl From<AnyNumber> for i128 {
+    fn from(value: AnyNumber) -> Self {
+        value.0 as Self
+    }
+}
+
 impl From<AnyNumber> for usize {
     fn from(value: AnyNumber) -> Self {
         value.0 as Self

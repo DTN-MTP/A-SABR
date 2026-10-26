@@ -27,9 +27,10 @@ manual_queueing = []
 
 [dev-dependencies]
 criterion = "0.3"
+trackalloc = "0.4.0"
 
 [[bench]]
-name = "spsn_benchmark"
+name = "benchmark"
 harness = false
 
 [[example]]
@@ -47,6 +48,7 @@ path = "examples/bundle_processing/bundle_processing.rs"
 [[example]]
 name = "eto_management"
 path = "examples/eto_management/eto_management.rs"
+required-features = ["manual_queueing"]
 
 [[example]]
 name = "contact_plans"
@@ -55,6 +57,18 @@ path = "examples/contact_plans/contact_plans.rs"
 [[example]]
 name = "inter-regional_routing"
 path = "examples/inter-regional_routing/inter-regional_routing.rs"
+
+[[example]]
+name = "memtest"
+path = "examples/memtest/memtest.rs"
+
+[[example]]
+name = "astar_routing"
+path = "examples/astar_routing/astar_routing.rs"
+
+[[example]]
+name = "astar_grid"
+path = "examples/astar_grid/astar_grid.rs"
 
 [[example]]
 name = "polynomial_capacity"

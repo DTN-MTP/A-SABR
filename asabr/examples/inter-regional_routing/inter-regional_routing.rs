@@ -3,18 +3,13 @@ use std::{
     io::{BufRead, BufReader},
 };
 
+use a_sabr::mk_router_from_cp;
 use a_sabr::{
-    bundle::Bundle,
-    contact_plan::asabr_file_lexer::parse_from_iter,
-    errors::ASABRError,
-    multigraph::{NodeRef, RoutableNodeRef},
-    node_manager::none::NoManagement,
+    bundle::Bundle, contact_plan::asabr_file_lexer::parse_from_iter, distance::sabr::SABR,
+    errors::ASABRError, multigraph::NodeRef, node_manager::none::NoManagement,
     parsing::CMDynStandard,
-    pathfinding::top_level::aliases::SpsnHybridParenting,
-    utils::Router,
 };
 use generativity::make_guard;
-
 fn main() -> Result<(), ASABRError> {
     let cp_path = "asabr/examples/inter-regional_routing/asabr_format_dynamic.cp";
     // All nodes will have the same management approach (NoManagement) but the contacts may be of various types.
@@ -30,14 +25,20 @@ fn main() -> Result<(), ASABRError> {
     );
 
     make_guard!(id);
-    let mut router = Router::<_, _, SpsnHybridParenting<1, _, _, _>, RoutableNodeRef>::build(
+
+    let mut router = mk_router_from_cp!(
         id,
+        NoManagement,
+        CMDynStandard,
+        1,
+        "SpsnHybridParenting",
         contact_plan,
-        (10, ()),
+        Some(10),
+        SABR
     )?;
 
     println!("Virtual nodes:");
-    println!("{}", *router);
+    println!("{}", router);
 
     println!("\n---\n");
 
@@ -51,10 +52,11 @@ fn main() -> Result<(), ASABRError> {
     let Ok(NodeRef::I(source)) = router.node_id_ref(0.into()) else {
         panic!("Expected RNodeRef for source node 0")
     };
+    router.set_source(source)?;
     let destination = router.node_id_ref(8.into())?.routable().unwrap();
 
     // We schedule the bundle (resource updates were conducted).
-    let out = router.route(destination, 0, source, &bundle, None)?;
+    let out = router.route(destination, 0, &bundle, None)?;
 
     if let Some((path, _)) = out {
         println!("{}", path);

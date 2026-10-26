@@ -1,5 +1,3 @@
-/// Common router type aliases.
-pub mod aliases;
 /// Contact graph routing implementation.
 pub mod cgr;
 /// SPSN routing implementation.

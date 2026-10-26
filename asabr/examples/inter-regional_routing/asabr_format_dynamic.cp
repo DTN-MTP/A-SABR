@@ -29,5 +29,5 @@ contact 4 0 60 7260 qd 30000 30
 
 # Passageways contacts
 contact 0 5 60 7260 qd 30000 30
-contact 6 1 60 7260 qd 30000 30
+# contact 6 1 60 7260 qd 30000 30  <- Illegal, only outgoing contacts
 contact 2 7 60 7260 qd 30000 30
