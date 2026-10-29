@@ -69,3 +69,7 @@ path = "examples/astar_routing/astar_routing.rs"
 [[example]]
 name = "astar_grid"
 path = "examples/astar_grid/astar_grid.rs"
+
+[[example]]
+name = "polynomial_capacity"
+path = "examples/polynomial_capacity/polynomial_capacity.rs"

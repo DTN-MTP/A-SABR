@@ -5,3 +5,5 @@ This project is open to contributions, including documentation, testing, bug rep
 - Nicolas Le Borgne - code contributions
 - Isaac Lluís - code reviews
 - Louwen Fricout - No-std port
+- Simon Rink with refactor by Tomás Maraschio : A* support
+- Thibaut Scoto di Suoccio - Polynomial capacity segmentation and buffer seg

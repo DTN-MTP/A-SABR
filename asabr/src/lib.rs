@@ -44,5 +44,8 @@ pub mod parsing;
 /// Utility helpers shared by the crate.
 pub mod utils;
 
+/// Module containing the polynomial modeling of contact capacity.
+pub mod poly;
+
 #[macro_use]
 extern crate static_assertions;
