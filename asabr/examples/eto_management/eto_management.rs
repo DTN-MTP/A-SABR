@@ -15,7 +15,7 @@ use generativity::make_guard;
 
 fn main() -> Result<(), ASABRError> {
     // We read the file content
-    let file = File::open("asabr/examples/eto_management/contact_plan_1.cp").unwrap();
+    let file = File::open("asabr/examples/eto_management/contact_plan_1.asabr").unwrap();
     let lines = BufReader::new(file).lines().map(|l| l.unwrap());
 
     // We parse the contact plan
@@ -120,7 +120,7 @@ fn main() -> Result<(), ASABRError> {
     println!("{}", iter_4);
 
     // === OUTPUT ===
-    // Running with contact plan location=asabr/examples/dijkstra_accuracy/contact_plan_1.cp, and destination node=3
+    // Running with contact plan location=asabr/examples/dijkstra_accuracy/contact_plan_1.asabr, and destination node=3
 
     // Route to node 3 at t=220 with 3 hop(s):
     //         - Reach node 0 at t=15 with 0 hop(s)

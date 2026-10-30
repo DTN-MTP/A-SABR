@@ -11,7 +11,7 @@ use a_sabr::{
 };
 use generativity::make_guard;
 fn main() -> Result<(), ASABRError> {
-    let cp_path = "asabr/examples/inter-regional_routing/asabr_format_dynamic.cp";
+    let cp_path = "asabr/examples/inter-regional_routing/asabr_format_dynamic.asabr";
     // All nodes will have the same management approach (NoManagement) but the contacts may be of various types.
     // The manager type is Box<dyn ContactManager> through CMDynStandard, selected by contact-plan markers.
     let file = File::open(cp_path).unwrap();

@@ -63,11 +63,11 @@ fn edge_case_example(cp_path: &str, dest: NodeID) -> Result<(), ASABRError> {
 
 fn main() -> Result<(), ASABRError> {
     edge_case_example(
-        "asabr/examples/dijkstra_accuracy/contact_plan_1.cp",
+        "asabr/examples/dijkstra_accuracy/contact_plan_1.asabr",
         3.into(),
     )?;
     edge_case_example(
-        "asabr/examples/dijkstra_accuracy/contact_plan_2.cp",
+        "asabr/examples/dijkstra_accuracy/contact_plan_2.asabr",
         4.into(),
     )?;
 
@@ -78,7 +78,7 @@ fn main() -> Result<(), ASABRError> {
     Ok(())
 
     // === OUTPUT ===
-    // Running with contact plan location=asabr/examples/dijkstra_accuracy/contact_plan_1.cp, and destination node=enode: 3
+    // Running with contact plan location=asabr/examples/dijkstra_accuracy/contact_plan_1.asabr, and destination node=enode: 3
 
     // With NodeParentingPath pathfinding. Route to enode: 3 at t=30 with 3 hop(s):
     //         - Reach node enode: 3 at t=30 with 3 hop(s)
@@ -96,7 +96,7 @@ fn main() -> Result<(), ASABRError> {
     //         - Reach node enode: 2 at t=25 with 1 hop(s)
     //         - Reach node enode: 0 at t=0 with 0 hop(s)
 
-    // Running with contact plan location=asabr/examples/dijkstra_accuracy/contact_plan_2.cp, and destination node=enode: 4
+    // Running with contact plan location=asabr/examples/dijkstra_accuracy/contact_plan_2.asabr, and destination node=enode: 4
 
     // With NodeParentingPath pathfinding. Route to enode: 4 at t=50 with 4 hop(s):
     //         - Reach node enode: 4 at t=50 with 4 hop(s)

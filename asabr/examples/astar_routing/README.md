@@ -25,7 +25,7 @@ The network has four nodes. Node 0 is the source and node 3 the destination. The
 - through node 1: propagation delay of 10 on each contact, both contacts always available. The bundle arrives at t=20.
 - through node 2: propagation delay of 1 on each contact, but node 2 can only reach node 3 from t=50. The bundle arrives at t=51.
 
-In `contact_plan.cp`, each row entry is the smallest total propagation delay between the two nodes. These are lower bounds on the real delay, since waiting for contacts is ignored.
+In `contact_plan.asabr`, each row entry is the smallest total propagation delay between the two nodes. These are lower bounds on the real delay, since waiting for contacts is ignored.
 
 ### Behavior
 

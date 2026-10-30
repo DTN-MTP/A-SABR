@@ -8,7 +8,7 @@ use a_sabr::contact_plan::asabr_file_lexer::parse_from_iter;
 use a_sabr::node_manager::none::NoManagement;
 
 fn main() {
-    let file = File::open("asabr/examples/polynomial_capacity/poly_format.cp").unwrap();
+    let file = File::open("asabr/examples/polynomial_capacity/poly_format.asabr").unwrap();
     let lines = BufReader::new(file).lines().map(|l| l.unwrap());
 
     // We parse the contact plan statically using PolySegManager

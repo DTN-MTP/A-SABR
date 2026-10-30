@@ -10,7 +10,7 @@ use a_sabr::pathfinding::{NodeParenting, Pathfinding};
 type NM = DelayHeuristicManager<NoManagement>;
 
 fn main() -> Result<(), ASABRError> {
-    let cp = "asabr/examples/astar_routing/contact_plan.cp";
+    let cp = "asabr/examples/astar_routing/contact_plan.asabr";
     let bundle = Bundle {
         priority: 0,
         size: 0,
