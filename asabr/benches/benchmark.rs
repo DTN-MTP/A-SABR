@@ -19,7 +19,7 @@ use generativity::make_guard;
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 pub fn benchmark(c: &mut Criterion) {
-    let file = File::open("benches/astar_graphs/100.tvg").unwrap();
+    let file = File::open("benches/astar_graphs/100.asabr").unwrap();
     let lines = BufReader::new(file).lines().map(|l| l.unwrap());
     let contact_plan =
         parse_from_iter::<DelayHeuristicManager<NoManagement>, SegmentationManager>(lines).unwrap();
