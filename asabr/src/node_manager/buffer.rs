@@ -1,5 +1,7 @@
 extern crate alloc;
+use crate::parse_transparent;
 use alloc::collections::BTreeMap;
+use core::convert::TryFrom;
 
 use crate::{
     bundle::Bundle,
@@ -142,6 +144,16 @@ impl NodeManager for BufferManager {
         Ok(())
     }
 }
+
+impl TryFrom<Volume> for BufferManager {
+    type Error = &'static str;
+
+    fn try_from(capacity: Volume) -> Result<Self, Self::Error> {
+        Ok(BufferManager::new(capacity))
+    }
+}
+
+parse_transparent!(BufferManager, Volume);
 
 #[cfg(test)]
 mod tests {
