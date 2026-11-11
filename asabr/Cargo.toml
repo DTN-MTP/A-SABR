@@ -73,3 +73,7 @@ path = "examples/astar_grid/astar_grid.rs"
 [[example]]
 name = "polynomial_capacity"
 path = "examples/polynomial_capacity/polynomial_capacity.rs"
+
+[[example]]
+name = "buffer_management"
+path = "examples/buffer_management/buffer_management.rs"

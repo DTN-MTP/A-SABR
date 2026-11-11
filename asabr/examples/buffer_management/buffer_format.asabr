@@ -1,0 +1,8 @@
+# Node entry statically parsed with BufferManager: node <id> <name> <capacity>
+node 0 Earth 50000000
+node 1 Satellite 1000
+node 2 Mars 50000000
+
+# Contact entry statically parsed with ETOManager: contact <from> <to> <start> <end> <rate> <delay>
+contact 0 1 0 100 10000 10
+contact 1 2 50 150 10000 10

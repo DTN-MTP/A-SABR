@@ -8,6 +8,8 @@ use crate::{
     paths::PathFragment,
     types::{Date, NodeID, TimeInterval},
 };
+/// Node manager implementation that enforces temporal memory buffer constraints.
+pub mod buffer;
 pub mod delay_heuristic;
 /// Node manager implementation that applies no resource-management constraints.
 pub mod none;
