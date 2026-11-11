@@ -20,13 +20,36 @@ node <id> <name> <capacity>
 
 The script loads a contact plan from `buffer_format.asabr` where node 1 (Satellite) has a maximum memory capacity of 1000.
 
-We simulate two bundles requiring storage on the Satellite during the exact same time window (reception at t=0, transmission between t=50 and t=100):
+We simulate three bundles requiring storage on the Satellite with overlapping retention windows to demonstrate temporal tracking :
+- **Bundle 1**: size 600, retained from t=0 to t=70.
+- **Bundle 2**: size 300, retained from t=20 to t=90 (released after Bundle 1).
+- **Bundle 3**: size 250, attempting to be retained from t=40 to t=60.
 
-- A first bundle of size 600
-- A second bundle of size 500
+```
+volume
+|
+| 1150 |             b3 (250) refused
+|      |
+| 1000 +--------------------------------------------- buffer capacity
+|      |
+|  900 |       +---------------+
+|      |       |    b1 + b2    |
+|  600 |   +---+               |
+|      |   | b1 only           |
+|      |   |                   |
+|  300 |   |                   +-------+
+|      |   |                   |b2 only|
+|    0 +---+---+-------+-------+-------+---+--------> time
+           |   |       |       |       |
+          t=0 t=20    t=40    t=70    t=90
+```
 
 ### Behavior
 
 The `BufferManager` evaluates both retention requests using `dry_run_retention`.
 
-The first bundle is accepted and its memory is committed since its size (600) is within the 1000 capacity limit. When the routing algorithm attempts to reserve space for the second bundle, the manager detects that the combined size (1100) exceeds the maximum capacity and safely rejects the second request.
+**Bundle 1 (600)** is accepted and committed (600 <= 1000).
+
+**Bundle 2 (300)** is accepted and committed, pushing peak volume to 900 strictly between t=20 and t=70.
+
+**Bundle 3 (250)** is rejected. Even though the buffer would have enough space before t=20 or after t=70, accommodating bundle 3 strictly between t=40 and t=60 would push the total volume to 1150 (since both b1 and b2 are present in that window), safely preventing a capacity breach.

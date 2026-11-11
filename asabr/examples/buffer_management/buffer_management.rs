@@ -28,79 +28,80 @@ fn main() {
         RealNode::Enode(node) => node.clone(),
     };
 
-    // bundle of size 600 arrives at the satellite
-    let bundle = Bundle {
+    println!("\nSatellite has a memory capacity of 1000");
+
+    // Bundle 1: retention [0, 70]
+    let bundle1 = Bundle {
         priority: 0,
         size: 600,
         expiration: 1000,
     };
+    let rx1 = TimeInterval { start: 0, end: 10 };
+    let tx1 = TimeInterval { start: 60, end: 70 };
 
-    println!("\nScenario: Satellite has a memory capacity of 1000.");
-    println!(
-        "Routing algorithm tries to reserve memory for a bundle of size {}.",
-        bundle.size
-    );
+    println!("Reserving memory for bundle 1 (size 600) from T=0 to T=70");
 
-    let reception_interval = TimeInterval { start: 0, end: 50 };
-    let transmission_interval = TimeInterval {
-        start: 50,
-        end: 100,
-    };
-
-    let can_retain = satellite_node.manager.dry_run_retention(
-        &bundle,
-        reception_interval,
-        0.into(),
-        transmission_interval,
-        2.into(),
-    );
-
-    println!(
-        "Can the satellite retain the bundle from T=0 to T=100? {}",
-        can_retain
-    );
-
-    if can_retain {
-        let transmissions = vec![(transmission_interval, 2.into())];
+    if satellite_node
+        .manager
+        .dry_run_retention(&bundle1, rx1, 0.into(), tx1, 2.into())
+    {
         satellite_node
             .manager
-            .commit(&bundle, reception_interval, 0.into(), &transmissions)
+            .commit(&bundle1, rx1, 0.into(), &[(tx1, 2.into())])
             .unwrap();
-        println!("Memory committed successfully!");
+        println!("    Success! Peak volume: 600");
     }
 
-    // Try to send another bundle that exceeds remaining capacity
-    let large_bundle = Bundle {
+    // Bundle 2: retention [20, 90]
+    let bundle2 = Bundle {
         priority: 0,
-        size: 500, // 600 + 500 = 1100 (> 1000)
+        size: 300,
         expiration: 1000,
     };
+    let rx2 = TimeInterval { start: 20, end: 30 };
+    let tx2 = TimeInterval { start: 80, end: 90 };
 
-    let can_retain_large = satellite_node.manager.dry_run_retention(
-        &large_bundle,
-        reception_interval,
-        0.into(),
-        transmission_interval,
-        2.into(),
-    );
+    println!("Reserving memory for bundle 2 (size 300) from T=20 to T=90");
 
+    if satellite_node
+        .manager
+        .dry_run_retention(&bundle2, rx2, 0.into(), tx2, 2.into())
+    {
+        satellite_node
+            .manager
+            .commit(&bundle2, rx2, 0.into(), &[(tx2, 2.into())])
+            .unwrap();
+        println!("    Success! Peak volume: 900");
+    }
+
+    // Bundle 3: retention [40, 60]
+    let bundle3 = Bundle {
+        priority: 0,
+        size: 250,
+        expiration: 1000,
+    };
+    let rx3 = TimeInterval { start: 40, end: 45 };
+    let tx3 = TimeInterval { start: 55, end: 60 };
+
+    println!("Reserving memory for bundle 3 (size 250) from T=40 to T=60");
+
+    let can_retain_3 =
+        satellite_node
+            .manager
+            .dry_run_retention(&bundle3, rx3, 0.into(), tx3, 2.into());
     println!(
-        "\nCan the satellite retain a second bundle of size {} in the exact same time window?",
-        large_bundle.size
-    );
-    println!(
-        "Answer: {} (Insufficient capacity, safely rejected)",
-        can_retain_large
+        "    Answer: {} (Insufficient capacity, rejected)",
+        can_retain_3
     );
 
     // === OUTPUT ===
     // A-SABR CP parsed, found 3 nodes (BufferManager) & 2 contacts (ETO)
     //
-    // Scenario: Satellite has a memory capacity of 1000.
-    // Routing algorithm tries to reserve memory for a bundle of size 600.
-    // Can the satellite retain the bundle from T=0 to T=100? true
-    // Memory committed successfully!
-    //
-    // Can the satellite retain a second bundle of size 500 in the exact same time window?
-    // Answer: false (Insufficient capacity, safely rejected)
+    // Satellite has a memory capacity of 1000.
+    // Reserving memory for bundle 1 (size 600) from T=0 to T=70.
+    //     Success! Peak volume: 600
+    // Reserving memory for bundle 2 (size 300) from T=20 to T=90.
+    //     Success! Peak volume: 900
+    // Reserving memory for bundle 3 (size 250) from T=40 to T=60.
+    //     Answer: false (Insufficient capacity, rejected)
 }
