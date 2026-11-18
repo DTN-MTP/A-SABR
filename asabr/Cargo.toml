@@ -77,3 +77,7 @@ path = "examples/polynomial_capacity/polynomial_capacity.rs"
 [[example]]
 name = "buffer_management"
 path = "examples/buffer_management/buffer_management.rs"
+
+[[example]]
+name = "buffer_routing"
+path = "examples/buffer_routing/buffer_routing.rs"

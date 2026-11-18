@@ -1,0 +1,13 @@
+# Nodes with BufferManager: node <id> <name> <capacity>
+# b and c can each store a single bundle of size 10
+node 0 a 1000
+node 1 b 10
+node 2 c 10
+node 3 d 1000
+
+# Contacts with EVLManager: contact <from> <to> <start> <end> <rate> <delay>
+# Path through b reaches d earlier (b -> d opens at t=50, c -> d at t=70)
+contact 0 1 0 100 1 0
+contact 0 2 0 100 1 0
+contact 1 3 50 150 1 0
+contact 2 3 70 170 1 0
